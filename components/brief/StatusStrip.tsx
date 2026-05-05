@@ -153,7 +153,7 @@ function Pill({ href, label, value, sub, barPct, barColor, loading, moodDot }: P
         gap:              '16px',
         flex:             1,
         minWidth:         0,
-        background:       'var(--bg-1)',
+        background:       'rgba(0, 0, 0, 0.42)',
         borderRadius:     '24px',
         padding:          '20px',
         textDecoration:   'none',

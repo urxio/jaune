@@ -23,12 +23,15 @@ export function buildPulseMessage(opts: {
           energyScore, topNote, brief } = opts
 
   const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Hey' : 'Evening'
+  const followUp = hour < 12 ? ', hope you slept well. Today is '
+                 : hour < 17 ? '. Today is '
+                 : ', hope the day treated you well. Today is '
   const lines: MessageLine[] = []
 
   lines.push([
     { text: `${greeting} ` },
     { text: firstName, highlight: 'sage' },
-    { text: ', hope you slept well. Today is ' },
+    { text: followUp },
     { text: `${dayName}, ${day} ${month}`, highlight: 'muted' },
     { text: '.' },
   ])

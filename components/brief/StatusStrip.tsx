@@ -160,11 +160,11 @@ function Pill({ href, label, value, sub, barPct, barColor, loading, moodDot }: P
         cursor:           'pointer',
         position:         'relative',
         overflow:         'hidden',
-        backdropFilter:   'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        backdropFilter:   'blur(32px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
         transition:       'transform 0.18s var(--ease), box-shadow 0.25s var(--ease), border-color 0.25s var(--ease)',
-        boxShadow:        'var(--shadow-card)',
-        border:           '1px solid var(--border)',
+        boxShadow:        'var(--glass-card-shadow)',
+        border:           '1px solid var(--glass-card-border)',
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(0)' }}

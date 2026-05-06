@@ -622,7 +622,7 @@ input:focus,    input:focus-visible {
   text-decoration: none;
   cursor: pointer;
   overflow: hidden;
-  background: var(--glass-card-bg-strong) !important;
+  background: rgba(28, 32, 35, 0.92) !important;
   border: 1px solid var(--glass-card-border) !important;
   border-radius: var(--radius-card) !important;
   box-shadow: var(--glass-card-shadow) !important;
@@ -638,6 +638,10 @@ input:focus,    input:focus-visible {
   pointer-events: none;
   background: var(--card-overlay);
   opacity: 0.22;
+}
+
+.light .status-pill {
+  background: rgba(255, 255, 255, 0.88) !important;
 }
 
 .status-pill:hover {

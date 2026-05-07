@@ -37,7 +37,6 @@ export async function GET(req: Request) {
   ])
 
   const dayName   = new Date(todayDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
-  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
   const scheduledToday  = habits.filter(h => h.isScheduledToday)
   const doneToday       = scheduledToday.filter(h => h.logs.some(l => l.logged_date === todayDate))
@@ -49,7 +48,7 @@ export async function GET(req: Request) {
   const clarifyingBlock  = formatClarifyingQAForPrompt(memory)
 
   const todayBlock = [
-    `Today: ${dayName} ${timeOfDay}`,
+    `Today: ${dayName}`,
     checkin
       ? `Already checked in — energy ${checkin.energy_level}/10${checkin.mood_note ? `, mood: "${checkin.mood_note}"` : ''}`
       : 'Has not checked in yet today',
@@ -75,7 +74,6 @@ Rules:
 - Sound like a thoughtful friend who has been paying attention, not a productivity app.
 - No filler words like "It looks like..." or "I noticed that..." — just say the thing.
 - No emoji. No exclamation marks. No questions.
-- Vary your angle based on the time of day: morning = set the tone for the day; afternoon = check in on momentum; evening = reflect on what happened.
 - If you have no meaningful data yet, say something warm and grounding about the day ahead.
 - Do NOT mention the check-in, habits list, or goals — those are shown separately on the page.`
 

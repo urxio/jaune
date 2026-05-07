@@ -4,7 +4,8 @@ import { readUserMemory, formatMemoryForPrompt, formatSelfProfileForPrompt, form
 import { getTodayCheckin } from '@/lib/db/checkins'
 import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { getActiveGoals } from '@/lib/db/goals'
-import { getUserLocalDate } from '@/lib/db/users'
+import { getUserTimezone } from '@/lib/db/users'
+import { dateInTz, hourInTz } from '@/lib/utils/date'
 import { getCachedPulse, storePulse } from '@/lib/db/pulse'
 
 export const runtime  = 'nodejs'
@@ -17,8 +18,9 @@ export async function GET(req: Request) {
   if (!user) return new Response('Unauthorized', { status: 401 })
 
   const force     = new URL(req.url).searchParams.has('force')
-  const todayDate = await getUserLocalDate(user.id)
-  const hour      = new Date().getHours()
+  const tz        = await getUserTimezone(user.id)
+  const todayDate = dateInTz(tz)
+  const hour      = hourInTz(tz)
 
   if (!force) {
     const cached = await getCachedPulse(user.id, todayDate, hour)

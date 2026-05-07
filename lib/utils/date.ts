@@ -25,6 +25,16 @@ export function dateInTz(timezone = 'UTC'): string {
   }
 }
 
+/** Server-safe. Returns the current hour (0–23) in the given IANA timezone. */
+export function hourInTz(timezone = 'UTC'): number {
+  try {
+    const h = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }).format(new Date())
+    return parseInt(h, 10)
+  } catch {
+    return new Date().getUTCHours()
+  }
+}
+
 /**
  * Client-side only. Returns 'YYYY-MM-DD' in the user's browser local time.
  * Do NOT call this in server components / server actions.

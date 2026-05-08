@@ -448,27 +448,28 @@ export default function JournalSection({
             </div>
 
             {/* ── Writing area ── */}
-            <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
-              <div style={{ maxWidth: '680px', margin: '0 auto', height: '100%', minHeight: '100%' }}>
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={e => handleChange(e.target.value)}
-                  onBlur={handleBlur}
-                  placeholder={isToday
-                    ? 'Write freely — a stream of thought, a few observations, or a detailed account of your day...'
-                    : `Write a reflection for ${formatDisplayDate(selectedDate)}…`}
-                  style={{
-                    width: '100%', height: '100%', minHeight: '100%',
-                    background: 'transparent', border: 'none', outline: 'none',
-                    fontFamily: 'var(--font-sans)', fontSize: '15px',
-                    color: 'var(--text-0)', resize: 'none', lineHeight: 1.8,
-                    padding: '24px 28px', boxSizing: 'border-box',
-                    caretColor: 'var(--gold)',
-                    display: 'block',
-                  }}
-                />
-              </div>
+            <div style={{
+              flex: 1, overflowY: 'auto', scrollbarWidth: 'none',
+              padding: '24px max(28px, calc((100% - 680px) / 2))',
+            }}>
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={e => handleChange(e.target.value)}
+                onBlur={handleBlur}
+                placeholder={isToday
+                  ? 'Write freely — a stream of thought, a few observations, or a detailed account of your day...'
+                  : `Write a reflection for ${formatDisplayDate(selectedDate)}…`}
+                style={{
+                  width: '100%', height: '100%', minHeight: '100%',
+                  background: 'transparent', border: 'none', outline: 'none',
+                  fontFamily: 'var(--font-sans)', fontSize: '15px',
+                  color: 'var(--text-0)', resize: 'none', lineHeight: 1.8,
+                  padding: 0, boxSizing: 'border-box',
+                  caretColor: 'var(--gold)',
+                  display: 'block',
+                }}
+              />
             </div>
 
             {/* ── Locus comment — pinned, always visible ── */}

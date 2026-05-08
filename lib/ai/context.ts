@@ -5,7 +5,8 @@ import { readUserMemory, type UserMemory } from '@/lib/ai/memory'
 import { getTodayJournal, getRecentJournals } from '@/lib/db/journals'
 import { getPlanForDate } from '@/lib/db/planner'
 import { getContextualNotes } from '@/lib/db/memory-notes'
-import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, WeeklyPlanBlock, MemoryNote } from '@/lib/types'
+import { getPeople } from '@/lib/db/people'
+import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, WeeklyPlanBlock, MemoryNote, Person } from '@/lib/types'
 
 export type NeglectedHabit = {
   name: string
@@ -29,10 +30,11 @@ export type BriefContext = {
   isFirstBrief: boolean
   todayPlan: WeeklyPlanBlock[]
   memoryNotes: MemoryNote[]  // contextual notes to surface today
+  catchupPeople: Pick<Person, 'name' | 'notes'>[]
 }
 
 export async function buildBriefContext(userId: string, date: string): Promise<BriefContext> {
-  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, todayPlan] = await Promise.all([
+  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, todayPlan, allPeople] = await Promise.all([
     getActiveGoalsWithSteps(userId),
     getTodayCheckin(userId),
     getRecentCheckins(userId, 7),
@@ -41,6 +43,7 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     getTodayJournal(userId),
     getRecentJournals(userId, 7),
     getPlanForDate(userId, date),
+    getPeople(userId),
   ])
 
   // Build topic keywords from today's context for memory note matching
@@ -75,6 +78,10 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
 
   const memoryNotes = await getContextualNotes(userId, date, topicKeywords)
 
+  const catchupPeople = allPeople
+    .filter(p => p.want_catchup)
+    .map(p => ({ name: p.name, notes: p.notes }))
+
   return {
     date,
     goalsWithSteps,
@@ -90,5 +97,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     isFirstBrief,
     todayPlan,
     memoryNotes,
+    catchupPeople,
   }
 }

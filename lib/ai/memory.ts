@@ -370,3 +370,15 @@ export function formatPeopleForPrompt(memory: UserMemory | null): string {
   lines.push('── END RELATIONSHIPS ──')
   return lines.join('\n')
 }
+
+export function formatCatchupForPrompt(catchupPeople: { name: string; notes: string | null }[]): string {
+  if (catchupPeople.length === 0) return ''
+  const lines: string[] = []
+  lines.push('── CATCH-UP LIST ──')
+  lines.push('The user has explicitly flagged these people as someone they want to reconnect with:')
+  catchupPeople.forEach(p => {
+    lines.push(`• ${p.name}${p.notes ? ` — ${p.notes}` : ''}`)
+  })
+  lines.push('── END CATCH-UP LIST ──')
+  return lines.join('\n')
+}

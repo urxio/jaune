@@ -1,5 +1,5 @@
 import type { BriefContext } from './context'
-import { formatMemoryForPrompt, formatPeopleForPrompt, formatClarifyingQAForPrompt, formatSelfProfileForPrompt, formatDailySummariesForPrompt, formatCorrelationsForPrompt } from './memory'
+import { formatMemoryForPrompt, formatPeopleForPrompt, formatCatchupForPrompt, formatClarifyingQAForPrompt, formatSelfProfileForPrompt, formatDailySummariesForPrompt, formatCorrelationsForPrompt } from './memory'
 
 function roundTo1(n: number): number { return Math.round(n * 10) / 10 }
 
@@ -23,7 +23,7 @@ INTELLIGENCE RULES
 8. PATTERN RECOGNITION: If energy has been declining for 3+ days, mention recovery. If habits have been consistently high, name the streak. If a goal deadline is close with low progress, flag it.
 9. LONG-TERM MEMORY: If a LONG-TERM MEMORY section appears above the daily data, treat it as essential context. Reference the user's historical patterns directly — mention their best energy day if relevant, call out a recurring blocker by name, or acknowledge a habit's long-term consistency. Use the learned patterns to make the brief feel like it comes from an advisor who has been watching for weeks, not just today. Never invent patterns not in the memory.
 10. JOURNAL ENTRIES: If TODAY'S JOURNAL ENTRY or RECENT JOURNAL ENTRIES appear, treat them as the richest personal context available. The journal is the user's unfiltered inner voice. Read it carefully — not just for facts but for emotional tone, underlying concerns, and things they might not have named explicitly. Let journal content meaningfully shape the insight_text and priority reasoning. Never quote journal text directly back to them, but let it be felt in the response.
-11. RELATIONSHIPS: If a RELATIONSHIPS section appears, treat it as the user's social world — real people who matter to them, learned from what they write. Use this to make the brief feel human: if a key person appears in today's mood or journal, acknowledge the context around that relationship. If someone who's been a positive presence hasn't come up recently, a gentle nudge to reach out may fit naturally into a priority. If someone is associated with stress or conflict, acknowledge it with care rather than ignoring it. Never fabricate relationship dynamics — only use what's provided. Never suggest talking to specific people unless their name or context is already present today.
+11. RELATIONSHIPS: If a RELATIONSHIPS section appears, treat it as the user's social world — real people who matter to them, learned from what they write. Use this to make the brief feel human: if a key person appears in today's mood or journal, acknowledge the context around that relationship. If someone who's been a positive presence hasn't come up recently, a gentle nudge to reach out may fit naturally into a priority. If someone is associated with stress or conflict, acknowledge it with care rather than ignoring it. Never fabricate relationship dynamics — only use what's provided. Never suggest talking to specific people unless their name or context is already present today. If a CATCH-UP LIST section appears, the user has explicitly said they want to reconnect with these people — this is a direct signal, stronger than anything inferred from journals. Surface at least one of them naturally: as a priority ("Reach out to [name] — you've been meaning to"), or woven into insight_text when the context feels right. Don't mention all of them at once. Pick the one that fits today's mood and energy best.
 12. ABOUT THIS PERSON: If an ABOUT THIS PERSON section appears, treat it as foundational identity context — who this person is, not just what they do. Their occupation shapes what "work priorities" mean. Their relationship status and kids signal time constraints and emotional priorities. Their personality type informs tone — an introvert with too many meetings needs different support than an extrovert craving more collaboration. Their life context is their own words about where they are right now — use it to make the brief feel grounded in their actual life.
 13. CLARIFIED CONTEXT: If a CLARIFIED CONTEXT section appears, treat those Q&A pairs as direct, first-person answers the user chose to share. They are high-signal, intentional context. Weave them naturally into your insight and reasoning — they should make the brief feel more specific and personally relevant.
 14. CLARIFYING QUESTIONS: After reading all context, if there is a genuine gap that — if filled — would meaningfully change your advice, include up to 2 short clarifying questions in the response. These will be surfaced to the user below their brief as a "Help me understand you better" prompt. Only include questions when the gap is real and the answer would unlock better personalization. Never ask about things already covered in the context. Never force questions — 0 is fine if context is rich. Questions must be conversational and specific — reference something real from today's data, never generic. Max 1 sentence each.
@@ -120,6 +120,13 @@ export function buildUserMessage(ctx: BriefContext): string {
     lines.push('')
   }
 
+  // ── CATCH-UP LIST (people the user explicitly wants to reconnect with) ──
+  const catchupBlock = formatCatchupForPrompt(ctx.catchupPeople)
+  if (catchupBlock) {
+    lines.push(catchupBlock)
+    lines.push('')
+  }
+
   // ── CLARIFIED CONTEXT (user's own answers to past clarifying questions) ──
   const clarifiedBlock = formatClarifyingQAForPrompt(ctx.memory)
   if (clarifiedBlock) {
@@ -127,7 +134,7 @@ export function buildUserMessage(ctx: BriefContext): string {
     lines.push('')
   }
 
-  if (profileBlock || memoryBlock || peopleBlock || clarifiedBlock) {
+  if (profileBlock || memoryBlock || peopleBlock || catchupBlock || clarifiedBlock) {
     lines.push('─'.repeat(40))
     lines.push('')
   }

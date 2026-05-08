@@ -1,5 +1,5 @@
-import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry } from '@/lib/types'
-import { type UserMemory, formatMemoryForPrompt, formatPeopleForPrompt, formatSelfProfileForPrompt } from '@/lib/ai/memory'
+import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, Person } from '@/lib/types'
+import { type UserMemory, formatMemoryForPrompt, formatPeopleForPrompt, formatCatchupForPrompt, formatSelfProfileForPrompt } from '@/lib/ai/memory'
 import type { NeglectedHabit } from '@/lib/ai/context'
 
 export type WeeklyContext = {
@@ -17,6 +17,7 @@ export type WeeklyContext = {
   habitRate: number
   memory: UserMemory | null
   journals: JournalEntry[]
+  catchupPeople: Pick<Person, 'name' | 'notes'>[]
 }
 
 export const WEEKLY_SYSTEM_PROMPT = `You are Locus — an AI companion and life operating system generating a user's weekly reflection. This is not a performance review. It's a weekly conversation with someone who genuinely knows them — who has been watching their energy, habits, and goals all week and wants to help them understand themselves better, not just optimize harder.
@@ -91,7 +92,14 @@ export function buildWeeklyUserMessage(ctx: WeeklyContext): string {
     lines.push('')
   }
 
-  if (profileBlock || memoryBlock || peopleBlock) {
+  // ── CATCH-UP LIST ──
+  const catchupBlock = formatCatchupForPrompt(ctx.catchupPeople)
+  if (catchupBlock) {
+    lines.push(catchupBlock)
+    lines.push('')
+  }
+
+  if (profileBlock || memoryBlock || peopleBlock || catchupBlock) {
     lines.push('─'.repeat(50))
     lines.push('')
   }

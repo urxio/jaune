@@ -245,7 +245,9 @@ export default function JournalSection({
     writeStorage(store)
   }
 
-  const [locusComment,        setLocusComment]        = useState<string | null>(() => commentForDate(todayStr) ?? getCached(todayStr))
+  // Init from server-side data only to keep SSR/hydration in sync.
+  // sessionStorage is read in useEffect after mount.
+  const [locusComment,        setLocusComment]        = useState<string | null>(() => commentForDate(todayStr))
   const [locusCommentLoading, setLocusCommentLoading] = useState(false)
   const [locusCommentError,   setLocusCommentError]   = useState(false)
 

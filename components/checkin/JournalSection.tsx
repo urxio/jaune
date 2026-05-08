@@ -259,6 +259,8 @@ export default function JournalSection({
   const [locusComment,        setLocusComment]        = useState<string | null>(() => commentForDate(todayStr))
   const [locusCommentLoading, setLocusCommentLoading] = useState(false)
   const [locusCommentError,   setLocusCommentError]   = useState(false)
+  const [locusClarification,  setLocusClarification]  = useState<string | null>(null)
+  const [clarificationReply,  setClarificationReply]  = useState('')
 
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -270,6 +272,8 @@ export default function JournalSection({
     setLocusComment(commentForDate(selectedDate) ?? getCached(selectedDate))
     setLocusCommentLoading(false)
     setLocusCommentError(false)
+    setLocusClarification(null)
+    setClarificationReply('')
     setTimeout(() => textareaRef.current?.focus(), 50)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
@@ -300,22 +304,29 @@ export default function JournalSection({
     saveToDb(content, selectedDate)
   }
 
-  const handleShareWithLocus = async () => {
-    if (locusCommentLoading || locusComment) return
-    if (timerRef.current) clearTimeout(timerRef.current)
-    await saveToDb(content, selectedDate)
+  const callLocusComment = async (extra?: { clarification: string; clarificationAnswer: string }) => {
     setLocusCommentLoading(true)
+    setLocusCommentError(false)
     try {
       const res = await fetch('/api/journal/comment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.trim(), date: selectedDate }),
+        body: JSON.stringify({
+          content: content.trim(),
+          date: selectedDate,
+          ...(extra ?? {}),
+        }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const { comment } = await res.json()
-      if (comment) {
-        setLocusComment(comment)
-        setCached(selectedDate, comment)
+      const data = await res.json()
+      if (data.comment) {
+        setLocusComment(data.comment)
+        setCached(selectedDate, data.comment)
+        setLocusClarification(null)
+        setClarificationReply('')
+      } else if (data.clarification) {
+        setLocusClarification(data.clarification)
+        setClarificationReply('')
       } else {
         setLocusCommentError(true)
         setTimeout(() => setLocusCommentError(false), 4000)
@@ -327,6 +338,19 @@ export default function JournalSection({
     } finally {
       setLocusCommentLoading(false)
     }
+  }
+
+  const handleShareWithLocus = async () => {
+    if (locusCommentLoading || locusComment || locusClarification) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+    await saveToDb(content, selectedDate)
+    await callLocusComment()
+  }
+
+  const handleClarificationSubmit = async () => {
+    const answer = clarificationReply.trim()
+    if (!answer || !locusClarification || locusCommentLoading) return
+    await callLocusComment({ clarification: locusClarification, clarificationAnswer: answer })
   }
 
   const journalsForMap: JournalEntry[] = existing
@@ -446,14 +470,14 @@ export default function JournalSection({
             </div>
 
             {/* ── Locus comment — pinned, always visible ── */}
-            {(locusCommentLoading || locusComment || locusCommentError) && (
+            {(locusCommentLoading || locusComment || locusClarification || locusCommentError) && (
               <div style={{
                 flexShrink: 0,
                 borderTop: '1px solid var(--glass-card-border-subtle)',
                 overflow: 'hidden',
                 animation: 'fadeUp 0.3s var(--ease) both',
               }}>
-                {locusCommentLoading && !locusComment && (
+                {locusCommentLoading && !locusComment && !locusClarification && (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '14px 28px',
@@ -465,6 +489,84 @@ export default function JournalSection({
                         <span key={delay} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-3)', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${delay}ms` }} />
                       ))}
                     </span>
+                  </div>
+                )}
+
+                {locusClarification && !locusComment && (
+                  <div>
+                    <div style={{
+                      padding: '10px 28px',
+                      borderBottom: '1px solid var(--glass-card-border-subtle)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <LocusIcon />
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.9 }}>
+                          Locus is curious
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => { setLocusClarification(null); setClarificationReply('') }}
+                        aria-label="Dismiss"
+                        style={{
+                          background: 'none', border: 'none', color: 'var(--text-3)',
+                          cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '0 2px', fontFamily: 'inherit',
+                        }}
+                      >×</button>
+                    </div>
+                    <div style={{ padding: '14px 28px 12px' }}>
+                      <p style={{
+                        margin: '0 0 10px', fontFamily: 'var(--font-serif)', fontSize: '15px',
+                        fontWeight: 300, color: 'var(--text-0)', lineHeight: 1.65,
+                      }}>
+                        {locusClarification}
+                      </p>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                        <textarea
+                          value={clarificationReply}
+                          onChange={e => setClarificationReply(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              handleClarificationSubmit()
+                            }
+                          }}
+                          placeholder="A short answer…"
+                          rows={1}
+                          disabled={locusCommentLoading}
+                          style={{
+                            flex: 1,
+                            background: 'var(--glass-card-bg)',
+                            border: '1px solid var(--glass-card-border)',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            fontFamily: 'inherit', fontSize: '13.5px',
+                            color: 'var(--text-0)', outline: 'none', resize: 'none',
+                            lineHeight: 1.5,
+                            opacity: locusCommentLoading ? 0.6 : 1,
+                          }}
+                        />
+                        <button
+                          onClick={handleClarificationSubmit}
+                          disabled={!clarificationReply.trim() || locusCommentLoading}
+                          style={{
+                            fontSize: '11.5px', padding: '7px 14px',
+                            background: !clarificationReply.trim() || locusCommentLoading
+                              ? 'var(--glass-card-bg)'
+                              : 'linear-gradient(135deg, color-mix(in srgb, var(--gold) 18%, transparent), color-mix(in srgb, var(--gold) 8%, transparent))',
+                            border: '1px solid color-mix(in srgb, var(--gold) 45%, transparent)',
+                            borderRadius: '8px',
+                            color: !clarificationReply.trim() || locusCommentLoading ? 'var(--text-3)' : 'var(--gold)',
+                            cursor: !clarificationReply.trim() || locusCommentLoading ? 'default' : 'pointer',
+                            fontFamily: 'inherit', fontWeight: 600,
+                            backdropFilter: 'blur(12px)',
+                            transition: 'opacity 0.2s',
+                          }}
+                        >
+                          {locusCommentLoading ? 'Sending…' : 'Reply'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -537,7 +639,7 @@ export default function JournalSection({
                     Save now
                   </button>
                 )}
-                {wordCount >= 10 && !locusComment && (
+                {wordCount >= 10 && !locusComment && !locusClarification && (
                   <button
                     onClick={handleShareWithLocus}
                     disabled={locusCommentLoading}

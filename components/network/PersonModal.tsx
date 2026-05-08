@@ -6,10 +6,11 @@ import { createPersonAction, updatePersonAction } from '@/app/actions/people'
 import { inputStyle, labelStyle } from '@/components/ui/FormStyles'
 
 const GROUPS: { value: PersonGroup; label: string }[] = [
+  { value: 'partner',       label: 'Partner'       },
   { value: 'friends',       label: 'Friends'       },
-  { value: 'acquaintances', label: 'Acquaintances' },
-  { value: 'work',          label: 'Work'          },
   { value: 'family',        label: 'Family'        },
+  { value: 'work',          label: 'Work'          },
+  { value: 'acquaintances', label: 'Acquaintances' },
 ]
 
 type FormData = { name: string; group: PersonGroup; notes: string }
@@ -86,7 +87,7 @@ export default function PersonModal({
 
           <div>
             <label style={labelStyle}>Group</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
               {GROUPS.map(g => {
                 const active = form.group === g.value
                 return (

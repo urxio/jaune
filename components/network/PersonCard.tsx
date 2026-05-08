@@ -9,6 +9,7 @@ const GROUP_COLORS: Record<PersonGroup, string> = {
   acquaintances: 'var(--text-3)',
   work:          'var(--gold)',
   family:        '#a78bbb',
+  partner:       '#e07a8a',
 }
 
 const GROUP_BG: Record<PersonGroup, string> = {
@@ -16,6 +17,7 @@ const GROUP_BG: Record<PersonGroup, string> = {
   acquaintances: 'rgba(140,140,140,0.10)',
   work:          'rgba(212,168,83,0.12)',
   family:        'rgba(167,139,187,0.12)',
+  partner:       'rgba(224,122,138,0.12)',
 }
 
 export default function PersonCard({

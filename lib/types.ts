@@ -151,7 +151,7 @@ export type MemoryNote = {
   created_at: string
 }
 
-export type PersonGroup = 'friends' | 'acquaintances' | 'work' | 'family'
+export type PersonGroup = 'friends' | 'acquaintances' | 'work' | 'family' | 'partner'
 
 export type Person = {
   id: string

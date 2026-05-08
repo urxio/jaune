@@ -7,7 +7,7 @@ import { createPersonAction } from '@/app/actions/people'
 const RELATIONSHIP_TO_GROUP: Record<string, PersonGroup> = {
   friend:    'friends',
   family:    'family',
-  partner:   'family',
+  partner:   'partner',
   colleague: 'work',
   manager:   'work',
   other:     'acquaintances',
@@ -155,7 +155,7 @@ export default function LocusSuggestions({
                 </p>
                 {/* Group picker */}
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                  {(['friends', 'acquaintances', 'work', 'family'] as PersonGroup[]).map(g => {
+                  {(['partner', 'friends', 'family', 'work', 'acquaintances'] as PersonGroup[]).map(g => {
                     const active = groups[s.name] === g
                     return (
                       <button

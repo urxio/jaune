@@ -7,8 +7,9 @@ import PersonCard from './PersonCard'
 import PersonModal from './PersonModal'
 import LocusSuggestions from './LocusSuggestions'
 
-const GROUP_ORDER: PersonGroup[] = ['friends', 'family', 'work', 'acquaintances']
+const GROUP_ORDER: PersonGroup[] = ['partner', 'friends', 'family', 'work', 'acquaintances']
 const GROUP_LABELS: Record<PersonGroup, string> = {
+  partner:       'Partner',
   friends:       'Friends',
   family:        'Family',
   work:          'Work',

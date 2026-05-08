@@ -2,7 +2,35 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { PersonGroup } from '@/lib/types'
+import { readUserMemory } from '@/lib/ai/memory'
+import type { PersonGroup, PersonSuggestion } from '@/lib/types'
+
+export async function getPeopleSuggestionsAction(): Promise<PersonSuggestion[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const [memory, { data: existing }] = await Promise.all([
+    readUserMemory(user.id),
+    supabase.from('people').select('name').eq('user_id', user.id),
+  ])
+
+  const known = memory?.people_memory?.people ?? []
+  if (known.length === 0) return []
+
+  const existingNames = new Set((existing ?? []).map(p => p.name.toLowerCase()))
+
+  return known
+    .filter(p => !existingNames.has(p.name.toLowerCase()))
+    .map(p => ({
+      name: p.name,
+      relationship: p.relationship,
+      sentiment: p.sentiment,
+      context: p.context,
+      mentions: p.mentions,
+      last_mentioned: p.last_mentioned,
+    }))
+}
 
 export async function createPersonAction(data: { name: string; group: PersonGroup; notes?: string }) {
   const supabase = await createClient()

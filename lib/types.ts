@@ -164,6 +164,15 @@ export type Person = {
   created_at: string
 }
 
+export type PersonSuggestion = {
+  name: string
+  relationship: string
+  sentiment: 'positive' | 'negative' | 'mixed' | 'neutral'
+  context: string
+  mentions: number
+  last_mentioned: string
+}
+
 export type WheelArea = {
   key: string
   label: string

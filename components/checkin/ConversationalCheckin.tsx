@@ -227,6 +227,10 @@ export default function ConversationalCheckin({
     const next: Message[] = [...messages, { role: 'user', content: text }]
     setMessages(next)
     setInput('')
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      inputRef.current.focus()
+    }
     await fetchReply(next, previousCheckin)
   }, [input, messages, streaming, isSaving, fetchReply, previousCheckin])
 
@@ -490,7 +494,7 @@ export default function ConversationalCheckin({
                     checkinSaved ? 'Reply to Locus…' :
                     'Share how you\'re doing…'
                   }
-                  disabled={streaming || isSaving}
+                  readOnly={streaming || isSaving}
                   rows={1}
                   style={{
                     flex: 1,

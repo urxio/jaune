@@ -231,17 +231,26 @@ export default function JournalSection({
   const [content, setContent] = useState(entryForDate(todayStr))
   const [status, setStatus]   = useState<'idle' | 'saving' | 'saved'>('idle')
 
-  const CACHE_KEY = 'locus_journal_ai_cache'
-  const readStorage = (): Record<string, string | null> => {
-    try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? '{}') } catch { return {} }
+  const CACHE_KEY = 'locus_journal_comment_cache_v2'
+  const readStorage = (): Record<string, string> => {
+    try {
+      const raw = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? '{}')
+      if (!raw || typeof raw !== 'object') return {}
+      const out: Record<string, string> = {}
+      for (const [k, v] of Object.entries(raw)) {
+        if (typeof v === 'string') out[k] = v
+      }
+      return out
+    } catch { return {} }
   }
-  const writeStorage = (store: Record<string, string | null>) => {
+  const writeStorage = (store: Record<string, string>) => {
     try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(store)) } catch {}
   }
   const getCached = (date: string): string | null => readStorage()[date] ?? null
   const setCached = (date: string, comment: string | null) => {
     const store = readStorage()
-    store[date] = comment
+    if (comment) store[date] = comment
+    else delete store[date]
     writeStorage(store)
   }
 

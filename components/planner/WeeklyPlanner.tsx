@@ -666,11 +666,11 @@ export default function WeeklyPlanner({
       )}
 
       {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <LegendDot color="rgba(212,168,83,0.7)" label="Locus event" />
-        {hasGoogleCalendar && <LegendDot color="rgba(66,133,244,0.7)" label="Google Calendar" />}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <LegendDot color="rgba(212,168,83,0.7)" label="Event" />
+        {hasGoogleCalendar && <LegendDot color="rgba(66,133,244,0.7)" label="Google Cal" />}
         <LegendDot color="rgba(100,160,130,0.7)" label="Habit" />
-        <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: 'auto' }}>Click to add · Right-click habit to edit time</span>
+        <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: 'auto', opacity: 0.7 }}>Click grid to add · right-click habit to edit time</span>
       </div>
 
       {/* Calendar grid */}
@@ -1173,22 +1173,28 @@ function HabitStripChip({
       onContextMenu={onContextMenu}
       title={`${habit.emoji} ${habit.name} · right-click to set time`}
       style={{
-        display: 'flex', alignItems: 'center', gap: '3px',
-        padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
-        background: hov ? 'rgba(100,160,130,0.28)' : 'rgba(100,160,130,0.15)',
-        border: '1px solid rgba(100,160,130,0.4)',
-        color: 'rgba(140,200,160,0.95)',
+        display: 'flex', alignItems: 'center', gap: '4px',
+        padding: '2px 7px 2px 5px',
+        borderRadius: '20px',
+        fontSize: '10px', fontWeight: 500,
+        background: hov ? 'rgba(100,160,130,0.25)' : 'rgba(100,160,130,0.12)',
+        border: '1px solid rgba(100,160,130,0.35)',
+        color: 'rgba(150,210,170,0.9)',
         cursor: 'context-menu',
         userSelect: 'none',
-        transition: 'background 0.1s',
-        maxWidth: '100%', overflow: 'hidden',
+        transition: 'background 0.12s',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        maxWidth: '100%',
       }}
     >
-      <span style={{ fontSize: '10px', flexShrink: 0 }}>{habit.emoji}</span>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
+      <span style={{ fontSize: '11px', lineHeight: 1, flexShrink: 0 }}>{habit.emoji}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{habit.name}</span>
     </div>
   )
 }
+
+const HABIT_STRIP_MAX = 3  // chips shown before "+N more"
 
 // Habits strip — shows habits with no time for that day
 function HabitsStrip({
@@ -1203,50 +1209,90 @@ function HabitsStrip({
   onContextMenu: (e: React.MouseEvent, habit: HabitWithLogs, dateStr: string, currentTime: string | null) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
-  const hasAny = [...habitsByDate.values()].some(hs => hs.length > 0)
+  // Per-column expanded state (clicking "+N" reveals the rest)
+  const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set())
+
+  const allEntries = [...habitsByDate.values()].flatMap(hs => hs)
+  const hasAny = allEntries.some(h => h.effectiveTime === null)
   if (!hasAny) return null
+
+  const totalNoTime = allEntries.filter(h => h.effectiveTime === null).length
+
+  function toggleCol(dateStr: string) {
+    setExpandedCols(prev => {
+      const next = new Set(prev)
+      next.has(dateStr) ? next.delete(dateStr) : next.add(dateStr)
+      return next
+    })
+  }
 
   return (
     <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderBottom: collapsed ? undefined : '1px solid var(--border)' }}>
+      {/* Strip header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px 4px 6px', borderBottom: collapsed ? undefined : '1px solid rgba(255,255,255,0.05)' }}>
         <button
           onClick={() => setCollapsed(c => !c)}
-          style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '1px 4px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '5px', letterSpacing: '0.07em', fontWeight: 700, textTransform: 'uppercase' }}
         >
-          <span style={{ fontSize: '9px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>▼</span>
-          <span style={{ fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Habits</span>
+          <span style={{ fontSize: '8px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)', transition: 'transform 0.15s', opacity: 0.6 }}>▼</span>
+          Habits
         </button>
-        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>right-click to set time</span>
+        <span style={{ fontSize: '10px', color: 'rgba(150,210,170,0.5)', fontWeight: 500 }}>
+          {totalNoTime} unscheduled · right-click to set time
+        </span>
       </div>
 
       {!collapsed && (
         <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)' }}>
           <div style={{ borderRight: '1px solid var(--border)' }} />
           {colDates.map((dateStr, col) => {
-            const isToday = dateStr === today
-            // Show habits that have NO effective time for this day (they go in the strip)
-            const noTimeHabits = (habitsByDate.get(dateStr) ?? []).filter(h => h.effectiveTime === null)
+            const isToday   = dateStr === today
+            const noTime    = (habitsByDate.get(dateStr) ?? []).filter(h => h.effectiveTime === null)
+            const expanded  = expandedCols.has(dateStr)
+            const visible   = expanded ? noTime : noTime.slice(0, HABIT_STRIP_MAX)
+            const overflow  = noTime.length - HABIT_STRIP_MAX
+
             return (
               <div
                 key={col}
                 style={{
-                  padding: '3px 4px',
+                  padding: '4px 5px',
                   borderRight: col < 6 ? '1px solid var(--border)' : undefined,
                   background: isToday ? 'rgba(212,168,83,0.025)' : undefined,
-                  minHeight: '28px',
+                  minHeight: '32px',
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: '2px',
+                  gap: '3px',
                   alignContent: 'flex-start',
                 }}
               >
-                {noTimeHabits.map(entry => (
+                {visible.map(entry => (
                   <HabitStripChip
                     key={entry.habit.id}
                     entry={entry}
                     onContextMenu={e => onContextMenu(e, entry.habit, dateStr, entry.effectiveTime)}
                   />
                 ))}
+                {!expanded && overflow > 0 && (
+                  <button
+                    onClick={() => toggleCol(dateStr)}
+                    style={{
+                      padding: '2px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--text-3)', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >+{overflow}</button>
+                )}
+                {expanded && noTime.length > HABIT_STRIP_MAX && (
+                  <button
+                    onClick={() => toggleCol(dateStr)}
+                    style={{
+                      padding: '2px 7px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
+                      background: 'none', border: '1px solid rgba(255,255,255,0.08)',
+                      color: 'var(--text-3)', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >Show less</button>
+                )}
               </div>
             )
           })}
@@ -1354,12 +1400,12 @@ function PlanStrip({
 
   return (
     <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 6px', borderBottom: collapsed ? undefined : '1px solid var(--border)' }}>
-        <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '1px 4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '9px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>▼</span>
-          <span style={{ fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Plans</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px 4px 6px', borderBottom: collapsed ? undefined : '1px solid rgba(255,255,255,0.05)' }}>
+        <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '5px', letterSpacing: '0.07em', fontWeight: 700, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '8px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)', transition: 'transform 0.15s', opacity: 0.6 }}>▼</span>
+          Plans
         </button>
-        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>goal blocks &amp; AI suggestions</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-3)', opacity: 0.6 }}>goal blocks &amp; AI suggestions</span>
       </div>
       {!collapsed && (
         <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)' }}>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { getActiveGoalsWithSteps } from '@/lib/db/goals'
 import { getWeeklyPlan } from '@/lib/db/planner'
+import { getCalendarEventsForAI } from '@/lib/google/calendar'
 import WeeklyPlanner from '@/components/planner/WeeklyPlanner'
 import { getMondayOfWeek } from '@/lib/utils/date'
 
@@ -15,10 +16,11 @@ export default async function PlannerPage() {
   const weekStart = getMondayOfWeek()
   const today = new Date().toISOString().split('T')[0]
 
-  const [habits, goals, initialPlan] = await Promise.all([
+  const [habits, goals, initialPlan, calendarEvents] = await Promise.all([
     getUserHabitsWithLogs(user.id),
     getActiveGoalsWithSteps(user.id),
     getWeeklyPlan(user.id, weekStart),
+    getCalendarEventsForAI(user.id),
   ])
 
   return (
@@ -28,6 +30,7 @@ export default async function PlannerPage() {
       initialPlan={initialPlan}
       weekStart={weekStart}
       today={today}
+      calendarEvents={calendarEvents}
     />
   )
 }

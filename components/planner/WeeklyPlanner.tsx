@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import type { HabitWithLogs, GoalWithSteps, WeeklyPlanBlock } from '@/lib/types'
+import type { HabitWithLogs, GoalWithSteps, WeeklyPlanBlock, CalendarEvent } from '@/lib/types'
 import { useToast } from '@/components/ui/ToastContext'
 import {
   addPlanBlock,
@@ -52,6 +52,21 @@ function colToDow(col: number): number {
   return col === 6 ? 0 : col + 1
 }
 
+/** Map a calendar event to its time slot based on the event's local start hour. */
+function getSlotForEvent(ev: CalendarEvent): Slot {
+  if (ev.isAllDay) return 'morning'
+  const hour = new Date(ev.start).getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 18) return 'afternoon'
+  return 'evening'
+}
+
+/** Format a calendar event time for display inside a cell (e.g. "9:00 AM"). */
+function fmtEventTime(ev: CalendarEvent): string {
+  if (ev.isAllDay) return 'All day'
+  return new Date(ev.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
 /* ── Types ── */
 
 type SelectedItem =
@@ -77,11 +92,19 @@ type Props = {
   initialPlan: WeeklyPlanBlock[]
   weekStart: string
   today: string
+  calendarEvents?: CalendarEvent[]
 }
 
 /* ── Main Component ── */
 
-export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: initialWeekStart, today }: Props) {
+export default function WeeklyPlanner({
+  habits,
+  goals,
+  initialPlan,
+  weekStart: initialWeekStart,
+  today,
+  calendarEvents = [],
+}: Props) {
   const toast = useToast()
   const [planBlocks, setPlanBlocks] = useState<WeeklyPlanBlock[]>(initialPlan)
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null)
@@ -89,15 +112,14 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
   const [weekStart, setWeekStart] = useState(initialWeekStart)
   const [customText, setCustomText] = useState('')
   const [suggesting, setSuggesting] = useState(false)
-  const [suggestionSummary, setSuggestionSummary] = useState('')
+  const [narrative, setNarrative] = useState('')
+  const [narrativeVisible, setNarrativeVisible] = useState(false)
   const [suggestError, setSuggestError] = useState('')
   const [localHabits, setLocalHabits] = useState<HabitWithLogs[]>(habits)
   const [pendingCells, setPendingCells] = useState<Set<string>>(new Set())
 
-  // Sync localHabits when props change (e.g. server rerender)
   useEffect(() => { setLocalHabits(habits) }, [habits])
 
-  // When weekOffset changes, fetch plan for that week
   useEffect(() => {
     const ws = getWeekStart(weekOffset)
     setWeekStart(ws)
@@ -107,14 +129,64 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
       .catch(err => { console.error('fetch week plan:', err); toast.error('Failed to load plan') })
   }, [weekOffset])
 
+  /* ── Calendar event lookups (memoised) ── */
+
+  // Build colDates once here so memos can reference it too
+  const colDates = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  )
+
+  const weekEnd = colDates[6]
+
+  /**
+   * Calendar events that fall in the visible week, indexed by "dateStr|slot".
+   * All-day events are excluded here — they appear in the all-day strip.
+   */
+  const calByCell = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>()
+    for (const ev of calendarEvents) {
+      if (ev.isAllDay) continue
+      const dateStr = ev.start.slice(0, 10)
+      if (dateStr < colDates[0] || dateStr > weekEnd) continue
+      const slot = getSlotForEvent(ev)
+      const key = `${dateStr}|${slot}`
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(ev)
+    }
+    return map
+  }, [calendarEvents, colDates, weekEnd])
+
+  /** All-day events indexed by dateStr. */
+  const allDayByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>()
+    for (const ev of calendarEvents) {
+      if (!ev.isAllDay) continue
+      const dateStr = ev.start.slice(0, 10)
+      if (dateStr < colDates[0] || dateStr > weekEnd) continue
+      if (!map.has(dateStr)) map.set(dateStr, [])
+      map.get(dateStr)!.push(ev)
+    }
+    return map
+  }, [calendarEvents, colDates, weekEnd])
+
+  /** Total event count per day (timed + all-day) for load indicators. */
+  const loadByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const ev of calendarEvents) {
+      const dateStr = ev.start.slice(0, 10)
+      if (dateStr < colDates[0] || dateStr > weekEnd) continue
+      map.set(dateStr, (map.get(dateStr) ?? 0) + 1)
+    }
+    return map
+  }, [calendarEvents, colDates, weekEnd])
+
   /* ── Handlers ── */
 
   async function handleCellClick(col: number, slot: Slot) {
     if (!selectedItem) return
     const cellDate = colDates[col]
-    // Cannot place anything in the past (past weeks or past days within current week)
     if (cellDate < today) return
-    // Habits set a persistent time_of_day — only meaningful for the current week
     if (selectedItem.kind === 'habit' && weekOffset !== 0) return
     const dow = colToDow(col)
     const cellKey = `${col}-${slot}`
@@ -237,23 +309,36 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
     }
   }
 
+  async function handleQuickSlot(habit: HabitWithLogs, slot: Slot) {
+    const prev = habit.time_of_day
+    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h))
+    try {
+      await setHabitTimeOfDay(habit.id, slot)
+    } catch (err) {
+      console.error('handleQuickSlot:', err); toast.error('Failed to save slot')
+      setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
+    }
+  }
+
   async function handleAISuggest() {
     setSuggesting(true)
-    setSuggestionSummary('')
     setSuggestError('')
     try {
       const res = await fetch('/api/planner/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekStart }),
+        body: JSON.stringify({ weekStart, calendarEvents }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.detail ? `${body.error}: ${body.detail}` : (body.error ?? `Request failed (${res.status})`))
       }
-      const { blocks, summary } = await res.json() as { blocks: SuggestedRawBlock[]; summary: string }
+      const { blocks, narrative: newNarrative } = await res.json() as {
+        blocks: SuggestedRawBlock[]
+        narrative: string
+        summary: string
+      }
 
-      // Sanitize: only accept valid types and slot values the DB allows
       const VALID_SLOTS = new Set(['morning', 'afternoon', 'evening'])
       const clean = blocks.filter(b =>
         typeof b.title === 'string' &&
@@ -266,7 +351,6 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
         dayOfWeek: b.day_of_week,
         timeSlot: b.time_slot,
         title: b.title.trim(),
-        // AI sometimes returns 'habit' — remap to 'custom' since habits anchor via time_of_day
         type: (b.type === 'goal' ? 'goal' : 'custom') as 'goal' | 'custom',
         referenceId: b.type === 'goal' && b.reference_id ? b.reference_id : undefined,
       }))
@@ -275,7 +359,11 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
 
       const saved = await saveSuggestions(clean)
       setPlanBlocks(prev => [...prev, ...saved])
-      setSuggestionSummary(summary ?? '')
+
+      if (newNarrative) {
+        setNarrative(newNarrative)
+        setNarrativeVisible(true)
+      }
     } catch (err) {
       console.error('handleAISuggest:', err); toast.error('AI suggestions failed — try again')
       setSuggestError(err instanceof Error ? err.message : 'Something went wrong')
@@ -284,46 +372,39 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
     }
   }
 
-  async function handleQuickSlot(habit: HabitWithLogs, slot: Slot) {
-    const prev = habit.time_of_day
-    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h))
-    try {
-      await setHabitTimeOfDay(habit.id, slot)
-    } catch (err) {
-      console.error('handleQuickSlot:', err); toast.error('Failed to save slot')
-      setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
-    }
-  }
-
   /* ── Computed ── */
 
   const isPastWeek = weekOffset < 0
-  // isSelecting: whether the user has an item ready to place at all
-  // Per-cell isDropTarget is computed inside the cell loop (must also check date ≥ today)
   const isSelecting = selectedItem !== null && !isPastWeek
   const todayDow = new Date(today + 'T12:00:00').getDay()
 
-  // Build column date strings (col 0 = Monday)
-  const colDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-
-  // Format week label
   const weekEndDate = addDays(weekStart, 6)
   function fmtDate(d: string) {
     return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
   const weekLabel = `${fmtDate(weekStart)} – ${fmtDate(weekEndDate)}`
 
+  const hasCalendar = calendarEvents.length > 0
+
   /* ── Render ── */
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--text-0)', margin: 0 }}>
             Weekly Rhythm
           </h1>
-          <div style={{ fontSize: '13px', color: 'var(--text-2)', marginTop: '3px' }}>{weekLabel}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-2)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{weekLabel}</span>
+            {hasCalendar && weekOffset === 0 && (
+              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(96,160,200,0.12)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(96,160,200,0.9)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                📅 Calendar synced
+              </span>
+            )}
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
@@ -341,32 +422,55 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
           <button
             onClick={handleAISuggest}
             disabled={suggesting}
-            style={{ padding: '6px 14px', border: 'none', background: suggesting ? 'var(--bg-2)' : 'var(--gold)', color: suggesting ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: suggesting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, transition: 'opacity 0.15s' }}
+            style={{ padding: '6px 14px', border: 'none', background: suggesting ? 'var(--bg-2)' : 'var(--gold)', color: suggesting ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: suggesting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, transition: 'opacity 0.15s', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            {suggesting ? 'Thinking…' : '✦ AI Suggest'}
+            {suggesting
+              ? <><SpinnerIcon />Analyzing…</>
+              : <>✦ {narrativeVisible ? 'Re-analyze' : 'Analyze Week'}</>
+            }
           </button>
         </div>
       </div>
 
-      {/* AI error banner */}
+      {/* ── AI error banner ── */}
       {suggestError && (
-        <div style={{ background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#e07060', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e07060', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ flexShrink: 0 }}>⚠</span>
           <span>{suggestError}</span>
           <button onClick={() => setSuggestError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#e07060', cursor: 'pointer', fontSize: '16px', lineHeight: 1, flexShrink: 0, padding: 0 }}>×</button>
         </div>
       )}
 
-      {/* AI Summary Banner */}
-      {suggestionSummary && (
-        <div style={{ background: 'rgba(212,168,83,0.1)', border: '1px solid rgba(212,168,83,0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-1)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-          <span style={{ color: 'var(--gold)', flexShrink: 0, marginTop: '1px' }}>✦</span>
-          <span>{suggestionSummary}</span>
-          <button onClick={() => setSuggestionSummary('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, flexShrink: 0, padding: 0 }}>×</button>
+      {/* ── AI Intelligence Panel ── */}
+      {narrativeVisible && narrative && (
+        <div style={{
+          background: 'rgba(212,168,83,0.06)',
+          border: '1px solid rgba(212,168,83,0.22)',
+          borderLeft: '3px solid var(--gold)',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          animation: 'fadeUp 0.25s var(--ease) both',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+            <span style={{ color: 'var(--gold)', fontSize: '13px', flexShrink: 0, marginTop: '1px' }}>✦</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '5px' }}>
+                Locus Week Intelligence
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-1)', margin: 0, lineHeight: 1.6 }}>
+                {narrative}
+              </p>
+            </div>
+            <button
+              onClick={() => setNarrativeVisible(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0, flexShrink: 0 }}
+            >×</button>
+          </div>
         </div>
       )}
 
-      {/* Selected item banner */}
+      {/* ── Selected item banner ── */}
       {selectedItem && (
         <div style={{ background: 'rgba(212,168,83,0.12)', border: '1px solid var(--gold)', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', fontSize: '13px', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>
@@ -379,13 +483,25 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
         </div>
       )}
 
-      {/* Main layout */}
+      {/* ── Main layout ── */}
       <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-        {/* Sidebar */}
-        <aside style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* ── Sidebar ── */}
+        <aside style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-          {/* Habits section */}
+          {/* Calendar legend (only if calendar is connected and viewing current week) */}
+          {hasCalendar && weekOffset === 0 && (
+            <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(96,160,200,0.07)', border: '1px solid rgba(96,160,200,0.2)' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(96,160,200,0.8)', marginBottom: '6px' }}>
+                📅 Calendar
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+                Blue blocks are your Google Calendar events. They&apos;re read-only — use <strong>✦ Analyze Week</strong> to get AI suggestions that work around them.
+              </div>
+            </div>
+          )}
+
+          {/* Habits */}
           <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
               <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Habits</div>
@@ -399,26 +515,14 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                 return (
                   <div
                     key={habit.id}
-                    style={{
-                      padding: '7px 8px',
-                      borderRadius: '6px',
-                      border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`,
-                      background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent',
-                      cursor: 'pointer',
-                      transition: 'background 0.12s',
-                    }}
+                    style={{ padding: '7px 8px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`, background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent', cursor: 'pointer', transition: 'background 0.12s' }}
                     onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
                     onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                   >
-                    {/* Name row */}
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}
-                      onClick={() => setSelectedItem(isSelected ? null : { kind: 'habit', habit })}
-                    >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }} onClick={() => setSelectedItem(isSelected ? null : { kind: 'habit', habit })}>
                       <span style={{ fontSize: '14px' }}>{habit.emoji}</span>
                       <span style={{ fontSize: '12px', color: 'var(--text-1)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
                     </div>
-                    {/* Slot pills */}
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {SLOTS.map(slot => {
                         const active = habit.time_of_day === slot
@@ -426,19 +530,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                           <button
                             key={slot}
                             onClick={e => { e.stopPropagation(); handleQuickSlot(habit, slot) }}
-                            style={{
-                              flex: 1,
-                              padding: '2px 0',
-                              border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
-                              background: active ? 'rgba(212,168,83,0.2)' : 'transparent',
-                              color: active ? 'var(--gold)' : 'var(--text-3)',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '9px',
-                              fontWeight: active ? 700 : 400,
-                              letterSpacing: '0.03em',
-                              transition: 'all 0.12s',
-                            }}
+                            style={{ flex: 1, padding: '2px 0', border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`, background: active ? 'rgba(212,168,83,0.2)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text-3)', borderRadius: '4px', cursor: 'pointer', fontSize: '9px', fontWeight: active ? 700 : 400, letterSpacing: '0.03em', transition: 'all 0.12s' }}
                           >
                             {slot === 'morning' ? 'M' : slot === 'afternoon' ? 'A' : 'E'}
                           </button>
@@ -451,7 +543,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
             </div>
           </div>
 
-          {/* Goals section */}
+          {/* Goals */}
           <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
               <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Goals</div>
@@ -466,14 +558,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                   <div
                     key={goal.id}
                     onClick={() => setSelectedItem(isSelected ? null : { kind: 'goal', goalId: goal.id, title: goal.title })}
-                    style={{
-                      padding: '7px 8px',
-                      borderRadius: '6px',
-                      border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`,
-                      background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent',
-                      cursor: 'pointer',
-                      transition: 'background 0.12s',
-                    }}
+                    style={{ padding: '7px 8px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`, background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent', cursor: 'pointer', transition: 'background 0.12s' }}
                     onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
                     onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                   >
@@ -484,7 +569,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
             </div>
           </div>
 
-          {/* Custom block input */}
+          {/* Custom block */}
           <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
               <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Custom Block</div>
@@ -496,34 +581,12 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                 value={customText}
                 onChange={e => setCustomText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && customText.trim()) setSelectedItem({ kind: 'custom' }) }}
-                style={{
-                  width: '100%',
-                  padding: '7px 10px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-0)',
-                  color: 'var(--text-0)',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', background: 'var(--bg-0)', color: 'var(--text-0)', borderRadius: '6px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
               />
               <button
                 disabled={!customText.trim()}
                 onClick={() => { if (customText.trim()) setSelectedItem({ kind: 'custom' }) }}
-                style={{
-                  marginTop: '8px',
-                  width: '100%',
-                  padding: '7px',
-                  border: 'none',
-                  background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)',
-                  color: customText.trim() ? '#131110' : 'var(--text-3)',
-                  borderRadius: '6px',
-                  cursor: customText.trim() ? 'pointer' : 'not-allowed',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  transition: 'all 0.12s',
-                }}
+                style={{ marginTop: '8px', width: '100%', padding: '7px', border: 'none', background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)', color: customText.trim() ? '#131110' : 'var(--text-3)', borderRadius: '6px', cursor: customText.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, transition: 'all 0.12s' }}
               >
                 Place →
               </button>
@@ -531,38 +594,64 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
           </div>
         </aside>
 
-        {/* Grid */}
+        {/* ── Grid ── */}
         <div style={{ flex: 1, overflowX: 'auto' }}>
           <div style={{ minWidth: '560px' }}>
+
             {/* Day headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: '2px', marginBottom: '2px' }}>
-              <div /> {/* Empty slot label header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '2px' }}>
+              <div /> {/* slot label spacer */}
               {Array.from({ length: 7 }, (_, col) => {
                 const dow = colToDow(col)
                 const dateStr = colDates[col]
                 const isToday = dateStr === today
+                const load = loadByDate.get(dateStr) ?? 0
                 return (
-                  <div
-                    key={col}
-                    style={{
-                      textAlign: 'center',
-                      padding: '8px 4px 6px',
-                      borderRadius: '6px 6px 0 0',
-                      background: isToday ? 'rgba(212,168,83,0.12)' : 'transparent',
-                    }}
-                  >
+                  <div key={col} style={{ textAlign: 'center', padding: '8px 4px 6px', borderRadius: '6px 6px 0 0', background: isToday ? 'rgba(212,168,83,0.12)' : 'transparent' }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: isToday ? 'var(--gold)' : 'var(--text-1)' }}>{DOW_SHORT[dow]}</div>
                     <div style={{ fontSize: '10px', color: isToday ? 'var(--gold)' : 'var(--text-3)', marginTop: '1px' }}>
                       {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
+                    {/* Calendar load dots */}
+                    {load > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '4px' }}>
+                        {Array.from({ length: Math.min(load, 5) }, (_, i) => (
+                          <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(96,160,200,0.6)' }} />
+                        ))}
+                        {load > 5 && <span style={{ fontSize: '8px', color: 'rgba(96,160,200,0.6)', lineHeight: '4px' }}>+</span>}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
 
+            {/* All-Day strip */}
+            {hasCalendar && weekOffset === 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'right', width: '100%' }}>All day</span>
+                </div>
+                {colDates.map((dateStr, col) => {
+                  const allDayEvents = allDayByDate.get(dateStr) ?? []
+                  const isToday = dateStr === today
+                  return (
+                    <div
+                      key={col}
+                      style={{ minHeight: '22px', padding: '2px 3px', display: 'flex', flexWrap: 'wrap', gap: '2px', borderRadius: '4px', background: isToday ? 'rgba(212,168,83,0.04)' : 'transparent' }}
+                    >
+                      {allDayEvents.map(ev => (
+                        <AllDayBadge key={ev.id} event={ev} />
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Slot rows */}
             {SLOTS.map(slot => (
-              <div key={slot} style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: '2px', marginBottom: '2px', alignItems: 'stretch' }}>
+              <div key={slot} style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '2px', alignItems: 'stretch' }}>
                 {/* Slot label */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', padding: '10px 6px 8px 0', height: '140px', boxSizing: 'border-box' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{SLOT_LABELS[slot]}</span>
@@ -575,12 +664,10 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                   const isToday = dateStr === today
                   const isPastDate = dateStr < today
                   const habitSelected = selectedItem?.kind === 'habit'
-                  // Habits set a persistent time_of_day — only droppable on the current week; nothing droppable on past dates
                   const isDropTarget = isSelecting && !isPastDate && !(habitSelected && weekOffset !== 0)
                   const cellKey = `${col}-${slot}`
                   const isPending = pendingCells.has(cellKey)
 
-                  // Habit blocks: only show on days the habit is scheduled AND not past its due date
                   const habitBlocks = localHabits.filter(h =>
                     isHabitOnDay(h, dow) && h.time_of_day === slot &&
                     (!h.ends_at || dateStr <= h.ends_at)
@@ -588,6 +675,10 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                   const dayPlanBlocks = planBlocks.filter(b =>
                     b.day_of_week === dow && b.time_slot === slot && b.week_start === weekStart
                   )
+                  // Calendar events for this cell (timed events only; all-day shown in strip)
+                  const cellCalEvents = weekOffset === 0
+                    ? (calByCell.get(`${dateStr}|${slot}`) ?? [])
+                    : []
 
                   return (
                     <div
@@ -595,7 +686,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                       onClick={() => handleCellClick(col, slot)}
                       style={{
                         height: '140px',
-                        padding: '6px',
+                        padding: '5px',
                         border: `1px solid ${isDropTarget ? 'rgba(212,168,83,0.4)' : 'var(--border)'}`,
                         borderRadius: '6px',
                         background: isToday ? 'rgba(212,168,83,0.04)' : 'var(--bg-0)',
@@ -604,7 +695,7 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                         position: 'relative',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '4px',
+                        gap: '3px',
                         overflowY: 'auto',
                         boxSizing: 'border-box',
                       }}
@@ -627,13 +718,14 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                         </div>
                       )}
 
+                      {/* Calendar event blocks (read-only, shown first) */}
+                      {cellCalEvents.map(ev => (
+                        <CalendarBlock key={ev.id} event={ev} />
+                      ))}
+
                       {/* Habit blocks */}
                       {habitBlocks.map(habit => (
-                        <HabitBlock
-                          key={habit.id}
-                          habit={habit}
-                          onRemove={() => handleRemoveHabitSlot(habit)}
-                        />
+                        <HabitBlock key={habit.id} habit={habit} onRemove={() => handleRemoveHabitSlot(habit)} />
                       ))}
 
                       {/* Plan blocks */}
@@ -647,8 +739,8 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
                         />
                       ))}
 
-                      {/* Drop hint when selecting and cell is empty */}
-                      {isDropTarget && habitBlocks.length === 0 && dayPlanBlocks.length === 0 && (
+                      {/* Drop hint */}
+                      {isDropTarget && cellCalEvents.length === 0 && habitBlocks.length === 0 && dayPlanBlocks.length === 0 && (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
                           <span style={{ fontSize: '18px', color: 'var(--gold)' }}>+</span>
                         </div>
@@ -666,82 +758,129 @@ export default function WeeklyPlanner({ habits, goals, initialPlan, weekStart: i
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes tooltipIn { from { opacity:0; transform:translateY(3px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
       `}</style>
     </div>
   )
 }
 
+/* ── Icons ── */
+
+function SpinnerIcon() {
+  return (
+    <div style={{ width: '12px', height: '12px', border: '2px solid #131110', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+  )
+}
+
 /* ── Tooltip ── */
 function Tooltip({ text, anchorRect }: { text: string; anchorRect: DOMRect }) {
-  // Render into document.body via portal — fully escapes any overflow/transform ancestor
   const top  = anchorRect.top - 8
   const left = anchorRect.left + anchorRect.width / 2
   const node = (
     <div style={{
-      position: 'fixed',
-      top,
-      left,
-      transform: 'translate(-50%, -100%)',
+      position: 'fixed', top, left, transform: 'translate(-50%, -100%)',
       background: 'var(--bg-0)', border: '1px solid var(--border-md)',
       borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: 'var(--text-0)',
       whiteSpace: 'pre-wrap', maxWidth: '260px', wordBreak: 'break-word',
       boxShadow: '0 4px 20px rgba(0,0,0,0.4)', zIndex: 9999, pointerEvents: 'none',
-      animation: 'tooltipIn 0.1s ease both',
-      lineHeight: 1.4,
+      animation: 'tooltipIn 0.1s ease both', lineHeight: 1.4,
     }}>
       {text}
-      {/* Arrow */}
-      <div style={{
-        position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-        width: 0, height: 0,
-        borderLeft: '5px solid transparent', borderRight: '5px solid transparent',
-        borderTop: '5px solid var(--border-md)',
-      }} />
+      <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--border-md)' }} />
     </div>
   )
   return typeof document !== 'undefined' ? createPortal(node, document.body) : null
 }
 
-/* ── Sub-components ── */
+/* ── Calendar sub-components ── */
+
+/** Read-only badge for all-day events (shown in the all-day strip). */
+function AllDayBadge({ event }: { event: CalendarEvent }) {
+  return (
+    <div
+      title={event.title}
+      style={{
+        fontSize: '10px', padding: '1px 5px', borderRadius: '3px',
+        background: 'rgba(96,160,200,0.15)', border: '1px solid rgba(96,160,200,0.3)',
+        color: 'rgba(140,190,220,0.9)', whiteSpace: 'nowrap',
+        overflow: 'hidden', maxWidth: '100%', textOverflow: 'ellipsis',
+        fontWeight: 500,
+      }}
+    >
+      {event.title}
+    </div>
+  )
+}
+
+/** Read-only timed calendar event block shown inside a slot cell. */
+function CalendarBlock({ event }: { event: CalendarEvent }) {
+  const [hovered, setHovered] = useState(false)
+  const titleRef = useRef<HTMLDivElement>(null)
+  const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null)
+
+  return (
+    <div
+      onMouseEnter={() => {
+        setHovered(true)
+        if (titleRef.current && titleRef.current.scrollWidth > titleRef.current.clientWidth) {
+          setTooltipRect(titleRef.current.getBoundingClientRect())
+        }
+      }}
+      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
+      onClick={e => e.stopPropagation()}
+      style={{
+        padding: '3px 6px',
+        borderRadius: '5px',
+        background: 'rgba(96,160,200,0.14)',
+        border: '1px solid rgba(96,160,200,0.32)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1px',
+        flexShrink: 0,
+        opacity: hovered ? 0.9 : 1,
+        transition: 'opacity 0.1s',
+      }}
+    >
+      {tooltipRect && <Tooltip text={`📅 ${event.title}${event.location ? `\n${event.location}` : ''}`} anchorRect={tooltipRect} />}
+      <div style={{ fontSize: '9.5px', color: 'rgba(120,180,220,0.85)', fontWeight: 600, lineHeight: 1, letterSpacing: '0.02em' }}>
+        {fmtEventTime(event)}
+      </div>
+      <div
+        ref={titleRef}
+        style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {event.title}
+      </div>
+      {event.location && (
+        <div style={{ fontSize: '9.5px', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {event.location}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Plan sub-components ── */
 
 function HabitBlock({ habit, onRemove }: { habit: HabitWithLogs; onRemove: () => void }) {
   const [hovered, setHovered] = useState(false)
   const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null)
   const textRef = useRef<HTMLSpanElement>(null)
 
-  function handleMouseEnter() {
-    setHovered(true)
-    if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
-      setTooltipRect(textRef.current.getBoundingClientRect())
-    }
-  }
-  function handleMouseLeave() {
-    setHovered(false)
-    setTooltipRect(null)
-  }
-
   return (
     <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={e => { e.stopPropagation(); if (hovered) onRemove() }}
-      style={{
-        padding: '4px 6px',
-        borderRadius: '5px',
-        background: 'rgba(122,158,138,0.2)',
-        border: '1px solid rgba(122,158,138,0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '5px',
-        cursor: 'pointer',
-        transition: 'background 0.12s',
-        position: 'relative',
+      onMouseEnter={() => {
+        setHovered(true)
+        if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
+          setTooltipRect(textRef.current.getBoundingClientRect())
+        }
       }}
+      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
+      onClick={e => { e.stopPropagation(); if (hovered) onRemove() }}
+      style={{ padding: '4px 6px', borderRadius: '5px', background: 'rgba(122,158,138,0.2)', border: '1px solid rgba(122,158,138,0.35)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', transition: 'background 0.12s', position: 'relative', flexShrink: 0 }}
     >
       {tooltipRect && <Tooltip text={`${habit.emoji} ${habit.name}`} anchorRect={tooltipRect} />}
-      {hovered && (
-        <span style={{ fontSize: '13px', color: 'var(--text-2)', flexShrink: 0, lineHeight: 1 }}>×</span>
-      )}
+      {hovered && <span style={{ fontSize: '13px', color: 'var(--text-2)', flexShrink: 0, lineHeight: 1 }}>×</span>}
       <span style={{ fontSize: '12px' }}>{habit.emoji}</span>
       <span ref={textRef} style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
     </div>
@@ -749,10 +888,7 @@ function HabitBlock({ habit, onRemove }: { habit: HabitWithLogs; onRemove: () =>
 }
 
 function PlanBlock({
-  block,
-  onRemove,
-  onAccept,
-  onDismiss,
+  block, onRemove, onAccept, onDismiss,
 }: {
   block: WeeklyPlanBlock
   onRemove: () => void
@@ -764,65 +900,31 @@ function PlanBlock({
   const textRef = useRef<HTMLDivElement>(null)
   const isGhost = !block.accepted
 
-  function handleMouseEnter() {
-    setHovered(true)
-    if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
-      setTooltipRect(textRef.current.getBoundingClientRect())
-    }
-  }
-  function handleMouseLeave() {
-    setHovered(false)
-    setTooltipRect(null)
-  }
-
-  const bgColor = block.type === 'goal'
-    ? 'rgba(212,168,83,0.15)'
-    : 'rgba(96,144,200,0.15)'
-  const borderColor = block.type === 'goal'
-    ? 'rgba(212,168,83,0.4)'
-    : 'rgba(96,144,200,0.4)'
+  const bgColor     = block.type === 'goal' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
+  const borderColor = block.type === 'goal' ? 'rgba(212,168,83,0.4)'  : 'rgba(96,144,200,0.4)'
 
   return (
     <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={e => e.stopPropagation()}
-      style={{
-        padding: '4px 6px',
-        borderRadius: '5px',
-        background: bgColor,
-        border: `1px ${isGhost ? 'dashed' : 'solid'} ${borderColor}`,
-        opacity: isGhost ? 0.75 : 1,
-        transition: 'opacity 0.12s',
-        position: 'relative',
+      onMouseEnter={() => {
+        setHovered(true)
+        if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
+          setTooltipRect(textRef.current.getBoundingClientRect())
+        }
       }}
+      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
+      onClick={e => e.stopPropagation()}
+      style={{ padding: '4px 6px', borderRadius: '5px', background: bgColor, border: `1px ${isGhost ? 'dashed' : 'solid'} ${borderColor}`, opacity: isGhost ? 0.75 : 1, transition: 'opacity 0.12s', position: 'relative', flexShrink: 0 }}
     >
       {tooltipRect && <Tooltip text={block.title} anchorRect={tooltipRect} />}
-
-      {/* Ghost: accept / dismiss buttons on left */}
       {isGhost && hovered && (
         <div style={{ position: 'absolute', top: '50%', left: '4px', transform: 'translateY(-50%)', display: 'flex', gap: '2px' }}>
-          <button
-            onClick={e => { e.stopPropagation(); onAccept() }}
-            title="Accept"
-            style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(122,158,138,0.4)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-          >✓</button>
-          <button
-            onClick={e => { e.stopPropagation(); onDismiss() }}
-            title="Dismiss"
-            style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(220,80,60,0.25)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-          >✕</button>
+          <button onClick={e => { e.stopPropagation(); onAccept() }} title="Accept" style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(122,158,138,0.4)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✓</button>
+          <button onClick={e => { e.stopPropagation(); onDismiss() }} title="Dismiss" style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(220,80,60,0.25)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>
         </div>
       )}
-
-      {/* Accepted: remove button on left */}
       {!isGhost && hovered && (
-        <button
-          onClick={e => { e.stopPropagation(); onRemove() }}
-          style={{ position: 'absolute', top: '50%', left: '4px', transform: 'translateY(-50%)', width: '14px', height: '14px', border: 'none', background: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}
-        >×</button>
+        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ position: 'absolute', top: '50%', left: '4px', transform: 'translateY(-50%)', width: '14px', height: '14px', border: 'none', background: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
       )}
-
       <div ref={textRef} style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: hovered ? (isGhost ? '42px' : '18px') : '0' }}>
         {block.title}
       </div>

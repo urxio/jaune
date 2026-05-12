@@ -35,7 +35,8 @@ export async function GET() {
     client_id:     clientId,
     redirect_uri:  redirectUri,
     response_type: 'code',
-    scope:         'https://www.googleapis.com/auth/calendar.readonly',
+    // calendar scope covers read (calendarList + events) AND write (create/update events)
+    scope:         'https://www.googleapis.com/auth/calendar',
     access_type:   'offline',
     prompt:        'consent',  // always issue refresh_token, even on reconnect
     state,

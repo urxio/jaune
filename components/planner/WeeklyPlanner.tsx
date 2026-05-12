@@ -13,20 +13,14 @@ import {
   setHabitTimeOfDay,
 } from '@/app/actions/planner'
 
-/* ── Constants ── */
+// ── Grid constants ─────────────────────────────────────────────────────────────
+const START_HOUR = 7   // 7 AM
+const END_HOUR   = 22  // 10 PM
+const HOURS      = END_HOUR - START_HOUR  // 15
+const HOUR_PX    = 64  // px per hour
+const GRID_H     = HOURS * HOUR_PX        // 960px
 
-const SLOTS = ['morning', 'afternoon', 'evening'] as const
-type Slot = typeof SLOTS[number]
-
-const SLOT_LABELS: Record<Slot, string> = {
-  morning: '🌅 Morning',
-  afternoon: '☀️ Afternoon',
-  evening: '🌙 Evening',
-}
-
-const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-/* ── Helpers ── */
+// ── Date helpers ───────────────────────────────────────────────────────────────
 
 function getWeekStart(offset: number): string {
   const d = new Date()
@@ -41,39 +35,105 @@ function addDays(dateStr: string, n: number): string {
   return d.toISOString().split('T')[0]
 }
 
-function isHabitOnDay(habit: HabitWithLogs, dow: number): boolean {
-  if (!habit.days_of_week || habit.days_of_week.length === 0) return true
-  return habit.days_of_week.includes(dow)
+function colToDow(col: number): number { return col === 6 ? 0 : col + 1 }
+
+function isHabitOnDay(h: HabitWithLogs, dow: number): boolean {
+  if (!h.days_of_week || h.days_of_week.length === 0) return true
+  return h.days_of_week.includes(dow)
 }
 
-// Column index (0-6) to day of week number (0=Sun…6=Sat)
-// Week starts Monday, so col 0 = Monday (1), col 6 = Sunday (0)
-function colToDow(col: number): number {
-  return col === 6 ? 0 : col + 1
+// ── Time ↔ pixel helpers ──────────────────────────────────────────────────────
+
+function minuteToY(totalMinutes: number): number {
+  return (totalMinutes - START_HOUR * 60) * (HOUR_PX / 60)
 }
 
-/** Map a calendar event to its time slot based on the event's local start hour. */
-function getSlotForEvent(ev: CalendarEvent): Slot {
-  if (ev.isAllDay) return 'morning'
-  const hour = new Date(ev.start).getHours()
+function yToSnappedTime(y: number): { hour: number; minute: number } {
+  const totalMin = START_HOUR * 60 + Math.round((y / HOUR_PX) * 60 / 15) * 15
+  const clamped  = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - 15, totalMin))
+  return { hour: Math.floor(clamped / 60), minute: clamped % 60 }
+}
+
+function eventTop(ev: CalendarEvent): number {
+  const d = new Date(ev.start)
+  return Math.max(0, minuteToY(d.getHours() * 60 + d.getMinutes()))
+}
+
+function eventHeight(ev: CalendarEvent): number {
+  const start    = new Date(ev.start)
+  const end      = new Date(ev.end)
+  const durMin   = Math.max(15, (end.getTime() - start.getTime()) / 60000)
+  const maxMin   = (END_HOUR - START_HOUR) * 60
+  const startMin = start.getHours() * 60 + start.getMinutes() - START_HOUR * 60
+  return Math.min(durMin, maxMin - startMin) * (HOUR_PX / 60)
+}
+
+function pad2(n: number) { return String(n).padStart(2, '0') }
+
+function formatTime(h: number, m: number): string {
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12  = h % 12 || 12
+  return `${h12}:${pad2(m)} ${ampm}`
+}
+
+/** ISO datetime string for a given date + hour/minute, in local timezone offset */
+function localISO(dateStr: string, h: number, m: number): string {
+  const d     = new Date(`${dateStr}T${pad2(h)}:${pad2(m)}:00`)
+  const off   = -d.getTimezoneOffset()
+  const sign  = off >= 0 ? '+' : '-'
+  const ah    = Math.floor(Math.abs(off) / 60)
+  const am    = Math.abs(off) % 60
+  return `${dateStr}T${pad2(h)}:${pad2(m)}:00${sign}${pad2(ah)}:${pad2(am)}`
+}
+
+// ── Event overlap layout ──────────────────────────────────────────────────────
+
+type LayoutEvent = CalendarEvent & { laneIdx: number; laneCount: number }
+
+function layoutDayEvents(events: CalendarEvent[]): LayoutEvent[] {
+  if (!events.length) return []
+  const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start))
+  // Each "lane" tracks the endTime of the last event assigned to it
+  const laneEnds: number[] = []
+
+  const withLane = sorted.map(ev => {
+    const startMs = new Date(ev.start).getTime()
+    const endMs   = new Date(ev.end).getTime()
+    let lane = laneEnds.findIndex(end => end <= startMs)
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(0) }
+    laneEnds[lane] = endMs
+    return { ev, lane }
+  })
+
+  const total = laneEnds.length || 1
+  return withLane.map(({ ev, lane }) => ({ ...ev, laneIdx: lane, laneCount: total }))
+}
+
+// ── Slot ↔ hour ───────────────────────────────────────────────────────────────
+
+type Slot = 'morning' | 'afternoon' | 'evening'
+const SLOT_HOURS: Record<Slot, number> = { morning: 7, afternoon: 12, evening: 18 }
+const SLOT_EMOJI: Record<Slot, string> = { morning: '🌅', afternoon: '☀️', evening: '🌙' }
+
+function hourToSlot(hour: number): Slot {
   if (hour < 12) return 'morning'
   if (hour < 18) return 'afternoon'
   return 'evening'
 }
 
-/** Format a calendar event time for display inside a cell (e.g. "9:00 AM"). */
-function fmtEventTime(ev: CalendarEvent): string {
-  if (ev.isAllDay) return 'All day'
-  return new Date(ev.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+type ClickPoint = {
+  dateStr: string
+  hour: number
+  minute: number
+  clientX: number
+  clientY: number
 }
 
-/* ── Types ── */
-
-type SelectedItem =
-  | { kind: 'habit'; habit: HabitWithLogs }
-  | { kind: 'goal'; goalId: string; title: string }
-  | { kind: 'custom' }
-  | null
+type PopupMode = 'choose' | 'event' | 'habit' | 'goal' | 'custom'
 
 type SuggestedRawBlock = {
   day_of_week: number
@@ -84,7 +144,7 @@ type SuggestedRawBlock = {
   reason: string
 }
 
-/* ── Props ── */
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 type Props = {
   habits: HabitWithLogs[]
@@ -95,7 +155,7 @@ type Props = {
   calendarEvents?: CalendarEvent[]
 }
 
-/* ── Main Component ── */
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function WeeklyPlanner({
   habits,
@@ -106,19 +166,43 @@ export default function WeeklyPlanner({
   calendarEvents = [],
 }: Props) {
   const toast = useToast()
-  const [planBlocks, setPlanBlocks] = useState<WeeklyPlanBlock[]>(initialPlan)
-  const [selectedItem, setSelectedItem] = useState<SelectedItem>(null)
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [weekStart, setWeekStart] = useState(initialWeekStart)
-  const [customText, setCustomText] = useState('')
-  const [suggesting, setSuggesting] = useState(false)
-  const [narrative, setNarrative] = useState('')
-  const [narrativeVisible, setNarrativeVisible] = useState(false)
-  const [suggestError, setSuggestError] = useState('')
+
+  // ── Core state ──
+  const [planBlocks,  setPlanBlocks]  = useState<WeeklyPlanBlock[]>(initialPlan)
+  const [weekOffset,  setWeekOffset]  = useState(0)
+  const [weekStart,   setWeekStart]   = useState(initialWeekStart)
   const [localHabits, setLocalHabits] = useState<HabitWithLogs[]>(habits)
-  const [pendingCells, setPendingCells] = useState<Set<string>>(new Set())
+  const [suggesting,  setSuggesting]  = useState(false)
+  const [narrative,   setNarrative]   = useState('')
+  const [narrativeVisible, setNarrativeVisible] = useState(false)
+  const [suggestError,     setSuggestError]     = useState('')
+
+  // ── Local calendar events (+ optimistically-added events) ──
+  const [localCalEvents, setLocalCalEvents] = useState<CalendarEvent[]>(calendarEvents)
+
+  // ── Click-to-add popup ──
+  const [click,      setClick]      = useState<ClickPoint | null>(null)
+  const [popupMode,  setPopupMode]  = useState<PopupMode>('choose')
+  const [evTitle,    setEvTitle]    = useState('')
+  const [evStart,    setEvStart]    = useState('')  // HH:MM
+  const [evEnd,      setEvEnd]      = useState('')  // HH:MM
+  const [creating,   setCreating]   = useState(false)
+  const [createErr,  setCreateErr]  = useState('')
+  const [customText, setCustomText] = useState('')
+
+  // ── Current time ──
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date(); return n.getHours() * 60 + n.getMinutes()
+  })
+  useEffect(() => {
+    const id = setInterval(() => {
+      const n = new Date(); setNowMinutes(n.getHours() * 60 + n.getMinutes())
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => { setLocalHabits(habits) }, [habits])
+  useEffect(() => { setLocalCalEvents(calendarEvents) }, [calendarEvents])
 
   useEffect(() => {
     const ws = getWeekStart(weekOffset)
@@ -126,12 +210,22 @@ export default function WeeklyPlanner({
     fetch(`/api/planner/week?weekStart=${ws}`)
       .then(r => r.json())
       .then((data: WeeklyPlanBlock[]) => setPlanBlocks(data))
-      .catch(err => { console.error('fetch week plan:', err); toast.error('Failed to load plan') })
+      .catch(() => toast.error('Failed to load plan'))
   }, [weekOffset])
 
-  /* ── Calendar event lookups (memoised) ── */
+  // Close popup on outside click
+  useEffect(() => {
+    if (!click) return
+    const handler = (e: MouseEvent) => {
+      const popup = document.getElementById('cal-popup')
+      if (popup && !popup.contains(e.target as Node)) closePopup()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [click])
 
-  // Build colDates once here so memos can reference it too
+  // ── Memos ──
+
   const colDates = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart],
@@ -139,795 +233,755 @@ export default function WeeklyPlanner({
 
   const weekEnd = colDates[6]
 
-  /**
-   * Calendar events that fall in the visible week, indexed by "dateStr|slot".
-   * All-day events are excluded here — they appear in the all-day strip.
-   */
-  const calByCell = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>()
-    for (const ev of calendarEvents) {
-      if (ev.isAllDay) continue
-      const dateStr = ev.start.slice(0, 10)
-      if (dateStr < colDates[0] || dateStr > weekEnd) continue
-      const slot = getSlotForEvent(ev)
-      const key = `${dateStr}|${slot}`
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(ev)
-    }
-    return map
-  }, [calendarEvents, colDates, weekEnd])
-
-  /** All-day events indexed by dateStr. */
+  /** All-day events for the visible week, indexed by dateStr */
   const allDayByDate = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>()
-    for (const ev of calendarEvents) {
+    const m = new Map<string, CalendarEvent[]>()
+    for (const ev of localCalEvents) {
       if (!ev.isAllDay) continue
-      const dateStr = ev.start.slice(0, 10)
-      if (dateStr < colDates[0] || dateStr > weekEnd) continue
-      if (!map.has(dateStr)) map.set(dateStr, [])
-      map.get(dateStr)!.push(ev)
+      const d = ev.start.slice(0, 10)
+      if (d < colDates[0] || d > weekEnd) continue
+      if (!m.has(d)) m.set(d, [])
+      m.get(d)!.push(ev)
     }
-    return map
-  }, [calendarEvents, colDates, weekEnd])
+    return m
+  }, [localCalEvents, colDates, weekEnd])
 
-  /** Total event count per day (timed + all-day) for load indicators. */
-  const loadByDate = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const ev of calendarEvents) {
-      const dateStr = ev.start.slice(0, 10)
-      if (dateStr < colDates[0] || dateStr > weekEnd) continue
-      map.set(dateStr, (map.get(dateStr) ?? 0) + 1)
+  /** Timed events per dateStr, with lane layout computed */
+  const timedByDate = useMemo(() => {
+    const m = new Map<string, LayoutEvent[]>()
+    for (const col of colDates) {
+      const evs = localCalEvents.filter(ev => !ev.isAllDay && ev.start.slice(0, 10) === col)
+      m.set(col, layoutDayEvents(evs))
     }
-    return map
-  }, [calendarEvents, colDates, weekEnd])
+    return m
+  }, [localCalEvents, colDates])
 
-  /* ── Handlers ── */
+  const hasCalendar = localCalEvents.length > 0
 
-  async function handleCellClick(col: number, slot: Slot) {
-    if (!selectedItem) return
-    const cellDate = colDates[col]
-    if (cellDate < today) return
-    if (selectedItem.kind === 'habit' && weekOffset !== 0) return
-    const dow = colToDow(col)
-    const cellKey = `${col}-${slot}`
+  // ── Handlers ──
 
-    if (selectedItem.kind === 'habit') {
-      const habit = selectedItem.habit
-      setPendingCells(prev => new Set(prev).add(cellKey))
-      setLocalHabits(prev =>
-        prev.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h)
-      )
-      setSelectedItem(null)
-      try {
-        await setHabitTimeOfDay(habit.id, slot)
-      } catch (err) {
-        console.error('setHabitTimeOfDay:', err); toast.error('Failed to update habit time')
-        setLocalHabits(prev =>
-          prev.map(h => h.id === habit.id ? { ...h, time_of_day: habit.time_of_day } : h)
-        )
-      } finally {
-        setPendingCells(prev => { const s = new Set(prev); s.delete(cellKey); return s })
-      }
-      return
-    }
+  function openPopup(dateStr: string, clientX: number, clientY: number, hour: number, minute: number) {
+    const slot = hourToSlot(hour)
+    const endH = hour + 1 > END_HOUR ? hour : hour + 1
+    setClick({ dateStr, hour, minute, clientX, clientY })
+    setPopupMode('choose')
+    setEvTitle('')
+    setEvStart(`${pad2(hour)}:${pad2(minute)}`)
+    setEvEnd(`${pad2(endH)}:${pad2(minute)}`)
+    setCreateErr('')
+    setCustomText('')
+  }
 
-    if (selectedItem.kind === 'goal') {
-      const title = selectedItem.title
-      const goalId = selectedItem.goalId
-      const optimistic: WeeklyPlanBlock = {
-        id: `optimistic-${Date.now()}`,
-        user_id: '',
-        week_start: weekStart,
-        day_of_week: dow,
-        time_slot: slot,
-        title,
-        type: 'goal',
-        reference_id: goalId,
-        accepted: true,
-        position: 0,
-        created_at: new Date().toISOString(),
-      }
-      setPlanBlocks(prev => [...prev, optimistic])
-      setSelectedItem(null)
-      try {
-        const saved = await addPlanBlock(weekStart, dow, slot, title, 'goal', goalId)
-        setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
-      } catch (err) {
-        console.error('addPlanBlock goal:', err); toast.error('Failed to add goal to plan')
-        setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
-      }
-      return
-    }
+  function closePopup() { setClick(null); setPopupMode('choose') }
 
-    if (selectedItem.kind === 'custom') {
-      const title = customText.trim()
-      if (!title) return
-      const optimistic: WeeklyPlanBlock = {
-        id: `optimistic-${Date.now()}`,
-        user_id: '',
-        week_start: weekStart,
-        day_of_week: dow,
-        time_slot: slot,
-        title,
-        type: 'custom',
-        reference_id: null,
-        accepted: true,
-        position: 0,
-        created_at: new Date().toISOString(),
+  function handleGridClick(dateStr: string, e: React.MouseEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest('[data-event]')) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const { hour, minute } = yToSnappedTime(y)
+    openPopup(dateStr, e.clientX, e.clientY, hour, minute)
+  }
+
+  async function handleCreateCalendarEvent() {
+    if (!click || !evTitle.trim()) return
+    setCreating(true)
+    setCreateErr('')
+    try {
+      const [sh, sm] = evStart.split(':').map(Number)
+      const [eh, em] = evEnd.split(':').map(Number)
+      const startISO = localISO(click.dateStr, sh, sm)
+      const endISO   = localISO(click.dateStr, eh, em)
+
+      const res = await fetch('/api/calendar/events', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: evTitle.trim(), startDateTime: startISO, endDateTime: endISO }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        if (res.status === 412) {
+          setCreateErr('Connect Google Calendar in Settings first.')
+          return
+        }
+        if (res.status === 403) {
+          setCreateErr('Reconnect Google Calendar in Settings to enable creating events.')
+          return
+        }
+        setCreateErr(data.error ?? 'Failed to create event')
+        return
       }
-      setPlanBlocks(prev => [...prev, optimistic])
-      setSelectedItem(null)
-      setCustomText('')
-      try {
-        const saved = await addPlanBlock(weekStart, dow, slot, title, 'custom')
-        setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
-      } catch (err) {
-        console.error('addPlanBlock custom:', err); toast.error('Failed to add task to plan')
-        setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
+
+      // Optimistically add to local state
+      const optimisticEvent: CalendarEvent = {
+        id:           data.eventId ?? `local-${Date.now()}`,
+        title:        evTitle.trim(),
+        start:        startISO,
+        end:          endISO,
+        isAllDay:     false,
+        calendarName: 'Google Calendar',
+        location:     null,
+        description:  null,
       }
+      setLocalCalEvents(prev => [...prev, optimisticEvent])
+      toast.success('Event created in Google Calendar')
+      closePopup()
+    } catch (err) {
+      setCreateErr(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCreating(false)
     }
   }
 
-  async function handleRemoveBlock(block: WeeklyPlanBlock) {
-    setPlanBlocks(prev => prev.filter(b => b.id !== block.id))
+  async function handleAddHabit(habit: HabitWithLogs) {
+    if (!click) return
+    const slot = hourToSlot(click.hour)
+    const prev = habit.time_of_day
+    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h))
+    closePopup()
     try {
-      await removePlanBlock(block.id)
-    } catch (err) {
-      console.error('removePlanBlock:', err); toast.error('Failed to remove block')
-      setPlanBlocks(prev => [...prev, block])
+      await setHabitTimeOfDay(habit.id, slot)
+      toast.success(`${habit.emoji} ${habit.name} moved to ${slot}`)
+    } catch {
+      toast.error('Failed to assign habit time')
+      setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
+    }
+  }
+
+  async function handleAddGoalBlock(goal: GoalWithSteps) {
+    if (!click) return
+    const slot = hourToSlot(click.hour)
+    const dow  = new Date(click.dateStr + 'T12:00:00').getDay()
+    const optimistic: WeeklyPlanBlock = {
+      id: `opt-${Date.now()}`, user_id: '', week_start: weekStart,
+      day_of_week: dow, time_slot: slot, title: goal.title,
+      type: 'goal', reference_id: goal.id, accepted: true, position: 0,
+      created_at: new Date().toISOString(),
+    }
+    setPlanBlocks(prev => [...prev, optimistic])
+    closePopup()
+    try {
+      const saved = await addPlanBlock(weekStart, dow, slot, goal.title, 'goal', goal.id)
+      setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
+    } catch {
+      toast.error('Failed to add goal block')
+      setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
+    }
+  }
+
+  async function handleAddCustomBlock() {
+    if (!click || !customText.trim()) return
+    const slot = hourToSlot(click.hour)
+    const dow  = new Date(click.dateStr + 'T12:00:00').getDay()
+    const title = customText.trim()
+    const optimistic: WeeklyPlanBlock = {
+      id: `opt-${Date.now()}`, user_id: '', week_start: weekStart,
+      day_of_week: dow, time_slot: slot, title,
+      type: 'custom', reference_id: null, accepted: true, position: 0,
+      created_at: new Date().toISOString(),
+    }
+    setPlanBlocks(prev => [...prev, optimistic])
+    closePopup()
+    try {
+      const saved = await addPlanBlock(weekStart, dow, slot, title, 'custom')
+      setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
+    } catch {
+      toast.error('Failed to add block')
+      setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
     }
   }
 
   async function handleRemoveHabitSlot(habit: HabitWithLogs) {
     const prev = habit.time_of_day
     setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: null } : h))
-    try {
-      await setHabitTimeOfDay(habit.id, null)
-    } catch (err) {
-      console.error('removeHabitSlot:', err); toast.error('Failed to remove habit slot')
-      setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
-    }
+    try { await setHabitTimeOfDay(habit.id, null) }
+    catch { toast.error('Failed to remove habit slot'); setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h)) }
+  }
+
+  async function handleRemoveBlock(block: WeeklyPlanBlock) {
+    setPlanBlocks(prev => prev.filter(b => b.id !== block.id))
+    try { await removePlanBlock(block.id) }
+    catch { toast.error('Failed to remove block'); setPlanBlocks(prev => [...prev, block]) }
   }
 
   async function handleAccept(block: WeeklyPlanBlock) {
     setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: true } : b))
-    try {
-      await acceptSuggestion(block.id)
-    } catch (err) {
-      console.error('acceptSuggestion:', err); toast.error('Failed to accept suggestion')
-      setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: false } : b))
-    }
+    try { await acceptSuggestion(block.id) }
+    catch { toast.error('Failed to accept'); setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: false } : b)) }
   }
 
   async function handleDismiss(block: WeeklyPlanBlock) {
     setPlanBlocks(prev => prev.filter(b => b.id !== block.id))
-    try {
-      await dismissSuggestion(block.id)
-    } catch (err) {
-      console.error('dismissSuggestion:', err); toast.error('Failed to dismiss suggestion')
-      setPlanBlocks(prev => [...prev, block])
-    }
-  }
-
-  async function handleQuickSlot(habit: HabitWithLogs, slot: Slot) {
-    const prev = habit.time_of_day
-    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h))
-    try {
-      await setHabitTimeOfDay(habit.id, slot)
-    } catch (err) {
-      console.error('handleQuickSlot:', err); toast.error('Failed to save slot')
-      setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
-    }
+    try { await dismissSuggestion(block.id) }
+    catch { toast.error('Failed to dismiss'); setPlanBlocks(prev => [...prev, block]) }
   }
 
   async function handleAISuggest() {
-    setSuggesting(true)
-    setSuggestError('')
+    setSuggesting(true); setSuggestError('')
     try {
       const res = await fetch('/api/planner/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekStart, calendarEvents }),
+        body: JSON.stringify({ weekStart, calendarEvents: localCalEvents }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail ? `${body.error}: ${body.detail}` : (body.error ?? `Request failed (${res.status})`))
+        throw new Error(body.detail ?? body.error ?? `Request failed (${res.status})`)
       }
-      const { blocks, narrative: newNarrative } = await res.json() as {
-        blocks: SuggestedRawBlock[]
-        narrative: string
-        summary: string
-      }
+      const { blocks, narrative: nav } = await res.json() as { blocks: SuggestedRawBlock[]; narrative: string; summary: string }
 
       const VALID_SLOTS = new Set(['morning', 'afternoon', 'evening'])
-      const clean = blocks.filter(b =>
-        typeof b.title === 'string' &&
-        b.title.trim() &&
-        VALID_SLOTS.has(b.time_slot) &&
-        typeof b.day_of_week === 'number' &&
-        b.day_of_week >= 0 && b.day_of_week <= 6
-      ).map(b => ({
-        weekStart,
-        dayOfWeek: b.day_of_week,
-        timeSlot: b.time_slot,
-        title: b.title.trim(),
-        type: (b.type === 'goal' ? 'goal' : 'custom') as 'goal' | 'custom',
-        referenceId: b.type === 'goal' && b.reference_id ? b.reference_id : undefined,
-      }))
-
-      if (clean.length === 0) throw new Error('No valid suggestions returned')
+      const clean = blocks
+        .filter(b => typeof b.title === 'string' && b.title.trim() && VALID_SLOTS.has(b.time_slot) && typeof b.day_of_week === 'number' && b.day_of_week >= 0 && b.day_of_week <= 6)
+        .map(b => ({
+          weekStart, dayOfWeek: b.day_of_week, timeSlot: b.time_slot, title: b.title.trim(),
+          type: (b.type === 'goal' ? 'goal' : 'custom') as 'goal' | 'custom',
+          referenceId: b.type === 'goal' && b.reference_id ? b.reference_id : undefined,
+        }))
+      if (!clean.length) throw new Error('No valid suggestions returned')
 
       const saved = await saveSuggestions(clean)
       setPlanBlocks(prev => [...prev, ...saved])
-
-      if (newNarrative) {
-        setNarrative(newNarrative)
-        setNarrativeVisible(true)
-      }
+      if (nav) { setNarrative(nav); setNarrativeVisible(true) }
     } catch (err) {
-      console.error('handleAISuggest:', err); toast.error('AI suggestions failed — try again')
+      toast.error('AI suggestions failed — try again')
       setSuggestError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setSuggesting(false)
-    }
+    } finally { setSuggesting(false) }
   }
 
-  /* ── Computed ── */
-
-  const isPastWeek = weekOffset < 0
-  const isSelecting = selectedItem !== null && !isPastWeek
-  const todayDow = new Date(today + 'T12:00:00').getDay()
+  // ── Computed ──
 
   const weekEndDate = addDays(weekStart, 6)
-  function fmtDate(d: string) {
-    return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
+  function fmtDate(d: string) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
   const weekLabel = `${fmtDate(weekStart)} – ${fmtDate(weekEndDate)}`
+  const nowY = minuteToY(nowMinutes)
+  const todayVisible = today >= colDates[0] && today <= weekEnd
+  const showNowLine  = weekOffset === 0 && todayVisible && nowMinutes >= START_HOUR * 60 && nowMinutes < END_HOUR * 60
 
-  const hasCalendar = calendarEvents.length > 0
+  // ── Popup positioning ──
+  function popupStyle(): React.CSSProperties {
+    if (!click) return {}
+    const W = 300, H = popupMode === 'event' ? 320 : popupMode === 'habit' ? 280 : popupMode === 'goal' ? 260 : popupMode === 'custom' ? 180 : 140
+    const vw = typeof window !== 'undefined' ? window.innerWidth  : 1200
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+    const left = Math.max(8, Math.min(vw - W - 8, click.clientX - W / 2))
+    const top  = Math.max(8, Math.min(vh - H - 8, click.clientY + 16))
+    return { position: 'fixed', top, left, width: `${W}px`, zIndex: 9000 }
+  }
 
-  /* ── Render ── */
+  // ── Render ──
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 16px' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--text-0)', margin: 0 }}>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 400, color: 'var(--text-0)', margin: 0 }}>
             Weekly Rhythm
           </h1>
           <div style={{ fontSize: '13px', color: 'var(--text-2)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>{weekLabel}</span>
             {hasCalendar && weekOffset === 0 && (
-              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(96,160,200,0.12)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(96,160,200,0.9)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                📅 Calendar synced
+              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(96,160,200,0.12)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(140,190,220,0.9)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                📅 synced
               </span>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setWeekOffset(w => w - 1)}
-            style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'var(--bg-1)', color: 'var(--text-1)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
-          >← Prev</button>
-          <button
-            onClick={() => setWeekOffset(0)}
-            style={{ padding: '6px 12px', border: '1px solid var(--border)', background: weekOffset === 0 ? 'var(--gold-dim)' : 'var(--bg-1)', color: weekOffset === 0 ? 'var(--gold)' : 'var(--text-1)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: weekOffset === 0 ? 600 : 400 }}
-          >This Week</button>
-          <button
-            onClick={() => setWeekOffset(w => w + 1)}
-            style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'var(--bg-1)', color: 'var(--text-1)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
-          >Next →</button>
-          <button
-            onClick={handleAISuggest}
-            disabled={suggesting}
-            style={{ padding: '6px 14px', border: 'none', background: suggesting ? 'var(--bg-2)' : 'var(--gold)', color: suggesting ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: suggesting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, transition: 'opacity 0.15s', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            {suggesting
-              ? <><SpinnerIcon />Analyzing…</>
-              : <>✦ {narrativeVisible ? 'Re-analyze' : 'Analyze Week'}</>
-            }
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={() => setWeekOffset(w => w - 1)} style={navBtnStyle}>← Prev</button>
+          <button onClick={() => setWeekOffset(0)} style={{ ...navBtnStyle, ...(weekOffset === 0 && { background: 'var(--gold-dim)', color: 'var(--gold)', fontWeight: 600 }) }}>This Week</button>
+          <button onClick={() => setWeekOffset(w => w + 1)} style={navBtnStyle}>Next →</button>
+          <button onClick={handleAISuggest} disabled={suggesting} style={{ padding: '6px 14px', border: 'none', background: suggesting ? 'var(--bg-2)' : 'var(--gold)', color: suggesting ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: suggesting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {suggesting ? <><SpinIcon />Analyzing…</> : <>✦ {narrativeVisible ? 'Re-analyze' : 'Analyze Week'}</>}
           </button>
         </div>
       </div>
 
-      {/* ── AI error banner ── */}
+      {/* ── Error banner ── */}
       {suggestError && (
-        <div style={{ background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e07060', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ flexShrink: 0 }}>⚠</span>
-          <span>{suggestError}</span>
-          <button onClick={() => setSuggestError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#e07060', cursor: 'pointer', fontSize: '16px', lineHeight: 1, flexShrink: 0, padding: 0 }}>×</button>
+        <div style={{ background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e07060', display: 'flex', gap: '8px' }}>
+          <span>⚠ {suggestError}</span>
+          <button onClick={() => setSuggestError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#e07060', cursor: 'pointer', fontSize: '16px', padding: 0 }}>×</button>
         </div>
       )}
 
       {/* ── AI Intelligence Panel ── */}
       {narrativeVisible && narrative && (
-        <div style={{
-          background: 'rgba(212,168,83,0.06)',
-          border: '1px solid rgba(212,168,83,0.22)',
-          borderLeft: '3px solid var(--gold)',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '16px',
-          animation: 'fadeUp 0.25s var(--ease) both',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-            <span style={{ color: 'var(--gold)', fontSize: '13px', flexShrink: 0, marginTop: '1px' }}>✦</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '5px' }}>
-                Locus Week Intelligence
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-1)', margin: 0, lineHeight: 1.6 }}>
-                {narrative}
-              </p>
+        <div style={{ background: 'rgba(212,168,83,0.06)', border: '1px solid rgba(212,168,83,0.2)', borderLeft: '3px solid var(--gold)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <span style={{ color: 'var(--gold)', flexShrink: 0, fontSize: '13px' }}>✦</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '5px' }}>Locus Week Intelligence</div>
+              <p style={{ fontSize: '13px', color: 'var(--text-1)', margin: 0, lineHeight: 1.6 }}>{narrative}</p>
             </div>
-            <button
-              onClick={() => setNarrativeVisible(false)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0, flexShrink: 0 }}
-            >×</button>
+            <button onClick={() => setNarrativeVisible(false)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>×</button>
           </div>
         </div>
       )}
 
-      {/* ── Selected item banner ── */}
-      {selectedItem && (
-        <div style={{ background: 'rgba(212,168,83,0.12)', border: '1px solid var(--gold)', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', fontSize: '13px', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>
-            {selectedItem.kind === 'habit' && `Placing: ${selectedItem.habit.emoji} ${selectedItem.habit.name}`}
-            {selectedItem.kind === 'goal' && `Placing: "${selectedItem.title}"`}
-            {selectedItem.kind === 'custom' && `Placing: "${customText}"`}
-          </span>
-          <span style={{ color: 'var(--text-2)', fontSize: '12px' }}>— click a cell to place</span>
-          <button onClick={() => setSelectedItem(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0 }}>×</button>
+      {/* ── Calendar grid ── */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-0)' }}>
+
+        {/* Day headers (sticky) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-0)' }}>
+          <div style={{ borderRight: '1px solid var(--border)' }} />
+          {colDates.map((dateStr, col) => {
+            const dow    = colToDow(col)
+            const isTdy  = dateStr === today
+            const load   = (timedByDate.get(dateStr)?.length ?? 0) + (allDayByDate.get(dateStr)?.length ?? 0)
+            return (
+              <div key={col} style={{ padding: '10px 8px 8px', textAlign: 'center', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isTdy ? 'rgba(212,168,83,0.06)' : undefined }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: isTdy ? 'var(--gold)' : 'var(--text-2)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{DOW_SHORT[dow]}</div>
+                <div style={{ fontSize: '22px', fontWeight: isTdy ? 700 : 400, color: isTdy ? 'var(--gold)' : 'var(--text-0)', lineHeight: 1.2 }}>
+                  {new Date(dateStr + 'T12:00:00').getDate()}
+                </div>
+                {load > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '3px' }}>
+                    {Array.from({ length: Math.min(load, 4) }, (_, i) => (
+                      <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(96,160,200,0.55)' }} />
+                    ))}
+                    {load > 4 && <span style={{ fontSize: '8px', color: 'rgba(96,160,200,0.55)' }}>+</span>}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
-      )}
 
-      {/* ── Main layout ── */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-
-        {/* ── Sidebar ── */}
-        <aside style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-          {/* Calendar legend (only if calendar is connected and viewing current week) */}
-          {hasCalendar && weekOffset === 0 && (
-            <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(96,160,200,0.07)', border: '1px solid rgba(96,160,200,0.2)' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(96,160,200,0.8)', marginBottom: '6px' }}>
-                📅 Calendar
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
-                Blue blocks are your Google Calendar events. They&apos;re read-only — use <strong>✦ Analyze Week</strong> to get AI suggestions that work around them.
-              </div>
+        {/* All-day strip */}
+        {hasCalendar && weekOffset === 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', minHeight: '28px' }}>
+            <div style={{ borderRight: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '8px' }}>
+              <span style={{ fontSize: '9px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>All day</span>
             </div>
-          )}
-
-          {/* Habits */}
-          <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Habits</div>
-            </div>
-            <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {localHabits.length === 0 && (
-                <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '6px 4px' }}>No habits yet</div>
-              )}
-              {localHabits.map(habit => {
-                const isSelected = selectedItem?.kind === 'habit' && selectedItem.habit.id === habit.id
-                return (
-                  <div
-                    key={habit.id}
-                    style={{ padding: '7px 8px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`, background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent', cursor: 'pointer', transition: 'background 0.12s' }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
-                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }} onClick={() => setSelectedItem(isSelected ? null : { kind: 'habit', habit })}>
-                      <span style={{ fontSize: '14px' }}>{habit.emoji}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-1)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {SLOTS.map(slot => {
-                        const active = habit.time_of_day === slot
-                        return (
-                          <button
-                            key={slot}
-                            onClick={e => { e.stopPropagation(); handleQuickSlot(habit, slot) }}
-                            style={{ flex: 1, padding: '2px 0', border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`, background: active ? 'rgba(212,168,83,0.2)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text-3)', borderRadius: '4px', cursor: 'pointer', fontSize: '9px', fontWeight: active ? 700 : 400, letterSpacing: '0.03em', transition: 'all 0.12s' }}
-                          >
-                            {slot === 'morning' ? 'M' : slot === 'afternoon' ? 'A' : 'E'}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            {colDates.map((dateStr, col) => {
+              const evs = allDayByDate.get(dateStr) ?? []
+              return (
+                <div key={col} style={{ padding: '3px 4px', display: 'flex', flexWrap: 'wrap', gap: '2px', borderRight: col < 6 ? '1px solid var(--border)' : undefined }}>
+                  {evs.map(ev => (
+                    <span key={ev.id} title={ev.title} style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(96,160,200,0.18)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(140,190,220,0.95)', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textOverflow: 'ellipsis', fontWeight: 500 }}>
+                      {ev.title}
+                    </span>
+                  ))}
+                </div>
+              )
+            })}
           </div>
+        )}
 
-          {/* Goals */}
-          <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Goals</div>
-            </div>
-            <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {goals.length === 0 && (
-                <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '6px 4px' }}>No active goals</div>
-              )}
-              {goals.map(goal => {
-                const isSelected = selectedItem?.kind === 'goal' && selectedItem.goalId === goal.id
-                return (
-                  <div
-                    key={goal.id}
-                    onClick={() => setSelectedItem(isSelected ? null : { kind: 'goal', goalId: goal.id, title: goal.title })}
-                    style={{ padding: '7px 8px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--gold)' : 'transparent'}`, background: isSelected ? 'rgba(212,168,83,0.1)' : 'transparent', cursor: 'pointer', transition: 'background 0.12s' }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
-                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                  >
-                    <div style={{ fontSize: '12px', color: 'var(--text-0)', fontWeight: 500, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.title}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+        {/* Rhythm strip — habits + plan blocks per day */}
+        <RhythmStrip
+          colDates={colDates}
+          weekStart={weekStart}
+          today={today}
+          localHabits={localHabits}
+          planBlocks={planBlocks}
+          onRemoveHabit={handleRemoveHabitSlot}
+          onRemoveBlock={handleRemoveBlock}
+          onAccept={handleAccept}
+          onDismiss={handleDismiss}
+          onCellClick={(dateStr, clientX, clientY) => {
+            openPopup(dateStr, clientX, clientY, 8, 0)
+            setPopupMode('habit')
+          }}
+        />
 
-          {/* Custom block */}
-          <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--glass-card-border)' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600 }}>Custom Block</div>
-            </div>
-            <div style={{ padding: '10px' }}>
-              <input
-                type="text"
-                placeholder="Block title…"
-                value={customText}
-                onChange={e => setCustomText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && customText.trim()) setSelectedItem({ kind: 'custom' }) }}
-                style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', background: 'var(--bg-0)', color: 'var(--text-0)', borderRadius: '6px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
-              />
-              <button
-                disabled={!customText.trim()}
-                onClick={() => { if (customText.trim()) setSelectedItem({ kind: 'custom' }) }}
-                style={{ marginTop: '8px', width: '100%', padding: '7px', border: 'none', background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)', color: customText.trim() ? '#131110' : 'var(--text-3)', borderRadius: '6px', cursor: customText.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, transition: 'all 0.12s' }}
-              >
-                Place →
-              </button>
-            </div>
-          </div>
-        </aside>
+        {/* Time grid */}
+        <div style={{ overflowY: 'auto', maxHeight: '600px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', height: `${GRID_H}px`, position: 'relative' }}>
 
-        {/* ── Grid ── */}
-        <div style={{ flex: 1, overflowX: 'auto' }}>
-          <div style={{ minWidth: '560px' }}>
+            {/* Time labels */}
+            <div style={{ borderRight: '1px solid var(--border)', position: 'relative' }}>
+              {Array.from({ length: HOURS }, (_, i) => (
+                <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX - 8}px`, right: '8px', fontSize: '10px', color: 'var(--text-3)', userSelect: 'none', fontWeight: 500 }}>
+                  {((START_HOUR + i) % 12) || 12}{START_HOUR + i < 12 ? 'am' : 'pm'}
+                </div>
+              ))}
+            </div>
 
-            {/* Day headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '2px' }}>
-              <div /> {/* slot label spacer */}
-              {Array.from({ length: 7 }, (_, col) => {
-                const dow = colToDow(col)
-                const dateStr = colDates[col]
-                const isToday = dateStr === today
-                const load = loadByDate.get(dateStr) ?? 0
-                return (
-                  <div key={col} style={{ textAlign: 'center', padding: '8px 4px 6px', borderRadius: '6px 6px 0 0', background: isToday ? 'rgba(212,168,83,0.12)' : 'transparent' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: isToday ? 'var(--gold)' : 'var(--text-1)' }}>{DOW_SHORT[dow]}</div>
-                    <div style={{ fontSize: '10px', color: isToday ? 'var(--gold)' : 'var(--text-3)', marginTop: '1px' }}>
-                      {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {/* Day columns */}
+            {colDates.map((dateStr, col) => {
+              const isToday    = dateStr === today
+              const isPast     = dateStr < today
+              const dayEvents  = timedByDate.get(dateStr) ?? []
+
+              return (
+                <div
+                  key={col}
+                  onClick={e => !isPast && handleGridClick(dateStr, e)}
+                  style={{
+                    position: 'relative',
+                    borderRight: col < 6 ? '1px solid var(--border)' : undefined,
+                    background: isToday ? 'rgba(212,168,83,0.03)' : undefined,
+                    cursor: isPast ? 'default' : 'pointer',
+                  }}
+                >
+                  {/* Hour lines */}
+                  {Array.from({ length: HOURS }, (_, i) => (
+                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX}px`, left: 0, right: 0, borderTop: `1px solid var(--border)`, pointerEvents: 'none' }} />
+                  ))}
+                  {/* Half-hour lines */}
+                  {Array.from({ length: HOURS }, (_, i) => (
+                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX + HOUR_PX / 2}px`, left: 0, right: 0, borderTop: `1px dashed rgba(255,255,255,0.04)`, pointerEvents: 'none' }} />
+                  ))}
+
+                  {/* Current time line */}
+                  {showNowLine && isToday && (
+                    <div style={{ position: 'absolute', top: `${nowY}px`, left: 0, right: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(220,80,60,0.9)', marginLeft: '-4px', flexShrink: 0 }} />
+                      <div style={{ flex: 1, height: '1.5px', background: 'rgba(220,80,60,0.5)' }} />
                     </div>
-                    {/* Calendar load dots */}
-                    {load > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '4px' }}>
-                        {Array.from({ length: Math.min(load, 5) }, (_, i) => (
-                          <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(96,160,200,0.6)' }} />
-                        ))}
-                        {load > 5 && <span style={{ fontSize: '8px', color: 'rgba(96,160,200,0.6)', lineHeight: '4px' }}>+</span>}
+                  )}
+
+                  {/* Calendar event blocks */}
+                  {dayEvents.map(ev => {
+                    const top    = eventTop(ev)
+                    const height = eventHeight(ev)
+                    const W = 100 / ev.laneCount
+                    const L = ev.laneIdx * W
+                    const startTime = new Date(ev.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    return (
+                      <div
+                        key={ev.id}
+                        data-event="1"
+                        title={`${ev.title}${ev.location ? `\n${ev.location}` : ''}`}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          top:    `${top}px`,
+                          height: `${Math.max(height, 20)}px`,
+                          left:   `${L + 1}%`,
+                          width:  `${W - 2}%`,
+                          background: 'rgba(66,133,244,0.18)',
+                          border: '1px solid rgba(66,133,244,0.45)',
+                          borderLeft: '3px solid rgba(66,133,244,0.8)',
+                          borderRadius: '4px',
+                          padding: '2px 5px',
+                          overflow: 'hidden',
+                          zIndex: 2,
+                          boxSizing: 'border-box',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ fontSize: '9.5px', color: 'rgba(130,180,255,0.9)', fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{startTime}</div>
+                        <div style={{ fontSize: '11px', color: 'rgba(200,225,255,0.95)', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: height < 36 ? 'nowrap' : 'normal' }}>{ev.title}</div>
+                        {ev.location && height >= 48 && (
+                          <div style={{ fontSize: '10px', color: 'rgba(160,200,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.location}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    )
+                  })}
 
-            {/* All-Day strip */}
-            {hasCalendar && weekOffset === 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
-                  <span style={{ fontSize: '9px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'right', width: '100%' }}>All day</span>
-                </div>
-                {colDates.map((dateStr, col) => {
-                  const allDayEvents = allDayByDate.get(dateStr) ?? []
-                  const isToday = dateStr === today
-                  return (
-                    <div
-                      key={col}
-                      style={{ minHeight: '22px', padding: '2px 3px', display: 'flex', flexWrap: 'wrap', gap: '2px', borderRadius: '4px', background: isToday ? 'rgba(212,168,83,0.04)' : 'transparent' }}
-                    >
-                      {allDayEvents.map(ev => (
-                        <AllDayBadge key={ev.id} event={ev} />
-                      ))}
+                  {/* "Click to add" hint on hover */}
+                  {!isPast && (
+                    <div className="cal-add-hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '40%', pointerEvents: 'none', opacity: 0, transition: 'opacity 0.15s' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-3)', background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: '6px', padding: '3px 8px' }}>+ Click to add</span>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Slot rows */}
-            {SLOTS.map(slot => (
-              <div key={slot} style={{ display: 'grid', gridTemplateColumns: '72px repeat(7, 1fr)', gap: '2px', marginBottom: '2px', alignItems: 'stretch' }}>
-                {/* Slot label */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', padding: '10px 6px 8px 0', height: '140px', boxSizing: 'border-box' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{SLOT_LABELS[slot]}</span>
+                  )}
                 </div>
-
-                {/* 7 day cells */}
-                {Array.from({ length: 7 }, (_, col) => {
-                  const dow = colToDow(col)
-                  const dateStr = colDates[col]
-                  const isToday = dateStr === today
-                  const isPastDate = dateStr < today
-                  const habitSelected = selectedItem?.kind === 'habit'
-                  const isDropTarget = isSelecting && !isPastDate && !(habitSelected && weekOffset !== 0)
-                  const cellKey = `${col}-${slot}`
-                  const isPending = pendingCells.has(cellKey)
-
-                  const habitBlocks = localHabits.filter(h =>
-                    isHabitOnDay(h, dow) && h.time_of_day === slot &&
-                    (!h.ends_at || dateStr <= h.ends_at)
-                  )
-                  const dayPlanBlocks = planBlocks.filter(b =>
-                    b.day_of_week === dow && b.time_slot === slot && b.week_start === weekStart
-                  )
-                  // Calendar events for this cell (timed events only; all-day shown in strip)
-                  const cellCalEvents = weekOffset === 0
-                    ? (calByCell.get(`${dateStr}|${slot}`) ?? [])
-                    : []
-
-                  return (
-                    <div
-                      key={col}
-                      onClick={() => handleCellClick(col, slot)}
-                      style={{
-                        height: '140px',
-                        padding: '5px',
-                        border: `1px solid ${isDropTarget ? 'rgba(212,168,83,0.4)' : 'var(--border)'}`,
-                        borderRadius: '6px',
-                        background: isToday ? 'rgba(212,168,83,0.04)' : 'var(--bg-0)',
-                        cursor: isDropTarget ? 'crosshair' : 'default',
-                        transition: 'border-color 0.12s, background 0.12s',
-                        position: 'relative',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px',
-                        overflowY: 'auto',
-                        boxSizing: 'border-box',
-                      }}
-                      onMouseEnter={e => {
-                        if (isDropTarget) {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(212,168,83,0.1)'
-                          ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--gold)'
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        if (isDropTarget) {
-                          (e.currentTarget as HTMLElement).style.background = isToday ? 'rgba(212,168,83,0.04)' : 'var(--bg-0)'
-                          ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(212,168,83,0.4)'
-                        }
-                      }}
-                    >
-                      {isPending && (
-                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.04)', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <div style={{ width: '14px', height: '14px', border: '2px solid var(--gold)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                        </div>
-                      )}
-
-                      {/* Calendar event blocks (read-only, shown first) */}
-                      {cellCalEvents.map(ev => (
-                        <CalendarBlock key={ev.id} event={ev} />
-                      ))}
-
-                      {/* Habit blocks */}
-                      {habitBlocks.map(habit => (
-                        <HabitBlock key={habit.id} habit={habit} onRemove={() => handleRemoveHabitSlot(habit)} />
-                      ))}
-
-                      {/* Plan blocks */}
-                      {dayPlanBlocks.map(block => (
-                        <PlanBlock
-                          key={block.id}
-                          block={block}
-                          onRemove={() => handleRemoveBlock(block)}
-                          onAccept={() => handleAccept(block)}
-                          onDismiss={() => handleDismiss(block)}
-                        />
-                      ))}
-
-                      {/* Drop hint */}
-                      {isDropTarget && cellCalEvents.length === 0 && habitBlocks.length === 0 && dayPlanBlocks.length === 0 && (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
-                          <span style={{ fontSize: '18px', color: 'var(--gold)' }}>+</span>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
 
-      {/* Keyframes */}
+      {/* ── Click-to-add popup ── */}
+      {click && createPortal(
+        <div
+          id="cal-popup"
+          style={{
+            ...popupStyle(),
+            background: 'var(--bg-1)',
+            border: '1px solid var(--border-md)',
+            borderRadius: '10px',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+            animation: 'fadeUp 0.15s var(--ease) both',
+          }}
+        >
+          {/* Popup header */}
+          <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-0)' }}>
+                {new Date(click.dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '1px' }}>{formatTime(click.hour, click.minute)}</div>
+            </div>
+            <button onClick={closePopup} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: 0 }}>×</button>
+          </div>
+
+          <div style={{ padding: '10px 14px 14px' }}>
+            {/* Choose mode */}
+            {popupMode === 'choose' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <PopupOptionBtn icon="📅" label="New Calendar Event" onClick={() => setPopupMode('event')} />
+                <PopupOptionBtn icon={SLOT_EMOJI[hourToSlot(click.hour)]} label={`Assign Habit to ${hourToSlot(click.hour)}`} onClick={() => setPopupMode('habit')} />
+                <PopupOptionBtn icon="🎯" label="Add Goal Block" onClick={() => setPopupMode('goal')} />
+                <PopupOptionBtn icon="📝" label="Custom Block" onClick={() => setPopupMode('custom')} />
+              </div>
+            )}
+
+            {/* Event creation form */}
+            {popupMode === 'event' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>← Back</button>
+                <input
+                  autoFocus
+                  placeholder="Event title"
+                  value={evTitle}
+                  onChange={e => setEvTitle(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateCalendarEvent() }}
+                  style={inputStyle}
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '3px' }}>Start</div>
+                    <input type="time" value={evStart} onChange={e => setEvStart(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '3px' }}>End</div>
+                    <input type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} style={inputStyle} />
+                  </div>
+                </div>
+                {createErr && <div style={{ fontSize: '11px', color: '#e07060', lineHeight: 1.4 }}>{createErr}</div>}
+                <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>Saves to your primary Google Calendar</div>
+                <button
+                  onClick={handleCreateCalendarEvent}
+                  disabled={creating || !evTitle.trim()}
+                  style={{ padding: '8px', border: 'none', background: (!evTitle.trim() || creating) ? 'var(--bg-2)' : 'var(--gold)', color: (!evTitle.trim() || creating) ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: (!evTitle.trim() || creating) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                >
+                  {creating ? 'Creating…' : 'Create Event'}
+                </button>
+              </div>
+            )}
+
+            {/* Habit picker */}
+            {popupMode === 'habit' && (
+              <div>
+                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← Back</button>
+                <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '6px' }}>
+                  Assign a habit to <strong style={{ color: 'var(--text-0)' }}>{hourToSlot(click.hour)}</strong>:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '180px', overflowY: 'auto' }}>
+                  {localHabits.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>No habits yet — add some in Habits.</div>}
+                  {localHabits.map(h => (
+                    <button
+                      key={h.id}
+                      onClick={() => handleAddHabit(h)}
+                      style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <span style={{ fontSize: '16px' }}>{h.emoji}</span>
+                      <span style={{ flex: 1 }}>{h.name}</span>
+                      {h.time_of_day && <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>{SLOT_EMOJI[h.time_of_day as Slot]}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Goal block picker */}
+            {popupMode === 'goal' && (
+              <div>
+                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← Back</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '180px', overflowY: 'auto' }}>
+                  {goals.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>No active goals.</div>}
+                  {goals.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => handleAddGoalBlock(g)}
+                      style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left' }}
+                    >
+                      {g.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom block */}
+            {popupMode === 'custom' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>← Back</button>
+                <input
+                  autoFocus
+                  placeholder="Block title…"
+                  value={customText}
+                  onChange={e => setCustomText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddCustomBlock() }}
+                  style={inputStyle}
+                />
+                <button
+                  onClick={handleAddCustomBlock}
+                  disabled={!customText.trim()}
+                  style={{ padding: '8px', border: 'none', background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)', color: customText.trim() ? '#131110' : 'var(--text-3)', borderRadius: '6px', cursor: customText.trim() ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: 600 }}
+                >Add Block</button>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
+
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes tooltipIn { from { opacity:0; transform:translateY(3px) } to { opacity:1; transform:translateY(0) } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin   { to { transform: rotate(360deg) } }
+        .cal-day-col:hover .cal-add-hint { opacity: 1 !important; }
       `}</style>
     </div>
   )
 }
 
-/* ── Icons ── */
+// ── Shared styles ─────────────────────────────────────────────────────────────
 
-function SpinnerIcon() {
-  return (
-    <div style={{ width: '12px', height: '12px', border: '2px solid #131110', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-  )
+const navBtnStyle: React.CSSProperties = {
+  padding: '6px 12px', border: '1px solid var(--border)', background: 'var(--bg-1)',
+  color: 'var(--text-1)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px',
 }
 
-/* ── Tooltip ── */
-function Tooltip({ text, anchorRect }: { text: string; anchorRect: DOMRect }) {
-  const top  = anchorRect.top - 8
-  const left = anchorRect.left + anchorRect.width / 2
-  const node = (
-    <div style={{
-      position: 'fixed', top, left, transform: 'translate(-50%, -100%)',
-      background: 'var(--bg-0)', border: '1px solid var(--border-md)',
-      borderRadius: '6px', padding: '5px 10px', fontSize: '11px', color: 'var(--text-0)',
-      whiteSpace: 'pre-wrap', maxWidth: '260px', wordBreak: 'break-word',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.4)', zIndex: 9999, pointerEvents: 'none',
-      animation: 'tooltipIn 0.1s ease both', lineHeight: 1.4,
-    }}>
-      {text}
-      <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--border-md)' }} />
-    </div>
-  )
-  return typeof document !== 'undefined' ? createPortal(node, document.body) : null
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '7px 10px', border: '1px solid var(--border)',
+  background: 'var(--bg-0)', color: 'var(--text-0)', borderRadius: '6px',
+  fontSize: '12px', outline: 'none', boxSizing: 'border-box',
 }
 
-/* ── Calendar sub-components ── */
+// ── Rhythm strip ──────────────────────────────────────────────────────────────
 
-/** Read-only badge for all-day events (shown in the all-day strip). */
-function AllDayBadge({ event }: { event: CalendarEvent }) {
-  return (
-    <div
-      title={event.title}
-      style={{
-        fontSize: '10px', padding: '1px 5px', borderRadius: '3px',
-        background: 'rgba(96,160,200,0.15)', border: '1px solid rgba(96,160,200,0.3)',
-        color: 'rgba(140,190,220,0.9)', whiteSpace: 'nowrap',
-        overflow: 'hidden', maxWidth: '100%', textOverflow: 'ellipsis',
-        fontWeight: 500,
-      }}
-    >
-      {event.title}
-    </div>
-  )
+type RhythmProps = {
+  colDates: string[]
+  weekStart: string
+  today: string
+  localHabits: HabitWithLogs[]
+  planBlocks: WeeklyPlanBlock[]
+  onRemoveHabit: (h: HabitWithLogs) => void
+  onRemoveBlock: (b: WeeklyPlanBlock) => void
+  onAccept: (b: WeeklyPlanBlock) => void
+  onDismiss: (b: WeeklyPlanBlock) => void
+  onCellClick: (dateStr: string, clientX: number, clientY: number) => void
 }
 
-/** Read-only timed calendar event block shown inside a slot cell. */
-function CalendarBlock({ event }: { event: CalendarEvent }) {
-  const [hovered, setHovered] = useState(false)
-  const titleRef = useRef<HTMLDivElement>(null)
-  const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null)
+function RhythmStrip({ colDates, weekStart, today, localHabits, planBlocks, onRemoveHabit, onRemoveBlock, onAccept, onDismiss, onCellClick }: RhythmProps) {
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div
-      onMouseEnter={() => {
-        setHovered(true)
-        if (titleRef.current && titleRef.current.scrollWidth > titleRef.current.clientWidth) {
-          setTooltipRect(titleRef.current.getBoundingClientRect())
-        }
-      }}
-      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
-      onClick={e => e.stopPropagation()}
-      style={{
-        padding: '3px 6px',
-        borderRadius: '5px',
-        background: 'rgba(96,160,200,0.14)',
-        border: '1px solid rgba(96,160,200,0.32)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1px',
-        flexShrink: 0,
-        opacity: hovered ? 0.9 : 1,
-        transition: 'opacity 0.1s',
-      }}
-    >
-      {tooltipRect && <Tooltip text={`📅 ${event.title}${event.location ? `\n${event.location}` : ''}`} anchorRect={tooltipRect} />}
-      <div style={{ fontSize: '9.5px', color: 'rgba(120,180,220,0.85)', fontWeight: 600, lineHeight: 1, letterSpacing: '0.02em' }}>
-        {fmtEventTime(event)}
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      {/* Strip header */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px 5px 6px', borderBottom: collapsed ? undefined : '1px solid var(--border)', gap: '6px' }}>
+        <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '1px 4px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '9px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▼</span>
+          <span style={{ fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Rhythm</span>
+        </button>
+        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>habits &amp; plans · click a day to add</span>
       </div>
-      <div
-        ref={titleRef}
-        style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-      >
-        {event.title}
-      </div>
-      {event.location && (
-        <div style={{ fontSize: '9.5px', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {event.location}
+
+      {!collapsed && (
+        <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)' }}>
+          <div style={{ borderRight: '1px solid var(--border)' }} />
+          {colDates.map((dateStr, col) => {
+            const dow = colToDow(col)
+            const isToday = dateStr === today
+
+            const dayHabits = localHabits.filter(h =>
+              isHabitOnDay(h, dow) && h.time_of_day !== null && (!h.ends_at || dateStr <= h.ends_at)
+            )
+            const dayBlocks = planBlocks.filter(b =>
+              b.day_of_week === dow && b.week_start === weekStart
+            )
+            const hasItems = dayHabits.length > 0 || dayBlocks.length > 0
+
+            return (
+              <div
+                key={col}
+                style={{ padding: '5px 4px', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isToday ? 'rgba(212,168,83,0.03)' : undefined, minHeight: '44px', display: 'flex', flexDirection: 'column', gap: '3px' }}
+              >
+                {dayHabits.map(h => (
+                  <RhythmChip
+                    key={h.id}
+                    label={`${h.emoji} ${h.name}`}
+                    subLabel={h.time_of_day ? SLOT_EMOJI[h.time_of_day as Slot] : ''}
+                    color="green"
+                    onRemove={() => onRemoveHabit(h)}
+                  />
+                ))}
+                {dayBlocks.map(b => (
+                  <RhythmChip
+                    key={b.id}
+                    label={b.title}
+                    subLabel={SLOT_EMOJI[b.time_slot as Slot]}
+                    color={b.type === 'goal' ? 'gold' : 'blue'}
+                    ghost={!b.accepted}
+                    onRemove={b.accepted ? () => onRemoveBlock(b) : undefined}
+                    onAccept={!b.accepted ? () => onAccept(b) : undefined}
+                    onDismiss={!b.accepted ? () => onDismiss(b) : undefined}
+                  />
+                ))}
+                {/* Add button */}
+                <button
+                  onClick={e => onCellClick(dateStr, e.clientX, e.clientY)}
+                  style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '4px', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '1px 5px', lineHeight: 1.6, marginTop: hasItems ? '0' : 'auto' }}
+                >+</button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-/* ── Plan sub-components ── */
+type RhythmChipProps = {
+  label: string
+  subLabel: string
+  color: 'green' | 'gold' | 'blue'
+  ghost?: boolean
+  onRemove?: () => void
+  onAccept?: () => void
+  onDismiss?: () => void
+}
 
-function HabitBlock({ habit, onRemove }: { habit: HabitWithLogs; onRemove: () => void }) {
+function RhythmChip({ label, subLabel, color, ghost, onRemove, onAccept, onDismiss }: RhythmChipProps) {
   const [hovered, setHovered] = useState(false)
-  const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null)
-  const textRef = useRef<HTMLSpanElement>(null)
+  const bg = color === 'green' ? 'rgba(122,158,138,0.18)' : color === 'gold' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
+  const br = color === 'green' ? 'rgba(122,158,138,0.4)' : color === 'gold' ? 'rgba(212,168,83,0.4)' : 'rgba(96,144,200,0.35)'
 
   return (
     <div
-      onMouseEnter={() => {
-        setHovered(true)
-        if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
-          setTooltipRect(textRef.current.getBoundingClientRect())
-        }
-      }}
-      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
-      onClick={e => { e.stopPropagation(); if (hovered) onRemove() }}
-      style={{ padding: '4px 6px', borderRadius: '5px', background: 'rgba(122,158,138,0.2)', border: '1px solid rgba(122,158,138,0.35)', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', transition: 'background 0.12s', position: 'relative', flexShrink: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ background: bg, border: `1px ${ghost ? 'dashed' : 'solid'} ${br}`, borderRadius: '4px', padding: '2px 5px', display: 'flex', alignItems: 'center', gap: '3px', opacity: ghost ? 0.75 : 1, fontSize: '10px', minWidth: 0 }}
     >
-      {tooltipRect && <Tooltip text={`${habit.emoji} ${habit.name}`} anchorRect={tooltipRect} />}
-      {hovered && <span style={{ fontSize: '13px', color: 'var(--text-2)', flexShrink: 0, lineHeight: 1 }}>×</span>}
-      <span style={{ fontSize: '12px' }}>{habit.emoji}</span>
-      <span ref={textRef} style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
+      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-1)', fontWeight: 500 }}>{label}</span>
+      <span style={{ flexShrink: 0, fontSize: '9px' }}>{subLabel}</span>
+      {hovered && ghost && onAccept && onDismiss && (
+        <>
+          <button onClick={e => { e.stopPropagation(); onAccept() }} style={{ background: 'rgba(122,158,138,0.4)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '9px', padding: '0 3px', lineHeight: '14px' }}>✓</button>
+          <button onClick={e => { e.stopPropagation(); onDismiss() }} style={{ background: 'rgba(220,80,60,0.25)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '10px', padding: '0 3px', lineHeight: '14px' }}>✕</button>
+        </>
+      )}
+      {hovered && !ghost && onRemove && (
+        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+      )}
     </div>
   )
 }
 
-function PlanBlock({
-  block, onRemove, onAccept, onDismiss,
-}: {
-  block: WeeklyPlanBlock
-  onRemove: () => void
-  onAccept: () => void
-  onDismiss: () => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null)
-  const textRef = useRef<HTMLDivElement>(null)
-  const isGhost = !block.accepted
+// ── Misc sub-components ────────────────────────────────────────────────────────
 
-  const bgColor     = block.type === 'goal' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
-  const borderColor = block.type === 'goal' ? 'rgba(212,168,83,0.4)'  : 'rgba(96,144,200,0.4)'
-
+function PopupOptionBtn({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
   return (
-    <div
-      onMouseEnter={() => {
-        setHovered(true)
-        if (textRef.current && textRef.current.scrollWidth > textRef.current.clientWidth) {
-          setTooltipRect(textRef.current.getBoundingClientRect())
-        }
-      }}
-      onMouseLeave={() => { setHovered(false); setTooltipRect(null) }}
-      onClick={e => e.stopPropagation()}
-      style={{ padding: '4px 6px', borderRadius: '5px', background: bgColor, border: `1px ${isGhost ? 'dashed' : 'solid'} ${borderColor}`, opacity: isGhost ? 0.75 : 1, transition: 'opacity 0.12s', position: 'relative', flexShrink: 0 }}
+    <button
+      onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', textAlign: 'left', fontWeight: 500, transition: 'background 0.1s' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-2)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      {tooltipRect && <Tooltip text={block.title} anchorRect={tooltipRect} />}
-      {isGhost && hovered && (
-        <div style={{ position: 'absolute', top: '50%', left: '4px', transform: 'translateY(-50%)', display: 'flex', gap: '2px' }}>
-          <button onClick={e => { e.stopPropagation(); onAccept() }} title="Accept" style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(122,158,138,0.4)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✓</button>
-          <button onClick={e => { e.stopPropagation(); onDismiss() }} title="Dismiss" style={{ width: '18px', height: '18px', border: 'none', background: 'rgba(220,80,60,0.25)', color: 'var(--text-0)', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>
-        </div>
-      )}
-      {!isGhost && hovered && (
-        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ position: 'absolute', top: '50%', left: '4px', transform: 'translateY(-50%)', width: '14px', height: '14px', border: 'none', background: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
-      )}
-      <div ref={textRef} style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: hovered ? (isGhost ? '42px' : '18px') : '0' }}>
-        {block.title}
-      </div>
-    </div>
+      <span style={{ fontSize: '16px', flexShrink: 0 }}>{icon}</span>
+      <span>{label}</span>
+    </button>
   )
+}
+
+function SpinIcon() {
+  return <div style={{ width: '12px', height: '12px', border: '2px solid #131110', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
 }

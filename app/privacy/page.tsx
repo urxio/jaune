@@ -73,17 +73,18 @@ export default function PrivacyPage() {
 
           <H3>Google Calendar data</H3>
           <P>
-            If you choose to connect your Google Calendar, {APP_NAME} requests read-only
-            access to your calendar events using the scope{' '}
-            <code style={codeStyle}>https://www.googleapis.com/auth/calendar.readonly</code>.
+            If you choose to connect your Google Calendar, {APP_NAME} requests access using
+            the scope{' '}
+            <code style={codeStyle}>https://www.googleapis.com/auth/calendar</code>.
             We use this access to:
           </P>
           <Ul>
             <li>Read your upcoming calendar events (next 7 days) from all calendars you have access to</li>
-            <li>Surface relevant events in your daily AI brief, home dashboard widget, and weekly reflection</li>
+            <li>Surface relevant events in your daily AI brief, home dashboard widget, weekly reflection, and planner</li>
+            <li>Create new calendar events on your behalf when you use the &ldquo;New Calendar Event&rdquo; feature in the Planner — events are created in your primary Google Calendar</li>
           </Ul>
           <P>
-            We do <strong>not</strong> create, modify, or delete any calendar events. We do{' '}
+            We do <strong>not</strong> modify or delete existing calendar events. We do{' '}
             <strong>not</strong> share your calendar data with third parties. Calendar events
             are cached temporarily (up to 30 minutes) to reduce API calls and improve
             performance, then re-fetched automatically.

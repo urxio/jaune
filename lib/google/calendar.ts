@@ -162,6 +162,71 @@ async function fetchFromGoogle(accessToken: string): Promise<CalendarEvent[]> {
   return events.sort((a, b) => a.start.localeCompare(b.start))
 }
 
+// ── Event creation ────────────────────────────────────────────────────────────
+
+export type CreateEventInput = {
+  title: string
+  startDateTime: string  // ISO 8601 with timezone offset, e.g. "2025-05-13T09:00:00-05:00"
+  endDateTime: string
+  calendarId?: string    // defaults to 'primary'
+  location?: string
+  description?: string
+}
+
+export type CreateEventResult =
+  | { success: true; eventId: string }
+  | { success: false; error: string; code?: 'insufficient_permissions' | 'not_connected' | 'api_error' }
+
+/**
+ * Creates a new event in the user's Google Calendar.
+ * Returns a typed result so callers can surface specific errors (e.g. permissions).
+ */
+export async function createCalendarEvent(
+  userId: string,
+  input: CreateEventInput,
+): Promise<CreateEventResult> {
+  try {
+    const accessToken = await getValidAccessToken(userId)
+    if (!accessToken) return { success: false, error: 'Calendar not connected', code: 'not_connected' }
+
+    const calId = input.calendarId ?? 'primary'
+    const body = {
+      summary:  input.title,
+      start:    { dateTime: input.startDateTime },
+      end:      { dateTime: input.endDateTime },
+      ...(input.location    && { location: input.location }),
+      ...(input.description && { description: input.description }),
+    }
+
+    const res = await fetch(
+      `${CALENDAR_API}/calendars/${encodeURIComponent(calId)}/events`,
+      {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      },
+    )
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      if (res.status === 403) {
+        return { success: false, error: 'Reconnect Google Calendar in Settings to enable event creation.', code: 'insufficient_permissions' }
+      }
+      return { success: false, error: err?.error?.message ?? `Google API error (${res.status})`, code: 'api_error' }
+    }
+
+    const created = await res.json()
+    // Bust the 30-min cache so the new event shows up on next fetch
+    const { clearCalendarCache } = await import('@/lib/db/calendar')
+    clearCalendarCache(userId).catch(() => {})
+
+    return { success: true, eventId: created.id as string }
+  } catch (err) {
+    console.error('[calendar] createCalendarEvent error:', err)
+    return { success: false, error: 'Unexpected error creating event', code: 'api_error' }
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**

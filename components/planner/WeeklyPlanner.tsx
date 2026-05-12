@@ -57,16 +57,21 @@ function yToSnappedTime(y: number): { hour: number; minute: number } {
 
 function eventTop(ev: CalendarEvent): number {
   const d = new Date(ev.start)
-  return Math.max(0, minuteToY(d.getHours() * 60 + d.getMinutes()))
+  const startMin = d.getHours() * 60 + d.getMinutes()
+  // Clamp to grid start — events beginning before 7am show from the top
+  return minuteToY(Math.max(startMin, START_HOUR * 60))
 }
 
 function eventHeight(ev: CalendarEvent): number {
-  const start  = new Date(ev.start)
-  const end    = new Date(ev.end)
-  const durMin = Math.max(15, (end.getTime() - start.getTime()) / 60000)
-  const maxMin = (END_HOUR - START_HOUR) * 60
-  const startOffset = start.getHours() * 60 + start.getMinutes() - START_HOUR * 60
-  return Math.min(durMin, maxMin - startOffset) * (HOUR_PX / 60)
+  const start = new Date(ev.start)
+  const end   = new Date(ev.end)
+  const startMin = start.getHours() * 60 + start.getMinutes()
+  const endMin   = end.getHours()   * 60 + end.getMinutes()
+  // Clamp both ends to the visible grid window
+  const visibleStart = Math.max(startMin, START_HOUR * 60)
+  const visibleEnd   = Math.min(endMin,   END_HOUR   * 60)
+  const visibleMin   = Math.max(15, visibleEnd - visibleStart)
+  return visibleMin * (HOUR_PX / 60)
 }
 
 function formatTime(h: number, m: number): string {
@@ -1346,10 +1351,10 @@ function EventBlock({
   startTime: string; isLocus: boolean; onDelete?: () => void
 }) {
   const [hov, setHov] = useState(false)
-  const bg  = isLocus ? 'rgba(212,168,83,0.18)'  : 'rgba(66,133,244,0.18)'
-  const bd  = isLocus ? 'rgba(212,168,83,0.45)'  : 'rgba(66,133,244,0.45)'
-  const acc = isLocus ? 'rgba(212,168,83,0.85)'  : 'rgba(66,133,244,0.85)'
-  const tc  = isLocus ? 'rgba(220,190,110,0.95)' : 'rgba(160,200,255,0.95)'
+  const bg  = isLocus ? 'rgba(212,168,83,0.12)'  : 'rgba(80,130,220,0.12)'
+  const bd  = isLocus ? 'rgba(212,168,83,0.3)'   : 'rgba(80,130,220,0.25)'
+  const acc = isLocus ? 'rgba(212,168,83,0.75)'  : 'rgba(100,160,240,0.7)'
+  const tc  = isLocus ? 'rgba(220,190,110,0.9)'  : 'rgba(150,195,255,0.85)'
   return (
     <div
       data-event="1"
@@ -1361,7 +1366,7 @@ function EventBlock({
         position: 'absolute', top: `${top}px`, height: `${height}px`, left, width,
         background: bg, border: `1px solid ${bd}`, borderLeft: `3px solid ${acc}`,
         borderRadius: '4px', padding: '2px 5px', overflow: 'hidden', zIndex: 2,
-        boxSizing: 'border-box', cursor: 'default',
+        boxSizing: 'border-box', cursor: 'default', outline: 'none',
       }}
     >
       <div style={{ fontSize: '9.5px', color: tc, fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

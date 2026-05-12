@@ -31,6 +31,7 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
   const [endsAt,         setEndsAt]         = useState<string>(habit?.ends_at ?? '')
   const [goalId,         setGoalId]         = useState<string>(habit?.goal_id ?? '')
   const [goalTargetCount, setGoalTargetCount] = useState<number | null>(habit?.goal_target_count ?? null)
+  const [scheduledTime,  setScheduledTime]  = useState<string>(habit?.time_of_day ?? '')
   const [error,          setError]          = useState('')
   const [isPending, startTransition]        = useTransition()
 
@@ -64,6 +65,7 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
       goal_id: goalId || null,
       goal_target_count: goalId ? goalTargetCount : null,
       motivation: motivation.trim() || null,
+      time_of_day: scheduledTime || null,
     }
     const { target_count } = deriveFrequencyMeta(daysOfWeek)
     const todayDow = new Date(today + 'T12:00:00').getDay()
@@ -77,6 +79,7 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
             ...created,
             days_of_week: daysOfWeek.length > 0 ? daysOfWeek : null,
             ends_at: endsAt || null,
+            time_of_day: scheduledTime || null,
             goal_id: goalId || null,
             goal_target_count: goalId ? goalTargetCount : null,
             motivation: motivation.trim() || null,
@@ -206,6 +209,33 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
                 {daysOfWeek.length === 0 ? '7' : daysOfWeek.length}× per week
               </span>
             </div>
+          </div>
+
+          {/* ── Scheduled time ── */}
+          <div>
+            <label style={labelStyle}>
+              Scheduled time
+              <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)', fontSize: '10px' }}> (optional — shows in your planner at this time)</span>
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="time"
+                value={scheduledTime}
+                onChange={e => setScheduledTime(e.target.value)}
+                style={{ ...inputStyle, flex: 1, colorScheme: 'dark' }}
+              />
+              {scheduledTime && (
+                <button
+                  onClick={() => setScheduledTime('')}
+                  style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: 'var(--text-3)', cursor: 'pointer' }}
+                >Clear</button>
+              )}
+            </div>
+            {scheduledTime && (
+              <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '6px' }}>
+                Habit will appear at {scheduledTime} in the weekly planner
+              </div>
+            )}
           </div>
 
           <div>

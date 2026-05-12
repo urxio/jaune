@@ -31,7 +31,8 @@ export type Habit = {
   days_of_week: number[] | null  // 0=Sun … 6=Sat; null or [] = every day
   target_count: number        // expected completions per week
   ends_at: string | null      // ISO date — optional end date
-  time_of_day: 'morning' | 'afternoon' | 'evening' | null
+  /** Specific scheduled time as "HH:MM" (e.g. "07:30"), or null if unscheduled. */
+  time_of_day: string | null
   goal_id: string | null           // optional link to a goal
   goal_target_count: number | null // completions target for the linked goal (e.g. 30 runs)
   motivation: string | null        // why the user wants this habit — used by AI audit
@@ -199,6 +200,22 @@ export type CalendarEvent = {
   calendarName: string
   location: string | null
   description: string | null  // truncated to 200 chars
+  /** 'locus' = native Locus event (deletable); 'google' = Google Calendar (read-only) */
+  source?: 'locus' | 'google'
+}
+
+export type LocusEvent = {
+  id: string
+  user_id: string
+  title: string
+  start_datetime: string   // ISO with timezone
+  end_datetime: string
+  is_all_day: boolean
+  location: string | null
+  description: string | null
+  color: string | null
+  created_at: string
+  updated_at: string
 }
 
 export type WheelScores = Record<string, number>

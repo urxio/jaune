@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import type { HabitWithLogs, GoalWithSteps, WeeklyPlanBlock, CalendarEvent } from '@/lib/types'
+import type { HabitWithLogs, GoalWithSteps, WeeklyPlanBlock, CalendarEvent, LocusEvent } from '@/lib/types'
 import { useToast } from '@/components/ui/ToastContext'
 import {
   addPlanBlock,
@@ -12,26 +12,27 @@ import {
   saveSuggestions,
   setHabitTimeOfDay,
 } from '@/app/actions/planner'
+import { createLocusEventAction, deleteLocusEventAction } from '@/app/actions/locus-events'
 
 // ── Grid constants ─────────────────────────────────────────────────────────────
 const START_HOUR = 7   // 7 AM
 const END_HOUR   = 22  // 10 PM
-const HOURS      = END_HOUR - START_HOUR  // 15
-const HOUR_PX    = 64  // px per hour
-const GRID_H     = HOURS * HOUR_PX        // 960px
+const HOURS      = END_HOUR - START_HOUR
+const HOUR_PX    = 64
+const GRID_H     = HOURS * HOUR_PX  // 960px
 
-// ── Date helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
 
 function getWeekStart(offset: number): string {
   const d = new Date()
   const day = d.getDay()
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day) + offset * 7)
-  return d.toISOString().split('T')[0]
-}
-
-function addDays(dateStr: string, n: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + n)
   return d.toISOString().split('T')[0]
 }
 
@@ -42,15 +43,15 @@ function isHabitOnDay(h: HabitWithLogs, dow: number): boolean {
   return h.days_of_week.includes(dow)
 }
 
-// ── Time ↔ pixel helpers ──────────────────────────────────────────────────────
+function pad2(n: number) { return String(n).padStart(2, '0') }
 
 function minuteToY(totalMinutes: number): number {
   return (totalMinutes - START_HOUR * 60) * (HOUR_PX / 60)
 }
 
 function yToSnappedTime(y: number): { hour: number; minute: number } {
-  const totalMin = START_HOUR * 60 + Math.round((y / HOUR_PX) * 60 / 15) * 15
-  const clamped  = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - 15, totalMin))
+  const total   = START_HOUR * 60 + Math.round((y / HOUR_PX) * 60 / 15) * 15
+  const clamped = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - 15, total))
   return { hour: Math.floor(clamped / 60), minute: clamped % 60 }
 }
 
@@ -60,42 +61,51 @@ function eventTop(ev: CalendarEvent): number {
 }
 
 function eventHeight(ev: CalendarEvent): number {
-  const start    = new Date(ev.start)
-  const end      = new Date(ev.end)
-  const durMin   = Math.max(15, (end.getTime() - start.getTime()) / 60000)
-  const maxMin   = (END_HOUR - START_HOUR) * 60
-  const startMin = start.getHours() * 60 + start.getMinutes() - START_HOUR * 60
-  return Math.min(durMin, maxMin - startMin) * (HOUR_PX / 60)
+  const start  = new Date(ev.start)
+  const end    = new Date(ev.end)
+  const durMin = Math.max(15, (end.getTime() - start.getTime()) / 60000)
+  const maxMin = (END_HOUR - START_HOUR) * 60
+  const startOffset = start.getHours() * 60 + start.getMinutes() - START_HOUR * 60
+  return Math.min(durMin, maxMin - startOffset) * (HOUR_PX / 60)
 }
-
-function pad2(n: number) { return String(n).padStart(2, '0') }
 
 function formatTime(h: number, m: number): string {
   const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12  = h % 12 || 12
-  return `${h12}:${pad2(m)} ${ampm}`
+  return `${h % 12 || 12}:${pad2(m)} ${ampm}`
 }
 
-/** ISO datetime string for a given date + hour/minute, in local timezone offset */
 function localISO(dateStr: string, h: number, m: number): string {
-  const d     = new Date(`${dateStr}T${pad2(h)}:${pad2(m)}:00`)
-  const off   = -d.getTimezoneOffset()
-  const sign  = off >= 0 ? '+' : '-'
-  const ah    = Math.floor(Math.abs(off) / 60)
-  const am    = Math.abs(off) % 60
-  return `${dateStr}T${pad2(h)}:${pad2(m)}:00${sign}${pad2(ah)}:${pad2(am)}`
+  const d   = new Date(`${dateStr}T${pad2(h)}:${pad2(m)}:00`)
+  const off = -d.getTimezoneOffset()
+  const s   = off >= 0 ? '+' : '-'
+  const ah  = Math.floor(Math.abs(off) / 60)
+  const am  = Math.abs(off) % 60
+  return `${dateStr}T${pad2(h)}:${pad2(m)}:00${s}${pad2(ah)}:${pad2(am)}`
 }
 
-// ── Event overlap layout ──────────────────────────────────────────────────────
+/** Convert a LocusEvent row to the shared CalendarEvent display shape. */
+function locusToCalEvent(ev: LocusEvent): CalendarEvent {
+  return {
+    id:           ev.id,
+    title:        ev.title,
+    start:        ev.is_all_day ? ev.start_datetime.slice(0, 10) : ev.start_datetime,
+    end:          ev.is_all_day ? ev.end_datetime.slice(0, 10)   : ev.end_datetime,
+    isAllDay:     ev.is_all_day,
+    calendarName: 'Locus',
+    location:     ev.location,
+    description:  ev.description,
+    source:       'locus',
+  }
+}
+
+// ── Overlap layout ─────────────────────────────────────────────────────────────
 
 type LayoutEvent = CalendarEvent & { laneIdx: number; laneCount: number }
 
 function layoutDayEvents(events: CalendarEvent[]): LayoutEvent[] {
   if (!events.length) return []
-  const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start))
-  // Each "lane" tracks the endTime of the last event assigned to it
+  const sorted   = [...events].sort((a, b) => a.start.localeCompare(b.start))
   const laneEnds: number[] = []
-
   const withLane = sorted.map(ev => {
     const startMs = new Date(ev.start).getTime()
     const endMs   = new Date(ev.end).getTime()
@@ -104,26 +114,14 @@ function layoutDayEvents(events: CalendarEvent[]): LayoutEvent[] {
     laneEnds[lane] = endMs
     return { ev, lane }
   })
-
   const total = laneEnds.length || 1
   return withLane.map(({ ev, lane }) => ({ ...ev, laneIdx: lane, laneCount: total }))
 }
 
-// ── Slot ↔ hour ───────────────────────────────────────────────────────────────
-
-type Slot = 'morning' | 'afternoon' | 'evening'
-const SLOT_HOURS: Record<Slot, number> = { morning: 7, afternoon: 12, evening: 18 }
-const SLOT_EMOJI: Record<Slot, string> = { morning: '🌅', afternoon: '☀️', evening: '🌙' }
-
-function hourToSlot(hour: number): Slot {
-  if (hour < 12) return 'morning'
-  if (hour < 18) return 'afternoon'
-  return 'evening'
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DOW_FULL  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 type ClickPoint = {
   dateStr: string
@@ -134,17 +132,18 @@ type ClickPoint = {
 }
 
 type PopupMode = 'choose' | 'event' | 'habit' | 'goal' | 'custom'
+type EventSource = 'locus' | 'google'
 
 type SuggestedRawBlock = {
   day_of_week: number
-  time_slot: Slot
+  time_slot: string
   title: string
   type: 'goal' | 'custom'
   reference_id: string | null
   reason: string
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ── Props ──────────────────────────────────────────────────────────────────────
 
 type Props = {
   habits: HabitWithLogs[]
@@ -152,10 +151,12 @@ type Props = {
   initialPlan: WeeklyPlanBlock[]
   weekStart: string
   today: string
-  calendarEvents?: CalendarEvent[]
+  calendarEvents?: CalendarEvent[]   // Google Calendar events
+  locusEvents?: LocusEvent[]         // Native Locus events
+  hasGoogleCalendar?: boolean
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function WeeklyPlanner({
   habits,
@@ -164,31 +165,35 @@ export default function WeeklyPlanner({
   weekStart: initialWeekStart,
   today,
   calendarEvents = [],
+  locusEvents    = [],
+  hasGoogleCalendar = false,
 }: Props) {
   const toast = useToast()
 
   // ── Core state ──
-  const [planBlocks,  setPlanBlocks]  = useState<WeeklyPlanBlock[]>(initialPlan)
-  const [weekOffset,  setWeekOffset]  = useState(0)
-  const [weekStart,   setWeekStart]   = useState(initialWeekStart)
-  const [localHabits, setLocalHabits] = useState<HabitWithLogs[]>(habits)
-  const [suggesting,  setSuggesting]  = useState(false)
-  const [narrative,   setNarrative]   = useState('')
+  const [planBlocks,   setPlanBlocks]   = useState<WeeklyPlanBlock[]>(initialPlan)
+  const [weekOffset,   setWeekOffset]   = useState(0)
+  const [weekStart,    setWeekStart]    = useState(initialWeekStart)
+  const [localHabits,  setLocalHabits]  = useState<HabitWithLogs[]>(habits)
+  const [suggesting,   setSuggesting]   = useState(false)
+  const [narrative,    setNarrative]    = useState('')
   const [narrativeVisible, setNarrativeVisible] = useState(false)
-  const [suggestError,     setSuggestError]     = useState('')
+  const [suggestError, setSuggestError] = useState('')
 
-  // ── Local calendar events (+ optimistically-added events) ──
-  const [localCalEvents, setLocalCalEvents] = useState<CalendarEvent[]>(calendarEvents)
+  // ── Calendar state ──
+  const [localGCalEvents,  setLocalGCalEvents]  = useState<CalendarEvent[]>(calendarEvents)
+  const [localLocusEvents, setLocalLocusEvents] = useState<LocusEvent[]>(locusEvents)
 
-  // ── Click-to-add popup ──
-  const [click,      setClick]      = useState<ClickPoint | null>(null)
-  const [popupMode,  setPopupMode]  = useState<PopupMode>('choose')
-  const [evTitle,    setEvTitle]    = useState('')
-  const [evStart,    setEvStart]    = useState('')  // HH:MM
-  const [evEnd,      setEvEnd]      = useState('')  // HH:MM
-  const [creating,   setCreating]   = useState(false)
-  const [createErr,  setCreateErr]  = useState('')
-  const [customText, setCustomText] = useState('')
+  // ── Click popup state ──
+  const [click,       setClick]       = useState<ClickPoint | null>(null)
+  const [popupMode,   setPopupMode]   = useState<PopupMode>('choose')
+  const [evTitle,     setEvTitle]     = useState('')
+  const [evStart,     setEvStart]     = useState('')
+  const [evEnd,       setEvEnd]       = useState('')
+  const [evSource,    setEvSource]    = useState<EventSource>('locus')
+  const [creating,    setCreating]    = useState(false)
+  const [createErr,   setCreateErr]   = useState('')
+  const [customText,  setCustomText]  = useState('')
 
   // ── Current time ──
   const [nowMinutes, setNowMinutes] = useState(() => {
@@ -202,23 +207,29 @@ export default function WeeklyPlanner({
   }, [])
 
   useEffect(() => { setLocalHabits(habits) }, [habits])
-  useEffect(() => { setLocalCalEvents(calendarEvents) }, [calendarEvents])
+  useEffect(() => { setLocalGCalEvents(calendarEvents) }, [calendarEvents])
+  useEffect(() => { setLocalLocusEvents(locusEvents) }, [locusEvents])
 
+  // When week changes: fetch plan blocks + locus events for that week
   useEffect(() => {
     const ws = getWeekStart(weekOffset)
     setWeekStart(ws)
-    fetch(`/api/planner/week?weekStart=${ws}`)
-      .then(r => r.json())
-      .then((data: WeeklyPlanBlock[]) => setPlanBlocks(data))
-      .catch(() => toast.error('Failed to load plan'))
+    const we = addDays(ws, 6)
+    Promise.all([
+      fetch(`/api/planner/week?weekStart=${ws}`).then(r => r.json()),
+      fetch(`/api/locus/events?start=${ws}&end=${we}`).then(r => r.json()),
+    ]).then(([plan, locus]) => {
+      setPlanBlocks(plan as WeeklyPlanBlock[])
+      setLocalLocusEvents((locus as { events: LocusEvent[] }).events ?? [])
+    }).catch(() => toast.error('Failed to load plan'))
   }, [weekOffset])
 
   // Close popup on outside click
   useEffect(() => {
     if (!click) return
     const handler = (e: MouseEvent) => {
-      const popup = document.getElementById('cal-popup')
-      if (popup && !popup.contains(e.target as Node)) closePopup()
+      const el = document.getElementById('cal-popup')
+      if (el && !el.contains(e.target as Node)) closePopup()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -230,13 +241,18 @@ export default function WeeklyPlanner({
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart],
   )
-
   const weekEnd = colDates[6]
 
-  /** All-day events for the visible week, indexed by dateStr */
+  /** All calendar events to display (Locus converted to CalendarEvent + GCal) */
+  const allCalEvents = useMemo<CalendarEvent[]>(() => [
+    ...localLocusEvents.map(locusToCalEvent),
+    ...localGCalEvents.map(ev => ({ ...ev, source: 'google' as const })),
+  ], [localLocusEvents, localGCalEvents])
+
+  /** All-day events indexed by dateStr */
   const allDayByDate = useMemo(() => {
     const m = new Map<string, CalendarEvent[]>()
-    for (const ev of localCalEvents) {
+    for (const ev of allCalEvents) {
       if (!ev.isAllDay) continue
       const d = ev.start.slice(0, 10)
       if (d < colDates[0] || d > weekEnd) continue
@@ -244,30 +260,60 @@ export default function WeeklyPlanner({
       m.get(d)!.push(ev)
     }
     return m
-  }, [localCalEvents, colDates, weekEnd])
+  }, [allCalEvents, colDates, weekEnd])
 
-  /** Timed events per dateStr, with lane layout computed */
+  /** Timed events per dateStr with lane layout (Locus + GCal merged) */
   const timedByDate = useMemo(() => {
     const m = new Map<string, LayoutEvent[]>()
     for (const col of colDates) {
-      const evs = localCalEvents.filter(ev => !ev.isAllDay && ev.start.slice(0, 10) === col)
+      const evs = allCalEvents.filter(ev => !ev.isAllDay && ev.start.slice(0, 10) === col)
       m.set(col, layoutDayEvents(evs))
     }
     return m
-  }, [localCalEvents, colDates])
+  }, [allCalEvents, colDates])
 
-  const hasCalendar = localCalEvents.length > 0
+  /** Habits with a scheduled time, per dateStr */
+  const habitsByDate = useMemo(() => {
+    const m = new Map<string, HabitWithLogs[]>()
+    for (const col of colDates) {
+      const dow = new Date(col + 'T12:00:00').getDay()
+      const scheduled = localHabits.filter(h =>
+        h.time_of_day &&
+        isHabitOnDay(h, dow) &&
+        (!h.ends_at || col <= h.ends_at)
+      )
+      m.set(col, scheduled)
+    }
+    return m
+  }, [localHabits, colDates])
+
+  /** Total event count per day for load dots */
+  const loadByDate = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const ev of allCalEvents) {
+      const d = ev.start.slice(0, 10)
+      if (d < colDates[0] || d > weekEnd) continue
+      m.set(d, (m.get(d) ?? 0) + 1)
+    }
+    // Also count habits with scheduled times
+    for (const [d, hs] of habitsByDate) {
+      m.set(d, (m.get(d) ?? 0) + hs.length)
+    }
+    return m
+  }, [allCalEvents, habitsByDate, colDates, weekEnd])
+
+  const hasAnyCalendar = allCalEvents.length > 0 || localHabits.some(h => h.time_of_day)
 
   // ── Handlers ──
 
-  function openPopup(dateStr: string, clientX: number, clientY: number, hour: number, minute: number) {
-    const slot = hourToSlot(hour)
-    const endH = hour + 1 > END_HOUR ? hour : hour + 1
-    setClick({ dateStr, hour, minute, clientX, clientY })
+  function openPopup(dateStr: string, cx: number, cy: number, hour: number, minute: number) {
+    const endH = Math.min(hour + 1, END_HOUR - 1)
+    setClick({ dateStr, hour, minute, clientX: cx, clientY: cy })
     setPopupMode('choose')
     setEvTitle('')
     setEvStart(`${pad2(hour)}:${pad2(minute)}`)
     setEvEnd(`${pad2(endH)}:${pad2(minute)}`)
+    setEvSource('locus')
     setCreateErr('')
     setCustomText('')
   }
@@ -277,125 +323,117 @@ export default function WeeklyPlanner({
   function handleGridClick(dateStr: string, e: React.MouseEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest('[data-event]')) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    const { hour, minute } = yToSnappedTime(y)
+    const { hour, minute } = yToSnappedTime(e.clientY - rect.top)
     openPopup(dateStr, e.clientX, e.clientY, hour, minute)
   }
 
-  async function handleCreateCalendarEvent() {
+  async function handleCreateEvent() {
     if (!click || !evTitle.trim()) return
-    setCreating(true)
-    setCreateErr('')
+    setCreating(true); setCreateErr('')
     try {
       const [sh, sm] = evStart.split(':').map(Number)
       const [eh, em] = evEnd.split(':').map(Number)
       const startISO = localISO(click.dateStr, sh, sm)
       const endISO   = localISO(click.dateStr, eh, em)
 
-      const res = await fetch('/api/calendar/events', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: evTitle.trim(), startDateTime: startISO, endDateTime: endISO }),
-      })
-      const data = await res.json().catch(() => ({}))
-
-      if (!res.ok) {
-        if (res.status === 412) {
-          setCreateErr('Connect Google Calendar in Settings first.')
-          return
+      if (evSource === 'google') {
+        // Create in Google Calendar
+        const res  = await fetch('/api/calendar/events', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: evTitle.trim(), startDateTime: startISO, endDateTime: endISO }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          if (res.status === 412) { setCreateErr('Connect Google Calendar in Settings first.'); return }
+          if (res.status === 403) { setCreateErr('Reconnect Google Calendar in Settings to enable event creation.'); return }
+          setCreateErr(data.error ?? 'Failed to create event'); return
         }
-        if (res.status === 403) {
-          setCreateErr('Reconnect Google Calendar in Settings to enable creating events.')
-          return
+        // Optimistically add as a local CalendarEvent
+        const opt: CalendarEvent = {
+          id: data.eventId ?? `gcal-opt-${Date.now()}`,
+          title: evTitle.trim(), start: startISO, end: endISO,
+          isAllDay: false, calendarName: 'Google Calendar',
+          location: null, description: null, source: 'google',
         }
-        setCreateErr(data.error ?? 'Failed to create event')
-        return
+        setLocalGCalEvents(prev => [...prev, opt])
+      } else {
+        // Create as native Locus event
+        const saved = await createLocusEventAction({
+          title: evTitle.trim(), startDatetime: startISO, endDatetime: endISO,
+        })
+        setLocalLocusEvents(prev => [...prev, saved])
       }
 
-      // Optimistically add to local state
-      const optimisticEvent: CalendarEvent = {
-        id:           data.eventId ?? `local-${Date.now()}`,
-        title:        evTitle.trim(),
-        start:        startISO,
-        end:          endISO,
-        isAllDay:     false,
-        calendarName: 'Google Calendar',
-        location:     null,
-        description:  null,
-      }
-      setLocalCalEvents(prev => [...prev, optimisticEvent])
-      toast.success('Event created in Google Calendar')
+      toast.success(`Event created${evSource === 'google' ? ' in Google Calendar' : ' in Locus'}`)
       closePopup()
     } catch (err) {
       setCreateErr(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setCreating(false)
-    }
+    } finally { setCreating(false) }
+  }
+
+  async function handleDeleteLocusEvent(id: string) {
+    setLocalLocusEvents(prev => prev.filter(e => e.id !== id))
+    try { await deleteLocusEventAction(id) }
+    catch { toast.error('Failed to delete event'); /* re-fetch would be needed but skip for now */ }
   }
 
   async function handleAddHabit(habit: HabitWithLogs) {
     if (!click) return
-    const slot = hourToSlot(click.hour)
-    const prev = habit.time_of_day
-    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: slot } : h))
+    const timeStr = `${pad2(click.hour)}:${pad2(click.minute)}`
+    const prev    = habit.time_of_day
+    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: timeStr } : h))
     closePopup()
     try {
-      await setHabitTimeOfDay(habit.id, slot)
-      toast.success(`${habit.emoji} ${habit.name} moved to ${slot}`)
+      await setHabitTimeOfDay(habit.id, timeStr)
+      toast.success(`${habit.emoji} ${habit.name} scheduled at ${timeStr}`)
     } catch {
-      toast.error('Failed to assign habit time')
+      toast.error('Failed to schedule habit')
       setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h))
     }
   }
 
+  async function handleRemoveHabitTime(habit: HabitWithLogs) {
+    const prev = habit.time_of_day
+    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: null } : h))
+    try { await setHabitTimeOfDay(habit.id, null) }
+    catch { toast.error('Failed to remove habit time'); setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h)) }
+  }
+
   async function handleAddGoalBlock(goal: GoalWithSteps) {
     if (!click) return
-    const slot = hourToSlot(click.hour)
+    const slot = click.hour < 12 ? 'morning' : click.hour < 18 ? 'afternoon' : 'evening'
     const dow  = new Date(click.dateStr + 'T12:00:00').getDay()
     const optimistic: WeeklyPlanBlock = {
       id: `opt-${Date.now()}`, user_id: '', week_start: weekStart,
-      day_of_week: dow, time_slot: slot, title: goal.title,
-      type: 'goal', reference_id: goal.id, accepted: true, position: 0,
-      created_at: new Date().toISOString(),
+      day_of_week: dow, time_slot: slot as 'morning' | 'afternoon' | 'evening',
+      title: goal.title, type: 'goal', reference_id: goal.id,
+      accepted: true, position: 0, created_at: new Date().toISOString(),
     }
     setPlanBlocks(prev => [...prev, optimistic])
     closePopup()
     try {
       const saved = await addPlanBlock(weekStart, dow, slot, goal.title, 'goal', goal.id)
       setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
-    } catch {
-      toast.error('Failed to add goal block')
-      setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
-    }
+    } catch { toast.error('Failed to add goal block'); setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id)) }
   }
 
   async function handleAddCustomBlock() {
     if (!click || !customText.trim()) return
-    const slot = hourToSlot(click.hour)
-    const dow  = new Date(click.dateStr + 'T12:00:00').getDay()
+    const slot  = click.hour < 12 ? 'morning' : click.hour < 18 ? 'afternoon' : 'evening'
+    const dow   = new Date(click.dateStr + 'T12:00:00').getDay()
     const title = customText.trim()
     const optimistic: WeeklyPlanBlock = {
       id: `opt-${Date.now()}`, user_id: '', week_start: weekStart,
-      day_of_week: dow, time_slot: slot, title,
-      type: 'custom', reference_id: null, accepted: true, position: 0,
-      created_at: new Date().toISOString(),
+      day_of_week: dow, time_slot: slot as 'morning' | 'afternoon' | 'evening',
+      title, type: 'custom', reference_id: null,
+      accepted: true, position: 0, created_at: new Date().toISOString(),
     }
     setPlanBlocks(prev => [...prev, optimistic])
     closePopup()
     try {
       const saved = await addPlanBlock(weekStart, dow, slot, title, 'custom')
       setPlanBlocks(prev => prev.map(b => b.id === optimistic.id ? saved : b))
-    } catch {
-      toast.error('Failed to add block')
-      setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id))
-    }
-  }
-
-  async function handleRemoveHabitSlot(habit: HabitWithLogs) {
-    const prev = habit.time_of_day
-    setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: null } : h))
-    try { await setHabitTimeOfDay(habit.id, null) }
-    catch { toast.error('Failed to remove habit slot'); setLocalHabits(hs => hs.map(h => h.id === habit.id ? { ...h, time_of_day: prev } : h)) }
+    } catch { toast.error('Failed to add block'); setPlanBlocks(prev => prev.filter(b => b.id !== optimistic.id)) }
   }
 
   async function handleRemoveBlock(block: WeeklyPlanBlock) {
@@ -407,39 +445,32 @@ export default function WeeklyPlanner({
   async function handleAccept(block: WeeklyPlanBlock) {
     setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: true } : b))
     try { await acceptSuggestion(block.id) }
-    catch { toast.error('Failed to accept'); setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: false } : b)) }
+    catch { setPlanBlocks(prev => prev.map(b => b.id === block.id ? { ...b, accepted: false } : b)) }
   }
 
   async function handleDismiss(block: WeeklyPlanBlock) {
     setPlanBlocks(prev => prev.filter(b => b.id !== block.id))
     try { await dismissSuggestion(block.id) }
-    catch { toast.error('Failed to dismiss'); setPlanBlocks(prev => [...prev, block]) }
+    catch { setPlanBlocks(prev => [...prev, block]) }
   }
 
   async function handleAISuggest() {
     setSuggesting(true); setSuggestError('')
     try {
       const res = await fetch('/api/planner/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekStart, calendarEvents: localCalEvents }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekStart, calendarEvents: allCalEvents }),
       })
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail ?? body.error ?? `Request failed (${res.status})`)
+        const b = await res.json().catch(() => ({}))
+        throw new Error(b.detail ?? b.error ?? `Request failed (${res.status})`)
       }
       const { blocks, narrative: nav } = await res.json() as { blocks: SuggestedRawBlock[]; narrative: string; summary: string }
-
-      const VALID_SLOTS = new Set(['morning', 'afternoon', 'evening'])
+      const VALID = new Set(['morning', 'afternoon', 'evening'])
       const clean = blocks
-        .filter(b => typeof b.title === 'string' && b.title.trim() && VALID_SLOTS.has(b.time_slot) && typeof b.day_of_week === 'number' && b.day_of_week >= 0 && b.day_of_week <= 6)
-        .map(b => ({
-          weekStart, dayOfWeek: b.day_of_week, timeSlot: b.time_slot, title: b.title.trim(),
-          type: (b.type === 'goal' ? 'goal' : 'custom') as 'goal' | 'custom',
-          referenceId: b.type === 'goal' && b.reference_id ? b.reference_id : undefined,
-        }))
+        .filter(b => typeof b.title === 'string' && b.title.trim() && VALID.has(b.time_slot) && typeof b.day_of_week === 'number' && b.day_of_week >= 0 && b.day_of_week <= 6)
+        .map(b => ({ weekStart, dayOfWeek: b.day_of_week, timeSlot: b.time_slot, title: b.title.trim(), type: (b.type === 'goal' ? 'goal' : 'custom') as 'goal' | 'custom', referenceId: b.type === 'goal' && b.reference_id ? b.reference_id : undefined }))
       if (!clean.length) throw new Error('No valid suggestions returned')
-
       const saved = await saveSuggestions(clean)
       setPlanBlocks(prev => [...prev, ...saved])
       if (nav) { setNarrative(nav); setNarrativeVisible(true) }
@@ -449,24 +480,26 @@ export default function WeeklyPlanner({
     } finally { setSuggesting(false) }
   }
 
-  // ── Computed ──
+  // ── Derived ──
 
-  const weekEndDate = addDays(weekStart, 6)
-  function fmtDate(d: string) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
-  const weekLabel = `${fmtDate(weekStart)} – ${fmtDate(weekEndDate)}`
-  const nowY = minuteToY(nowMinutes)
-  const todayVisible = today >= colDates[0] && today <= weekEnd
-  const showNowLine  = weekOffset === 0 && todayVisible && nowMinutes >= START_HOUR * 60 && nowMinutes < END_HOUR * 60
+  const weekEnd2  = addDays(weekStart, 6)
+  const weekLabel = `${fmtDate(weekStart)} – ${fmtDate(weekEnd2)}`
+  const nowY      = minuteToY(nowMinutes)
+  const showNow   = weekOffset === 0 && nowMinutes >= START_HOUR * 60 && nowMinutes < END_HOUR * 60
 
-  // ── Popup positioning ──
   function popupStyle(): React.CSSProperties {
     if (!click) return {}
-    const W = 300, H = popupMode === 'event' ? 320 : popupMode === 'habit' ? 280 : popupMode === 'goal' ? 260 : popupMode === 'custom' ? 180 : 140
+    const W  = 296
     const vw = typeof window !== 'undefined' ? window.innerWidth  : 1200
     const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-    const left = Math.max(8, Math.min(vw - W - 8, click.clientX - W / 2))
-    const top  = Math.max(8, Math.min(vh - H - 8, click.clientY + 16))
-    return { position: 'fixed', top, left, width: `${W}px`, zIndex: 9000 }
+    const H  = popupMode === 'event' ? 310 : popupMode === 'habit' ? 290 : popupMode === 'goal' ? 240 : popupMode === 'custom' ? 160 : 180
+    return {
+      position: 'fixed',
+      top:  Math.max(8, Math.min(vh - H - 8, click.clientY + 10)),
+      left: Math.max(8, Math.min(vw - W - 8, click.clientX - W / 2)),
+      width: `${W}px`,
+      zIndex: 9000,
+    }
   }
 
   // ── Render ──
@@ -474,32 +507,28 @@ export default function WeeklyPlanner({
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 16px' }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 400, color: 'var(--text-0)', margin: 0 }}>
-            Weekly Rhythm
-          </h1>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 400, color: 'var(--text-0)', margin: 0 }}>Weekly Rhythm</h1>
           <div style={{ fontSize: '13px', color: 'var(--text-2)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>{weekLabel}</span>
-            {hasCalendar && weekOffset === 0 && (
-              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(96,160,200,0.12)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(140,190,220,0.9)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                📅 synced
-              </span>
+            {hasGoogleCalendar && (
+              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(96,160,200,0.12)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(140,190,220,0.9)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>📅 GCal synced</span>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button onClick={() => setWeekOffset(w => w - 1)} style={navBtnStyle}>← Prev</button>
-          <button onClick={() => setWeekOffset(0)} style={{ ...navBtnStyle, ...(weekOffset === 0 && { background: 'var(--gold-dim)', color: 'var(--gold)', fontWeight: 600 }) }}>This Week</button>
-          <button onClick={() => setWeekOffset(w => w + 1)} style={navBtnStyle}>Next →</button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={() => setWeekOffset(w => w - 1)} style={navBtn}>← Prev</button>
+          <button onClick={() => setWeekOffset(0)} style={{ ...navBtn, ...(weekOffset === 0 && { background: 'var(--gold-dim)', color: 'var(--gold)', fontWeight: 600 }) }}>This Week</button>
+          <button onClick={() => setWeekOffset(w => w + 1)} style={navBtn}>Next →</button>
           <button onClick={handleAISuggest} disabled={suggesting} style={{ padding: '6px 14px', border: 'none', background: suggesting ? 'var(--bg-2)' : 'var(--gold)', color: suggesting ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: suggesting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
             {suggesting ? <><SpinIcon />Analyzing…</> : <>✦ {narrativeVisible ? 'Re-analyze' : 'Analyze Week'}</>}
           </button>
         </div>
       </div>
 
-      {/* ── Error banner ── */}
+      {/* Error */}
       {suggestError && (
         <div style={{ background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '13px', color: '#e07060', display: 'flex', gap: '8px' }}>
           <span>⚠ {suggestError}</span>
@@ -507,11 +536,11 @@ export default function WeeklyPlanner({
         </div>
       )}
 
-      {/* ── AI Intelligence Panel ── */}
+      {/* AI Panel */}
       {narrativeVisible && narrative && (
         <div style={{ background: 'rgba(212,168,83,0.06)', border: '1px solid rgba(212,168,83,0.2)', borderLeft: '3px solid var(--gold)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <span style={{ color: 'var(--gold)', flexShrink: 0, fontSize: '13px' }}>✦</span>
+            <span style={{ color: 'var(--gold)', fontSize: '13px', flexShrink: 0 }}>✦</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '5px' }}>Locus Week Intelligence</div>
               <p style={{ fontSize: '13px', color: 'var(--text-1)', margin: 0, lineHeight: 1.6 }}>{narrative}</p>
@@ -521,28 +550,36 @@ export default function WeeklyPlanner({
         </div>
       )}
 
-      {/* ── Calendar grid ── */}
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <LegendDot color="rgba(212,168,83,0.7)" label="Locus event" />
+        {hasGoogleCalendar && <LegendDot color="rgba(66,133,244,0.7)" label="Google Calendar" />}
+        <LegendDot color="rgba(100,160,130,0.7)" label="Habit" />
+        <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: 'auto' }}>Click any time slot to add</span>
+      </div>
+
+      {/* Calendar grid */}
       <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-0)' }}>
 
         {/* Day headers (sticky) */}
         <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-0)' }}>
           <div style={{ borderRight: '1px solid var(--border)' }} />
           {colDates.map((dateStr, col) => {
-            const dow    = colToDow(col)
-            const isTdy  = dateStr === today
-            const load   = (timedByDate.get(dateStr)?.length ?? 0) + (allDayByDate.get(dateStr)?.length ?? 0)
+            const dow   = colToDow(col)
+            const isTdy = dateStr === today
+            const load  = loadByDate.get(dateStr) ?? 0
             return (
               <div key={col} style={{ padding: '10px 8px 8px', textAlign: 'center', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isTdy ? 'rgba(212,168,83,0.06)' : undefined }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: isTdy ? 'var(--gold)' : 'var(--text-2)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{DOW_SHORT[dow]}</div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: isTdy ? 'var(--gold)' : 'var(--text-3)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{DOW_SHORT[dow]}</div>
                 <div style={{ fontSize: '22px', fontWeight: isTdy ? 700 : 400, color: isTdy ? 'var(--gold)' : 'var(--text-0)', lineHeight: 1.2 }}>
                   {new Date(dateStr + 'T12:00:00').getDate()}
                 </div>
                 {load > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '3px' }}>
-                    {Array.from({ length: Math.min(load, 4) }, (_, i) => (
-                      <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(96,160,200,0.55)' }} />
+                    {Array.from({ length: Math.min(load, 5) }, (_, i) => (
+                      <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(96,160,200,0.5)' }} />
                     ))}
-                    {load > 4 && <span style={{ fontSize: '8px', color: 'rgba(96,160,200,0.55)' }}>+</span>}
+                    {load > 5 && <span style={{ fontSize: '8px', color: 'rgba(96,160,200,0.5)' }}>+</span>}
                   </div>
                 )}
               </div>
@@ -551,8 +588,8 @@ export default function WeeklyPlanner({
         </div>
 
         {/* All-day strip */}
-        {hasCalendar && weekOffset === 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', minHeight: '28px' }}>
+        {allCalEvents.some(e => e.isAllDay) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', minHeight: '26px' }}>
             <div style={{ borderRight: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '8px' }}>
               <span style={{ fontSize: '9px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>All day</span>
             </div>
@@ -561,9 +598,7 @@ export default function WeeklyPlanner({
               return (
                 <div key={col} style={{ padding: '3px 4px', display: 'flex', flexWrap: 'wrap', gap: '2px', borderRight: col < 6 ? '1px solid var(--border)' : undefined }}>
                   {evs.map(ev => (
-                    <span key={ev.id} title={ev.title} style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(96,160,200,0.18)', border: '1px solid rgba(96,160,200,0.3)', color: 'rgba(140,190,220,0.95)', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textOverflow: 'ellipsis', fontWeight: 500 }}>
-                      {ev.title}
-                    </span>
+                    <AllDayChip key={ev.id} event={ev} onDelete={ev.source === 'locus' ? () => handleDeleteLocusEvent(ev.id) : undefined} />
                   ))}
                 </div>
               )
@@ -571,21 +606,16 @@ export default function WeeklyPlanner({
           </div>
         )}
 
-        {/* Rhythm strip — habits + plan blocks per day */}
-        <RhythmStrip
+        {/* Plan blocks strip (AI suggestions + goal/custom blocks) */}
+        <PlanStrip
           colDates={colDates}
           weekStart={weekStart}
           today={today}
-          localHabits={localHabits}
           planBlocks={planBlocks}
-          onRemoveHabit={handleRemoveHabitSlot}
-          onRemoveBlock={handleRemoveBlock}
+          onRemove={handleRemoveBlock}
           onAccept={handleAccept}
           onDismiss={handleDismiss}
-          onCellClick={(dateStr, clientX, clientY) => {
-            openPopup(dateStr, clientX, clientY, 8, 0)
-            setPopupMode('habit')
-          }}
+          onAddClick={(dateStr, cx, cy) => openPopup(dateStr, cx, cy, 9, 0)}
         />
 
         {/* Time grid */}
@@ -603,9 +633,10 @@ export default function WeeklyPlanner({
 
             {/* Day columns */}
             {colDates.map((dateStr, col) => {
-              const isToday    = dateStr === today
-              const isPast     = dateStr < today
-              const dayEvents  = timedByDate.get(dateStr) ?? []
+              const isToday   = dateStr === today
+              const isPast    = dateStr < today
+              const dayEvents = timedByDate.get(dateStr) ?? []
+              const dayHabits = habitsByDate.get(dateStr) ?? []
 
               return (
                 <div
@@ -614,72 +645,64 @@ export default function WeeklyPlanner({
                   style={{
                     position: 'relative',
                     borderRight: col < 6 ? '1px solid var(--border)' : undefined,
-                    background: isToday ? 'rgba(212,168,83,0.03)' : undefined,
+                    background: isToday ? 'rgba(212,168,83,0.025)' : undefined,
                     cursor: isPast ? 'default' : 'pointer',
                   }}
                 >
-                  {/* Hour lines */}
+                  {/* Hour grid lines */}
                   {Array.from({ length: HOURS }, (_, i) => (
-                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX}px`, left: 0, right: 0, borderTop: `1px solid var(--border)`, pointerEvents: 'none' }} />
+                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX}px`, left: 0, right: 0, borderTop: '1px solid var(--border)', pointerEvents: 'none' }} />
                   ))}
-                  {/* Half-hour lines */}
+                  {/* Half-hour dashes */}
                   {Array.from({ length: HOURS }, (_, i) => (
-                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX + HOUR_PX / 2}px`, left: 0, right: 0, borderTop: `1px dashed rgba(255,255,255,0.04)`, pointerEvents: 'none' }} />
+                    <div key={i} style={{ position: 'absolute', top: `${i * HOUR_PX + HOUR_PX / 2}px`, left: 0, right: 0, borderTop: '1px dashed rgba(255,255,255,0.035)', pointerEvents: 'none' }} />
                   ))}
 
-                  {/* Current time line */}
-                  {showNowLine && isToday && (
-                    <div style={{ position: 'absolute', top: `${nowY}px`, left: 0, right: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(220,80,60,0.9)', marginLeft: '-4px', flexShrink: 0 }} />
-                      <div style={{ flex: 1, height: '1.5px', background: 'rgba(220,80,60,0.5)' }} />
+                  {/* Current time indicator */}
+                  {showNow && isToday && (
+                    <div style={{ position: 'absolute', top: `${nowY}px`, left: 0, right: 0, zIndex: 6, pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(220,70,50,0.9)', marginLeft: '-4px', flexShrink: 0 }} />
+                      <div style={{ flex: 1, height: '1.5px', background: 'rgba(220,70,50,0.45)' }} />
                     </div>
                   )}
 
-                  {/* Calendar event blocks */}
+                  {/* Habit blocks (green, at exact scheduled time) */}
+                  {dayHabits.map((habit, i) => {
+                    const [hh, mm] = (habit.time_of_day ?? '08:00').split(':').map(Number)
+                    const top = Math.max(0, minuteToY(hh * 60 + mm))
+                    return (
+                      <HabitBlock
+                        key={habit.id}
+                        habit={habit}
+                        top={top + i * 2}  // tiny stagger if two habits at exact same time
+                        onRemove={() => handleRemoveHabitTime(habit)}
+                      />
+                    )
+                  })}
+
+                  {/* Calendar + Locus event blocks */}
                   {dayEvents.map(ev => {
                     const top    = eventTop(ev)
                     const height = eventHeight(ev)
                     const W = 100 / ev.laneCount
                     const L = ev.laneIdx * W
+                    const isLocus = ev.source === 'locus'
                     const startTime = new Date(ev.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
                     return (
-                      <div
+                      <EventBlock
                         key={ev.id}
-                        data-event="1"
-                        title={`${ev.title}${ev.location ? `\n${ev.location}` : ''}`}
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                          position: 'absolute',
-                          top:    `${top}px`,
-                          height: `${Math.max(height, 20)}px`,
-                          left:   `${L + 1}%`,
-                          width:  `${W - 2}%`,
-                          background: 'rgba(66,133,244,0.18)',
-                          border: '1px solid rgba(66,133,244,0.45)',
-                          borderLeft: '3px solid rgba(66,133,244,0.8)',
-                          borderRadius: '4px',
-                          padding: '2px 5px',
-                          overflow: 'hidden',
-                          zIndex: 2,
-                          boxSizing: 'border-box',
-                          cursor: 'default',
-                        }}
-                      >
-                        <div style={{ fontSize: '9.5px', color: 'rgba(130,180,255,0.9)', fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{startTime}</div>
-                        <div style={{ fontSize: '11px', color: 'rgba(200,225,255,0.95)', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: height < 36 ? 'nowrap' : 'normal' }}>{ev.title}</div>
-                        {ev.location && height >= 48 && (
-                          <div style={{ fontSize: '10px', color: 'rgba(160,200,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.location}</div>
-                        )}
-                      </div>
+                        ev={ev}
+                        top={top}
+                        height={Math.max(height, 20)}
+                        left={`${L + 1}%`}
+                        width={`${W - 2}%`}
+                        startTime={startTime}
+                        isLocus={isLocus}
+                        onDelete={isLocus ? () => handleDeleteLocusEvent(ev.id) : undefined}
+                      />
                     )
                   })}
-
-                  {/* "Click to add" hint on hover */}
-                  {!isPast && (
-                    <div className="cal-add-hint" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '40%', pointerEvents: 'none', opacity: 0, transition: 'opacity 0.15s' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-3)', background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: '6px', padding: '3px 8px' }}>+ Click to add</span>
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -687,7 +710,7 @@ export default function WeeklyPlanner({
         </div>
       </div>
 
-      {/* ── Click-to-add popup ── */}
+      {/* Click popup */}
       {click && createPortal(
         <div
           id="cal-popup"
@@ -705,7 +728,8 @@ export default function WeeklyPlanner({
           <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-0)' }}>
-                {new Date(click.dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {DOW_FULL[new Date(click.dateStr + 'T12:00:00').getDay()]}{', '}
+                {new Date(click.dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '1px' }}>{formatTime(click.hour, click.minute)}</div>
             </div>
@@ -713,86 +737,72 @@ export default function WeeklyPlanner({
           </div>
 
           <div style={{ padding: '10px 14px 14px' }}>
-            {/* Choose mode */}
             {popupMode === 'choose' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <PopupOptionBtn icon="📅" label="New Calendar Event" onClick={() => setPopupMode('event')} />
-                <PopupOptionBtn icon={SLOT_EMOJI[hourToSlot(click.hour)]} label={`Assign Habit to ${hourToSlot(click.hour)}`} onClick={() => setPopupMode('habit')} />
-                <PopupOptionBtn icon="🎯" label="Add Goal Block" onClick={() => setPopupMode('goal')} />
-                <PopupOptionBtn icon="📝" label="Custom Block" onClick={() => setPopupMode('custom')} />
+                <OptionBtn icon="📅" label="New Event" sub={hasGoogleCalendar ? 'Locus or Google Calendar' : 'Add to your Locus calendar'} onClick={() => setPopupMode('event')} />
+                <OptionBtn icon="🔄" label="Schedule Habit here" sub={`Sets habit time to ${formatTime(click.hour, click.minute)}`} onClick={() => setPopupMode('habit')} />
+                <OptionBtn icon="🎯" label="Add Goal Block" sub="Place a goal work session" onClick={() => setPopupMode('goal')} />
+                <OptionBtn icon="📝" label="Custom Block" sub="Freeform note or task" onClick={() => setPopupMode('custom')} />
               </div>
             )}
 
-            {/* Event creation form */}
             {popupMode === 'event' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>← Back</button>
-                <input
-                  autoFocus
-                  placeholder="Event title"
-                  value={evTitle}
-                  onChange={e => setEvTitle(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleCreateCalendarEvent() }}
-                  style={inputStyle}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                <BackBtn onClick={() => setPopupMode('choose')} />
+                <input autoFocus placeholder="Event title" value={evTitle} onChange={e => setEvTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateEvent()} style={iStyle} />
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '3px' }}>Start</div>
-                    <input type="time" value={evStart} onChange={e => setEvStart(e.target.value)} style={inputStyle} />
+                    <input type="time" value={evStart} onChange={e => setEvStart(e.target.value)} style={iStyle} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '3px' }}>End</div>
-                    <input type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} style={inputStyle} />
+                    <input type="time" value={evEnd} onChange={e => setEvEnd(e.target.value)} style={iStyle} />
                   </div>
                 </div>
+                {/* Source selector — only show when GCal is connected */}
+                {hasGoogleCalendar && (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {(['locus', 'google'] as EventSource[]).map(src => (
+                      <button key={src} onClick={() => setEvSource(src)} style={{ flex: 1, padding: '6px', border: `1px solid ${evSource === src ? (src === 'locus' ? 'rgba(212,168,83,0.5)' : 'rgba(66,133,244,0.5)') : 'var(--border)'}`, background: evSource === src ? (src === 'locus' ? 'rgba(212,168,83,0.1)' : 'rgba(66,133,244,0.1)') : 'transparent', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', color: evSource === src ? 'var(--text-0)' : 'var(--text-3)', fontWeight: evSource === src ? 600 : 400 }}>
+                        {src === 'locus' ? '✦ Locus' : '📅 Google Cal'}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {createErr && <div style={{ fontSize: '11px', color: '#e07060', lineHeight: 1.4 }}>{createErr}</div>}
-                <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>Saves to your primary Google Calendar</div>
-                <button
-                  onClick={handleCreateCalendarEvent}
-                  disabled={creating || !evTitle.trim()}
-                  style={{ padding: '8px', border: 'none', background: (!evTitle.trim() || creating) ? 'var(--bg-2)' : 'var(--gold)', color: (!evTitle.trim() || creating) ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: (!evTitle.trim() || creating) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
-                >
-                  {creating ? 'Creating…' : 'Create Event'}
+                <button onClick={handleCreateEvent} disabled={creating || !evTitle.trim()} style={{ padding: '8px', border: 'none', background: (!evTitle.trim() || creating) ? 'var(--bg-2)' : 'var(--gold)', color: (!evTitle.trim() || creating) ? 'var(--text-3)' : '#131110', borderRadius: '6px', cursor: (!evTitle.trim() || creating) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                  {creating ? 'Creating…' : `Create Event`}
                 </button>
               </div>
             )}
 
-            {/* Habit picker */}
             {popupMode === 'habit' && (
               <div>
-                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← Back</button>
-                <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '6px' }}>
-                  Assign a habit to <strong style={{ color: 'var(--text-0)' }}>{hourToSlot(click.hour)}</strong>:
+                <BackBtn onClick={() => setPopupMode('choose')} />
+                <div style={{ fontSize: '11px', color: 'var(--text-2)', margin: '6px 0' }}>
+                  Pick a habit to schedule at <strong style={{ color: 'var(--text-0)' }}>{formatTime(click.hour, click.minute)}</strong>:
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '180px', overflowY: 'auto' }}>
-                  {localHabits.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>No habits yet — add some in Habits.</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {localHabits.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>No habits yet.</div>}
                   {localHabits.map(h => (
-                    <button
-                      key={h.id}
-                      onClick={() => handleAddHabit(h)}
-                      style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
+                    <button key={h.id} onClick={() => handleAddHabit(h)} style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '16px' }}>{h.emoji}</span>
                       <span style={{ flex: 1 }}>{h.name}</span>
-                      {h.time_of_day && <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>{SLOT_EMOJI[h.time_of_day as Slot]}</span>}
+                      {h.time_of_day && <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>{h.time_of_day}</span>}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Goal block picker */}
             {popupMode === 'goal' && (
               <div>
-                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← Back</button>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '180px', overflowY: 'auto' }}>
+                <BackBtn onClick={() => setPopupMode('choose')} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', maxHeight: '180px', overflowY: 'auto' }}>
                   {goals.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>No active goals.</div>}
                   {goals.map(g => (
-                    <button
-                      key={g.id}
-                      onClick={() => handleAddGoalBlock(g)}
-                      style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left' }}
-                    >
+                    <button key={g.id} onClick={() => handleAddGoalBlock(g)} style={{ padding: '7px 10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', textAlign: 'left' }}>
                       {g.title}
                     </button>
                   ))}
@@ -800,23 +810,13 @@ export default function WeeklyPlanner({
               </div>
             )}
 
-            {/* Custom block */}
             {popupMode === 'custom' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button onClick={() => setPopupMode('choose')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>← Back</button>
-                <input
-                  autoFocus
-                  placeholder="Block title…"
-                  value={customText}
-                  onChange={e => setCustomText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddCustomBlock() }}
-                  style={inputStyle}
-                />
-                <button
-                  onClick={handleAddCustomBlock}
-                  disabled={!customText.trim()}
-                  style={{ padding: '8px', border: 'none', background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)', color: customText.trim() ? '#131110' : 'var(--text-3)', borderRadius: '6px', cursor: customText.trim() ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: 600 }}
-                >Add Block</button>
+                <BackBtn onClick={() => setPopupMode('choose')} />
+                <input autoFocus placeholder="Block title…" value={customText} onChange={e => setCustomText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCustomBlock()} style={iStyle} />
+                <button onClick={handleAddCustomBlock} disabled={!customText.trim()} style={{ padding: '8px', border: 'none', background: customText.trim() ? 'var(--gold)' : 'var(--bg-2)', color: customText.trim() ? '#131110' : 'var(--text-3)', borderRadius: '6px', cursor: customText.trim() ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: 600 }}>
+                  Add Block
+                </button>
               </div>
             )}
           </div>
@@ -827,99 +827,215 @@ export default function WeeklyPlanner({
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
         @keyframes spin   { to { transform: rotate(360deg) } }
-        .cal-day-col:hover .cal-add-hint { opacity: 1 !important; }
       `}</style>
     </div>
   )
 }
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
+// ── Shared micro-styles ────────────────────────────────────────────────────────
 
-const navBtnStyle: React.CSSProperties = {
+const navBtn: React.CSSProperties = {
   padding: '6px 12px', border: '1px solid var(--border)', background: 'var(--bg-1)',
   color: 'var(--text-1)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px',
 }
 
-const inputStyle: React.CSSProperties = {
+const iStyle: React.CSSProperties = {
   width: '100%', padding: '7px 10px', border: '1px solid var(--border)',
   background: 'var(--bg-0)', color: 'var(--text-0)', borderRadius: '6px',
-  fontSize: '12px', outline: 'none', boxSizing: 'border-box',
+  fontSize: '12px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
 }
 
-// ── Rhythm strip ──────────────────────────────────────────────────────────────
+function fmtDate(d: string) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
-type RhythmProps = {
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>{label}</span>
+    </div>
+  )
+}
+
+function SpinIcon() {
+  return <div style={{ width: '12px', height: '12px', border: '2px solid #131110', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+}
+
+function BackBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+      ← Back
+    </button>
+  )
+}
+
+function OptionBtn({ icon, label, sub, onClick }: { icon: string; label: string; sub: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '7px', cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s', width: '100%' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-2)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <span style={{ fontSize: '18px', flexShrink: 0 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2 }}>{label}</div>
+        <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>{sub}</div>
+      </div>
+    </button>
+  )
+}
+
+// All-day event chip (shown above the time grid)
+function AllDayChip({ event, onDelete }: { event: CalendarEvent; onDelete?: () => void }) {
+  const [hov, setHov] = useState(false)
+  const isLocus = event.source === 'locus'
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      title={event.title}
+      style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: isLocus ? 'rgba(212,168,83,0.18)' : 'rgba(96,160,200,0.18)', border: `1px solid ${isLocus ? 'rgba(212,168,83,0.35)' : 'rgba(96,160,200,0.3)'}`, color: isLocus ? 'rgba(220,190,110,0.95)' : 'rgba(140,190,220,0.95)', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
+    >
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</span>
+      {hov && onDelete && (
+        <button onClick={e => { e.stopPropagation(); onDelete() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '11px', padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+      )}
+    </div>
+  )
+}
+
+// Habit block — green, positioned at exact time in the grid
+function HabitBlock({ habit, top, onRemove }: { habit: HabitWithLogs; top: number; onRemove: () => void }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <div
+      data-event="1"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={e => e.stopPropagation()}
+      title={`${habit.emoji} ${habit.name} · ${habit.time_of_day}`}
+      style={{
+        position: 'absolute',
+        top:    `${top}px`,
+        left:   '1%',
+        width:  '98%',
+        height: '26px',
+        background: 'rgba(100,160,130,0.22)',
+        border:     '1px solid rgba(100,160,130,0.45)',
+        borderLeft: '3px solid rgba(100,160,130,0.8)',
+        borderRadius: '4px',
+        padding: '2px 6px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        overflow: 'hidden',
+        zIndex: 3,
+        boxSizing: 'border-box',
+        cursor: 'default',
+      }}
+    >
+      <span style={{ fontSize: '11px', flexShrink: 0 }}>{habit.emoji}</span>
+      <span style={{ fontSize: '10.5px', color: 'var(--text-1)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
+      <span style={{ fontSize: '9px', color: 'rgba(100,180,140,0.7)', flexShrink: 0 }}>{habit.time_of_day}</span>
+      {hov && (
+        <button onClick={e => { e.stopPropagation(); onRemove() }} title="Remove scheduled time" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+      )}
+    </div>
+  )
+}
+
+// Calendar/Locus event block — positioned precisely in the grid
+function EventBlock({
+  ev, top, height, left, width, startTime, isLocus, onDelete,
+}: {
+  ev: CalendarEvent
+  top: number; height: number; left: string; width: string
+  startTime: string; isLocus: boolean; onDelete?: () => void
+}) {
+  const [hov, setHov] = useState(false)
+  const bg   = isLocus ? 'rgba(212,168,83,0.18)'  : 'rgba(66,133,244,0.18)'
+  const bd   = isLocus ? 'rgba(212,168,83,0.45)'  : 'rgba(66,133,244,0.45)'
+  const acc  = isLocus ? 'rgba(212,168,83,0.85)'  : 'rgba(66,133,244,0.85)'
+  const tc   = isLocus ? 'rgba(220,190,110,0.95)' : 'rgba(160,200,255,0.95)'
+  return (
+    <div
+      data-event="1"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={e => e.stopPropagation()}
+      title={`${ev.title}${ev.location ? `\n${ev.location}` : ''}`}
+      style={{
+        position: 'absolute', top: `${top}px`, height: `${height}px`, left, width,
+        background: bg, border: `1px solid ${bd}`, borderLeft: `3px solid ${acc}`,
+        borderRadius: '4px', padding: '2px 5px', overflow: 'hidden', zIndex: 2,
+        boxSizing: 'border-box', cursor: 'default',
+      }}
+    >
+      <div style={{ fontSize: '9.5px', color: tc, fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>{startTime}</span>
+        {hov && onDelete && (
+          <button onClick={e => { e.stopPropagation(); onDelete() }} style={{ background: 'none', border: 'none', color: tc, cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+        )}
+      </div>
+      <div style={{ fontSize: '11px', color: tc, fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: height < 38 ? 'nowrap' : 'normal' }}>
+        {isLocus && <span style={{ fontSize: '10px', marginRight: '3px', opacity: 0.7 }}>✦</span>}
+        {ev.title}
+      </div>
+      {ev.location && height >= 48 && (
+        <div style={{ fontSize: '9.5px', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.location}</div>
+      )}
+    </div>
+  )
+}
+
+// Plan strip — AI suggestions, goal blocks, custom blocks per day
+function PlanStrip({
+  colDates, weekStart, today, planBlocks,
+  onRemove, onAccept, onDismiss, onAddClick,
+}: {
   colDates: string[]
   weekStart: string
   today: string
-  localHabits: HabitWithLogs[]
   planBlocks: WeeklyPlanBlock[]
-  onRemoveHabit: (h: HabitWithLogs) => void
-  onRemoveBlock: (b: WeeklyPlanBlock) => void
+  onRemove: (b: WeeklyPlanBlock) => void
   onAccept: (b: WeeklyPlanBlock) => void
   onDismiss: (b: WeeklyPlanBlock) => void
-  onCellClick: (dateStr: string, clientX: number, clientY: number) => void
-}
-
-function RhythmStrip({ colDates, weekStart, today, localHabits, planBlocks, onRemoveHabit, onRemoveBlock, onAccept, onDismiss, onCellClick }: RhythmProps) {
+  onAddClick: (dateStr: string, cx: number, cy: number) => void
+}) {
   const [collapsed, setCollapsed] = useState(false)
+  const hasSomething = planBlocks.length > 0
+
+  if (!hasSomething && collapsed) return null
 
   return (
     <div style={{ borderBottom: '1px solid var(--border)' }}>
-      {/* Strip header */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px 5px 6px', borderBottom: collapsed ? undefined : '1px solid var(--border)', gap: '6px' }}>
-        <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '1px 4px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '9px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▼</span>
-          <span style={{ fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Rhythm</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 6px', borderBottom: collapsed ? undefined : '1px solid var(--border)' }}>
+        <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '1px 4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '9px', display: 'inline-block', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>▼</span>
+          <span style={{ fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Plans</span>
         </button>
-        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>habits &amp; plans · click a day to add</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>goal blocks &amp; AI suggestions</span>
       </div>
 
       {!collapsed && (
         <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)' }}>
           <div style={{ borderRight: '1px solid var(--border)' }} />
           {colDates.map((dateStr, col) => {
-            const dow = colToDow(col)
+            const dow    = colToDow(col)
             const isToday = dateStr === today
-
-            const dayHabits = localHabits.filter(h =>
-              isHabitOnDay(h, dow) && h.time_of_day !== null && (!h.ends_at || dateStr <= h.ends_at)
-            )
-            const dayBlocks = planBlocks.filter(b =>
-              b.day_of_week === dow && b.week_start === weekStart
-            )
-            const hasItems = dayHabits.length > 0 || dayBlocks.length > 0
-
+            const blocks = planBlocks.filter(b => b.day_of_week === dow && b.week_start === weekStart)
             return (
-              <div
-                key={col}
-                style={{ padding: '5px 4px', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isToday ? 'rgba(212,168,83,0.03)' : undefined, minHeight: '44px', display: 'flex', flexDirection: 'column', gap: '3px' }}
-              >
-                {dayHabits.map(h => (
-                  <RhythmChip
-                    key={h.id}
-                    label={`${h.emoji} ${h.name}`}
-                    subLabel={h.time_of_day ? SLOT_EMOJI[h.time_of_day as Slot] : ''}
-                    color="green"
-                    onRemove={() => onRemoveHabit(h)}
-                  />
+              <div key={col} style={{ padding: '4px 4px', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isToday ? 'rgba(212,168,83,0.025)' : undefined, minHeight: '36px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                {blocks.map(b => (
+                  <PlanChip key={b.id} block={b} onRemove={() => onRemove(b)} onAccept={() => onAccept(b)} onDismiss={() => onDismiss(b)} />
                 ))}
-                {dayBlocks.map(b => (
-                  <RhythmChip
-                    key={b.id}
-                    label={b.title}
-                    subLabel={SLOT_EMOJI[b.time_slot as Slot]}
-                    color={b.type === 'goal' ? 'gold' : 'blue'}
-                    ghost={!b.accepted}
-                    onRemove={b.accepted ? () => onRemoveBlock(b) : undefined}
-                    onAccept={!b.accepted ? () => onAccept(b) : undefined}
-                    onDismiss={!b.accepted ? () => onDismiss(b) : undefined}
-                  />
-                ))}
-                {/* Add button */}
                 <button
-                  onClick={e => onCellClick(dateStr, e.clientX, e.clientY)}
-                  style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '4px', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '1px 5px', lineHeight: 1.6, marginTop: hasItems ? '0' : 'auto' }}
+                  onClick={e => onAddClick(dateStr, e.clientX, e.clientY)}
+                  style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '4px', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '1px 6px', lineHeight: 1.6 }}
                 >+</button>
               </div>
             )
@@ -930,58 +1046,28 @@ function RhythmStrip({ colDates, weekStart, today, localHabits, planBlocks, onRe
   )
 }
 
-type RhythmChipProps = {
-  label: string
-  subLabel: string
-  color: 'green' | 'gold' | 'blue'
-  ghost?: boolean
-  onRemove?: () => void
-  onAccept?: () => void
-  onDismiss?: () => void
-}
-
-function RhythmChip({ label, subLabel, color, ghost, onRemove, onAccept, onDismiss }: RhythmChipProps) {
-  const [hovered, setHovered] = useState(false)
-  const bg = color === 'green' ? 'rgba(122,158,138,0.18)' : color === 'gold' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
-  const br = color === 'green' ? 'rgba(122,158,138,0.4)' : color === 'gold' ? 'rgba(212,168,83,0.4)' : 'rgba(96,144,200,0.35)'
-
+function PlanChip({ block, onRemove, onAccept, onDismiss }: { block: WeeklyPlanBlock; onRemove: () => void; onAccept: () => void; onDismiss: () => void }) {
+  const [hov, setHov] = useState(false)
+  const isGhost = !block.accepted
+  const bg = block.type === 'goal' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
+  const br = block.type === 'goal' ? 'rgba(212,168,83,0.4)'  : 'rgba(96,144,200,0.35)'
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ background: bg, border: `1px ${ghost ? 'dashed' : 'solid'} ${br}`, borderRadius: '4px', padding: '2px 5px', display: 'flex', alignItems: 'center', gap: '3px', opacity: ghost ? 0.75 : 1, fontSize: '10px', minWidth: 0 }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ background: bg, border: `1px ${isGhost ? 'dashed' : 'solid'} ${br}`, borderRadius: '4px', padding: '2px 5px', display: 'flex', alignItems: 'center', gap: '3px', opacity: isGhost ? 0.8 : 1, minWidth: 0, fontSize: '10px' }}
     >
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-1)', fontWeight: 500 }}>{label}</span>
-      <span style={{ flexShrink: 0, fontSize: '9px' }}>{subLabel}</span>
-      {hovered && ghost && onAccept && onDismiss && (
+      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-1)', fontWeight: 500 }}>{block.title}</span>
+      {hov && isGhost && (
         <>
           <button onClick={e => { e.stopPropagation(); onAccept() }} style={{ background: 'rgba(122,158,138,0.4)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '9px', padding: '0 3px', lineHeight: '14px' }}>✓</button>
           <button onClick={e => { e.stopPropagation(); onDismiss() }} style={{ background: 'rgba(220,80,60,0.25)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '10px', padding: '0 3px', lineHeight: '14px' }}>✕</button>
         </>
       )}
-      {hovered && !ghost && onRemove && (
-        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+      {hov && !isGhost && (
+        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1 }}>×</button>
       )}
     </div>
   )
 }
 
-// ── Misc sub-components ────────────────────────────────────────────────────────
-
-function PopupOptionBtn({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-0)', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', textAlign: 'left', fontWeight: 500, transition: 'background 0.1s' }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-2)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-    >
-      <span style={{ fontSize: '16px', flexShrink: 0 }}>{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
-}
-
-function SpinIcon() {
-  return <div style={{ width: '12px', height: '12px', border: '2px solid #131110', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-}

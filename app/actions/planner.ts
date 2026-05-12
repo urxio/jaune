@@ -125,7 +125,7 @@ export async function saveSuggestions(
 
 export async function setHabitTimeOfDay(
   habitId: string,
-  timeOfDay: 'morning' | 'afternoon' | 'evening' | null,
+  timeOfDay: string | null,  // "HH:MM" (e.g. "07:30") or null to clear
 ): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

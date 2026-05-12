@@ -93,6 +93,7 @@ export type HabitFormData = {
   goal_id: string | null        // optional link to a goal
   goal_target_count: number | null  // completions target for the linked goal
   motivation: string | null     // why the user wants this habit
+  time_of_day: string | null    // specific HH:MM time (e.g. "07:30"), or null
 }
 
 
@@ -115,6 +116,7 @@ export async function createHabitAction(data: HabitFormData) {
     goal_id: data.goal_id || null,
     goal_target_count: data.goal_id ? (data.goal_target_count || null) : null,
     motivation: data.motivation?.trim() || null,
+    time_of_day: data.time_of_day || null,
   }).select().single()
   if (error) throw new Error(error.message)
 
@@ -149,6 +151,7 @@ export async function updateHabitAction(habitId: string, data: HabitFormData) {
       goal_id: data.goal_id || null,
       goal_target_count: data.goal_id ? (data.goal_target_count || null) : null,
       motivation: data.motivation?.trim() || null,
+      time_of_day: data.time_of_day || null,
     })
     .eq('id', habitId)
     .eq('user_id', user.id)

@@ -1423,13 +1423,13 @@ function PlanStrip({
             const isToday = dateStr === today
             const blocks = planBlocks.filter(b => b.day_of_week === dow && b.week_start === weekStart)
             return (
-              <div key={col} style={{ padding: '4px 4px', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isToday ? 'rgba(212,168,83,0.025)' : undefined, minHeight: '36px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <div key={col} style={{ padding: '4px', borderRight: col < 6 ? '1px solid var(--border)' : undefined, background: isToday ? 'rgba(212,168,83,0.025)' : undefined, minHeight: '36px', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, overflow: 'hidden' }}>
                 {blocks.map(b => (
                   <PlanChip key={b.id} block={b} onRemove={() => onRemove(b)} onAccept={() => onAccept(b)} onDismiss={() => onDismiss(b)} />
                 ))}
                 <button
                   onClick={e => onAddClick(dateStr, e.clientX, e.clientY)}
-                  style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', borderRadius: '4px', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '1px 6px', lineHeight: 1.6 }}
+                  style={{ alignSelf: 'flex-start', flexShrink: 0, background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '3px', color: 'var(--text-3)', cursor: 'pointer', fontSize: '10px', padding: '1px 5px', lineHeight: 1.6, marginTop: blocks.length ? '1px' : 0 }}
                 >+</button>
               </div>
             )
@@ -1443,23 +1443,26 @@ function PlanStrip({
 function PlanChip({ block, onRemove, onAccept, onDismiss }: { block: WeeklyPlanBlock; onRemove: () => void; onAccept: () => void; onDismiss: () => void }) {
   const [hov, setHov] = useState(false)
   const isGhost = !block.accepted
-  const bg = block.type === 'goal' ? 'rgba(212,168,83,0.15)' : 'rgba(96,144,200,0.15)'
-  const br = block.type === 'goal' ? 'rgba(212,168,83,0.4)'  : 'rgba(96,144,200,0.35)'
+  const isGoal = block.type === 'goal'
+  const bg = isGoal ? 'rgba(212,168,83,0.12)' : 'rgba(96,144,200,0.12)'
+  const br = isGoal ? 'rgba(212,168,83,0.35)' : 'rgba(96,144,200,0.3)'
+  const textColor = isGoal ? 'rgba(212,168,83,0.9)' : 'rgba(140,175,220,0.9)'
   return (
     <div
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{ background: bg, border: `1px ${isGhost ? 'dashed' : 'solid'} ${br}`, borderRadius: '4px', padding: '2px 5px', display: 'flex', alignItems: 'center', gap: '3px', opacity: isGhost ? 0.8 : 1, minWidth: 0, fontSize: '10px' }}
+      title={block.title}
+      style={{ background: hov ? (isGoal ? 'rgba(212,168,83,0.18)' : 'rgba(96,144,200,0.18)') : bg, border: `1px ${isGhost ? 'dashed' : 'solid'} ${br}`, borderRadius: '4px', padding: '2px 5px', display: 'flex', alignItems: 'center', gap: '3px', opacity: isGhost ? 0.75 : 1, minWidth: 0, fontSize: '10px', transition: 'background 0.1s', cursor: 'default' }}
     >
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-1)', fontWeight: 500 }}>{block.title}</span>
+      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: textColor, fontWeight: 500, letterSpacing: '0.01em' }}>{block.title}</span>
       {hov && isGhost && (
-        <>
-          <button onClick={e => { e.stopPropagation(); onAccept() }} style={{ background: 'rgba(122,158,138,0.4)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '9px', padding: '0 3px', lineHeight: '14px' }}>✓</button>
-          <button onClick={e => { e.stopPropagation(); onDismiss() }} style={{ background: 'rgba(220,80,60,0.25)', border: 'none', borderRadius: '2px', color: 'var(--text-0)', cursor: 'pointer', fontSize: '10px', padding: '0 3px', lineHeight: '14px' }}>✕</button>
-        </>
+        <span style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+          <button onClick={e => { e.stopPropagation(); onAccept() }} style={{ background: 'rgba(100,160,120,0.35)', border: 'none', borderRadius: '3px', color: 'rgba(150,220,170,0.95)', cursor: 'pointer', fontSize: '9px', padding: '0 4px', lineHeight: '15px', fontWeight: 700 }}>✓</button>
+          <button onClick={e => { e.stopPropagation(); onDismiss() }} style={{ background: 'rgba(200,70,50,0.2)', border: 'none', borderRadius: '3px', color: 'rgba(220,120,110,0.9)', cursor: 'pointer', fontSize: '10px', padding: '0 4px', lineHeight: '15px' }}>✕</button>
+        </span>
       )}
       {hov && !isGhost && (
-        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '12px', padding: 0, lineHeight: 1 }}>×</button>
+        <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', padding: '0 1px', lineHeight: 1, flexShrink: 0 }}>×</button>
       )}
     </div>
   )

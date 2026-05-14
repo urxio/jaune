@@ -198,17 +198,6 @@ export function buildUserMessage(ctx: BriefContext): string {
   }
   lines.push('')
 
-  // ── TODAY'S PLAN ──
-  if (ctx.todayPlan && ctx.todayPlan.length > 0) {
-    const bySlot: Record<string, string[]> = { morning: [], afternoon: [], evening: [] }
-    ctx.todayPlan.forEach(b => { bySlot[b.time_slot].push(b.title) })
-    lines.push("TODAY'S PLANNED BLOCKS")
-    for (const [slot, titles] of Object.entries(bySlot)) {
-      if (titles.length > 0) lines.push(`  ${slot}: ${titles.join(', ')}`)
-    }
-    lines.push('')
-  }
-
   // ── UPCOMING CALENDAR EVENTS ──
   const calendarBlock = formatCalendarForPrompt(ctx.calendarEvents)
   if (calendarBlock) {

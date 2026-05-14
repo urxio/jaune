@@ -25,7 +25,6 @@ export async function logHabitAction(habitId: string, date?: string) {
   await maybeSyncGoalProgress(supabase, habitId, user.id)
 
   revalidatePath('/habits')
-  revalidatePath('/review')
   revalidatePath('/brief')
   revalidatePath('/goals')
 }
@@ -48,7 +47,6 @@ export async function unlogHabitAction(habitId: string, date?: string) {
   await maybeSyncGoalProgress(supabase, habitId, user.id)
 
   revalidatePath('/habits')
-  revalidatePath('/review')
   revalidatePath('/brief')
   revalidatePath('/goals')
 }
@@ -206,7 +204,6 @@ export async function setHabitTimeAction(
     if (error) throw new Error(error.message)
   }
 
-  revalidatePath('/planner')
   revalidatePath('/brief')
 }
 
@@ -226,6 +223,5 @@ export async function deleteHabitAction(habitId: string) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/habits')
-  revalidatePath('/review')
   revalidatePath('/brief')
 }

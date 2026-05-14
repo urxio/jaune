@@ -7,7 +7,6 @@ import type { Goal, CheckIn, HabitWithLogs, Brief, MemoryNote } from '@/lib/type
 import { moodWord } from '@/lib/utils/mood'
 import { StatPill, LiveDot } from './StatPills'
 import { buildPulseMessage, PulseMessage } from './PulseCard'
-import CalendarWidget from '@/components/calendar/CalendarWidget'
 
 /* ── Types ───────────────────────────────────────────── */
 
@@ -310,12 +309,8 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName,
         ))}
       </div>
 
-      {/* ── Calendar widget (self-fetching; renders nothing if not connected or no events) ── */}
-      <div style={{ marginTop: '10px', animation: 'fadeUp 0.45s var(--ease) 0.2s both' }}>
-        <CalendarWidget />
-      </div>
 
-      <style>{`
+<style>{`
         @media (max-width: 600px) {
           .home-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .home-pulse-card { padding: 24px !important; }

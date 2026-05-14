@@ -39,19 +39,6 @@ export type Habit = {
   created_at: string
 }
 
-export type WeeklyPlanBlock = {
-  id: string
-  user_id: string
-  week_start: string
-  day_of_week: number
-  time_slot: 'morning' | 'afternoon' | 'evening'
-  title: string
-  type: 'goal' | 'custom'
-  reference_id: string | null
-  accepted: boolean
-  position: number
-  created_at: string
-}
 
 export type HabitLog = {
   id: string

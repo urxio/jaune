@@ -80,8 +80,7 @@ export default function PrivacyPage() {
           </P>
           <Ul>
             <li>Read your upcoming calendar events (next 7 days) from all calendars you have access to</li>
-            <li>Surface relevant events in your daily AI brief, home dashboard widget, weekly reflection, and planner</li>
-            <li>Create new calendar events on your behalf when you use the &ldquo;New Calendar Event&rdquo; feature in the Planner — events are created in your primary Google Calendar</li>
+            <li>Surface relevant events in your daily AI brief to help Locus understand your schedule and energy context</li>
           </Ul>
           <P>
             We do <strong>not</strong> modify or delete existing calendar events. We do{' '}

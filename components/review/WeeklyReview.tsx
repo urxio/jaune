@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import type { CheckIn, HabitWithLogs, GoalWithSteps, Brief } from '@/lib/types'
 
@@ -52,7 +53,7 @@ function EnergyBar({ value, max = 10 }: { value: number; max?: number }) {
 }
 
 export default function WeeklyReview({ checkins, habits, goals, briefs }: Props) {
-  const [weekOffset, setWeekOffset] = require('react').useState(0)
+  const [weekOffset, setWeekOffset] = useState(0)
   const { monday, sunday } = getWeekBounds(weekOffset)
   const isCurrentWeek = weekOffset === 0
 
@@ -91,8 +92,15 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
 
   const weekLabel = `${formatShort(monday)} – ${formatShort(sunday)}`
 
+  const statCards = [
+    { label: 'Check-ins', value: weekCheckins.length, sub: `of 7 days`, color: weekCheckins.length >= 5 ? 'var(--sage)' : 'var(--text-0)' },
+    { label: 'Avg energy', value: avgEnergy != null ? `${avgEnergy}` : '—', sub: avgEnergy ? energyToLabel(Math.round(avgEnergy)) : 'no data', color: avgEnergy != null && avgEnergy >= 6 ? 'var(--sage)' : 'var(--text-0)' },
+    { label: 'Habits done', value: habitRate != null ? `${habitRate}%` : '—', sub: `${totalHabitsDone} of ${totalHabitsTarget}`, color: habitRate != null && habitRate >= 70 ? 'var(--sage)' : 'var(--text-0)' },
+    { label: 'Active goals', value: activeGoals.length, sub: activeGoals.length > 0 ? `${Math.round(activeGoals.reduce((s, g) => s + g.progress_pct, 0) / activeGoals.length)}% avg` : 'none yet', color: 'var(--text-0)' },
+  ]
+
   return (
-    <div style={{ maxWidth: '480px', width: '100%', marginLeft: 'auto', marginRight: 'auto', padding: '56px 24px 0', animation: 'fadeUp 0.35s var(--ease) both' }}>
+    <div className="review-shell" style={{ animation: 'fadeUp 0.35s var(--ease) both' }}>
 
       {/* ── Header ── */}
       <header style={{ marginBottom: '32px' }}>
@@ -100,12 +108,12 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
           Weekly Review
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '34px', fontWeight: 400, lineHeight: 1.1, color: 'var(--text-0)', margin: 0 }}>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400, lineHeight: 1.1, color: 'var(--text-0)', margin: 0 }}>
             {isCurrentWeek ? <>This <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>week.</em></> : weekLabel}
           </h1>
           <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
             <button
-              onClick={() => setWeekOffset((o: number) => o - 1)}
+              onClick={() => setWeekOffset(o => o - 1)}
               style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid oklch(1 0 0 / 0.12)', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-0)')}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
@@ -114,7 +122,7 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4L6 8l4 4"/></svg>
             </button>
             <button
-              onClick={() => setWeekOffset((o: number) => Math.min(0, o + 1))}
+              onClick={() => setWeekOffset(o => Math.min(0, o + 1))}
               disabled={isCurrentWeek}
               style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid oklch(1 0 0 / 0.12)', background: 'transparent', color: isCurrentWeek ? 'var(--text-3)' : 'var(--text-2)', cursor: isCurrentWeek ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isCurrentWeek ? 0.3 : 1, transition: 'color 0.15s' }}
               onMouseEnter={e => { if (!isCurrentWeek) (e.currentTarget.style.color = 'var(--text-0)') }}
@@ -130,77 +138,79 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
         )}
       </header>
 
-      {/* ── At a glance ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '32px' }}>
-        {[
-          { label: 'Check-ins', value: weekCheckins.length, sub: `of 7 days`, color: weekCheckins.length >= 5 ? 'var(--sage)' : 'var(--text-0)' },
-          { label: 'Avg energy', value: avgEnergy != null ? `${avgEnergy}` : '—', sub: avgEnergy ? energyToLabel(Math.round(avgEnergy)) : 'no data', color: avgEnergy != null && avgEnergy >= 6 ? 'var(--sage)' : 'var(--text-0)' },
-          { label: 'Habits done', value: habitRate != null ? `${habitRate}%` : '—', sub: `${totalHabitsDone} of ${totalHabitsTarget}`, color: habitRate != null && habitRate >= 70 ? 'var(--sage)' : 'var(--text-0)' },
-          { label: 'Active goals', value: activeGoals.length, sub: activeGoals.length > 0 ? `${Math.round(activeGoals.reduce((s, g) => s + g.progress_pct, 0) / activeGoals.length)}% avg` : 'none yet', color: 'var(--text-0)' },
-        ].map(({ label, value, sub, color }) => (
-          <div key={label} className="glass-card" style={{ padding: '18px 20px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '6px' }}>{label}</p>
-            <p style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color, lineHeight: 1, marginBottom: '4px' }}>{value}</p>
+      {/* ── Stats — 4 across on desktop, 2×2 on mobile ── */}
+      <div className="review-stats-4">
+        {statCards.map(({ label, value, sub, color }) => (
+          <div key={label} className="glass-card" style={{ padding: '20px 22px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>{label}</p>
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 400, color, lineHeight: 1, marginBottom: '5px' }}>{value}</p>
             <p style={{ fontSize: '11px', color: 'var(--text-3)' }}>{sub}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Energy by day ── */}
-      {weekCheckins.length > 0 && (
-        <section style={{ marginBottom: '32px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
-            Energy this week
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {weekDays.map(day => {
-              const ci = checkinByDay.get(day)
-              const label = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })
-              return (
-                <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-3)', width: '28px', flexShrink: 0 }}>{label}</span>
-                  {ci ? (
-                    <div style={{ flex: 1 }}><EnergyBar value={ci.energy_level} /></div>
-                  ) : (
-                    <div style={{ flex: 1, height: '3px', background: 'oklch(1 0 0 / 0.06)', borderRadius: '2px' }} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {/* ── Mid: Energy by day + Habits side by side on desktop ── */}
+      {(weekCheckins.length > 0 || habitWeekStats.length > 0) && (
+        <div className="review-mid">
 
-      {/* ── Habits ── */}
-      {habitWeekStats.length > 0 && (
-        <section style={{ marginBottom: '32px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
-            Habits
-          </p>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {habitWeekStats.map((h, i) => {
-              const pct = Math.round((h.done / h.target) * 100)
-              const onTrack = pct >= 100
-              return (
-                <li key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)' }}>
-                  <span style={{ fontSize: '15px', flexShrink: 0 }}>{h.emoji}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '14px', color: 'var(--text-1)', margin: '0 0 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</p>
-                    <div style={{ height: '2px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: onTrack ? 'var(--sage)' : 'var(--gold)', borderRadius: '2px', transition: 'width 0.4s' }} />
+          {/* Energy by day */}
+          {weekCheckins.length > 0 && (
+            <section>
+              <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
+                Energy this week
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {weekDays.map(day => {
+                  const ci = checkinByDay.get(day)
+                  const label = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })
+                  return (
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-3)', width: '28px', flexShrink: 0 }}>{label}</span>
+                      {ci ? (
+                        <div style={{ flex: 1 }}><EnergyBar value={ci.energy_level} /></div>
+                      ) : (
+                        <div style={{ flex: 1, height: '3px', background: 'oklch(1 0 0 / 0.06)', borderRadius: '2px' }} />
+                      )}
                     </div>
-                  </div>
-                  <span style={{ fontSize: '12px', color: onTrack ? 'var(--sage)' : 'var(--text-3)', flexShrink: 0 }}>
-                    {h.done}/{h.target}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Habits */}
+          {habitWeekStats.length > 0 && (
+            <section>
+              <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
+                Habits
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {habitWeekStats.map((h, i) => {
+                  const pct = Math.round((h.done / h.target) * 100)
+                  const onTrack = pct >= 100
+                  return (
+                    <li key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)' }}>
+                      <span style={{ fontSize: '15px', flexShrink: 0 }}>{h.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', color: 'var(--text-1)', margin: '0 0 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</p>
+                        <div style={{ height: '2px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: onTrack ? 'var(--sage)' : 'var(--gold)', borderRadius: '2px', transition: 'width 0.4s' }} />
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '12px', color: onTrack ? 'var(--sage)' : 'var(--text-3)', flexShrink: 0 }}>
+                        {h.done}/{h.target}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+
+        </div>
       )}
 
-      {/* ── Goals ── */}
+      {/* ── Goals — full width ── */}
       {activeGoals.length > 0 && (
         <section style={{ marginBottom: '32px' }}>
           <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
@@ -227,16 +237,16 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
         </section>
       )}
 
-      {/* ── Brief insights strip ── */}
+      {/* ── Brief insights — horizontal grid on desktop ── */}
       {weekBriefs.length > 0 && (
         <section style={{ marginBottom: '32px' }}>
           <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
             From Locus this week
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="review-briefs-grid">
             {weekBriefs.slice(0, 3).map(b => (
-              <div key={b.id} className="glass-card" style={{ padding: '18px 20px' }}>
-                <p style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div key={b.id} className="glass-card" style={{ padding: '20px 22px' }}>
+                <p style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
                   {new Date(b.brief_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
                 </p>
                 <p style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', lineHeight: 1.6, color: 'var(--text-1)', margin: 0 }}>

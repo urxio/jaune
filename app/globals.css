@@ -689,6 +689,123 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
+/* ── HOME PAGE DESKTOP LAYOUT ── */
+.home-shell {
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 48px 44px 56px;
+}
+
+.home-body {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.home-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-right-section {
+  /* On desktop, each right-col section becomes a glass card */
+}
+
+@media (min-width: 901px) {
+  .home-right-section {
+    background: var(--glass-card-bg);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid var(--glass-card-border);
+    box-shadow: var(--glass-card-shadow-sm);
+    border-radius: var(--radius-card);
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-shell {
+    max-width: 600px;
+    padding: 40px 28px 48px;
+  }
+  .home-body {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .home-right {
+    gap: 32px;
+    margin-top: 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-shell {
+    max-width: 480px;
+    padding: 56px 24px 0;
+  }
+  .home-right {
+    margin-top: 0;
+  }
+}
+
+/* ── REVIEW PAGE DESKTOP LAYOUT ── */
+.review-shell {
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 48px 44px 56px;
+}
+
+.review-stats-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.review-mid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.review-briefs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .review-shell {
+    max-width: 600px;
+    padding: 40px 28px 48px;
+  }
+  .review-stats-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .review-shell {
+    max-width: 480px;
+    padding: 56px 24px 0;
+  }
+  .review-stats-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .review-mid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    margin-bottom: 24px;
+  }
+}
+
 /* ── CAPTURE PAGE — three-panel note-taking layout ── */
 .capture-left-nav {
   display: flex;

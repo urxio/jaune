@@ -154,14 +154,14 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
     .slice(0, 4)
 
   return (
-    <div style={{ maxWidth: '480px', width: '100%', marginLeft: 'auto', marginRight: 'auto', padding: '56px 24px 0' }}>
+    <div className="home-shell">
 
       {/* ── Header ── */}
       <header style={{ marginBottom: '40px', animation: 'fadeUp 0.4s var(--ease) both' }}>
         <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
           {dateLabel}
         </p>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 8vw, 42px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)' }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 4.5vw, 54px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)' }}>
           {greeting(hour)},<br />
           {firstName && (
             <em style={{ fontStyle: 'italic', color: 'var(--gold)', opacity: 0.9 }}>{firstName}</em>
@@ -170,118 +170,138 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
         </h1>
       </header>
 
-      {/* ── FROM LOCUS card ── */}
-      <section className="glass-card" style={{ padding: '24px', marginBottom: '32px', animation: 'fadeUp 0.4s var(--ease) 0.07s both' }}>
-        <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', opacity: 0.85, marginBottom: '12px' }}>
-          From Locus
-        </p>
-        {insightText ? (
-          <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', lineHeight: 1.6, color: 'oklch(0.93 0.012 80 / 0.95)', margin: 0 }}>
-            {insightText}
-            {streaming && <span style={{ opacity: 0.4 }}> |</span>}
-          </p>
-        ) : streaming ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[88, 72, 60].map((w, i) => (
-              <div key={i} style={{ height: '14px', borderRadius: '4px', background: 'oklch(1 0 0 / 0.08)', width: `${w}%`, animation: `pulse 1.6s ease-in-out ${i * 0.15}s infinite` }} />
-            ))}
-          </div>
-        ) : (
-          <p style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', lineHeight: 1.6, color: 'var(--text-2)', fontStyle: 'italic', margin: 0 }}>
-            {hasCheckin ? 'Your brief is being prepared…' : 'Check in to get your daily insight.'}
-          </p>
-        )}
-      </section>
+      {/* ── Two-column body ── */}
+      <div className="home-body">
 
-      {/* ── Energy ── */}
-      {energyLevel != null && (
-        <section style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeUp 0.4s var(--ease) 0.12s both' }}>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-              Energy
-            </p>
-            <p style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', color: 'var(--text-0)', margin: 0 }}>
-              {energyToLabel(energyLevel)}
-            </p>
-          </div>
-          <EnergyDial level={energyLevel} />
-        </section>
-      )}
-
-      {/* ── Today's priorities ── */}
-      {priorities.length > 0 && (
-        <section style={{ marginBottom: '40px', animation: 'fadeUp 0.4s var(--ease) 0.17s both' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
-            Today
-          </p>
-          <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {priorities.map((p, i) => (
-              <li key={i} style={{ display: 'flex', gap: '16px', alignItems: 'baseline' }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--gold)', opacity: 0.8, fontSize: '13px', width: '12px', flexShrink: 0 }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: '15px', lineHeight: 1.5, color: 'oklch(0.93 0.012 80 / 0.9)' }}>
-                  {p.title}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {/* ── Habits strip ── */}
-      {todayHabits.length > 0 && (
-        <section style={{ marginBottom: '40px', animation: 'fadeUp 0.4s var(--ease) 0.22s both' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
-              Habits
-            </p>
-            <Link href="/habits" style={{ fontSize: '12px', color: 'var(--text-3)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px', transition: 'color 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
-            >
-              All
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 8h10M9 4l4 4-4 4" />
-              </svg>
-            </Link>
-          </div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {todayHabits.map((h, i) => (
-              <li key={h.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 0',
-                borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)',
-              }}>
-                <span style={{ fontSize: '15px', color: h.done ? 'var(--text-3)' : 'oklch(0.93 0.012 80 / 0.9)', transition: 'color 0.2s' }}>
-                  {h.name}
-                </span>
-                <span style={{
-                  width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
-                  background: h.done ? 'var(--sage)' : 'transparent',
-                  border: h.done ? 'none' : '1.5px solid oklch(1 0 0 / 0.25)',
-                  transition: 'all 0.2s',
-                }} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ── Check-in CTA ── */}
-      {!hasCheckin && (
-        <Link
-          href="/checkin"
+        {/* Left: AI Insight (prominent card) */}
+        <section
           className="glass-card"
-          style={{ display: 'block', padding: '20px', textAlign: 'center', textDecoration: 'none', transition: 'border-color 0.2s', marginBottom: '16px', animation: 'fadeUp 0.4s var(--ease) 0.27s both' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'oklch(0.78 0.11 78 / 0.4)')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
+          style={{
+            padding: '32px 36px',
+            animation: 'fadeUp 0.4s var(--ease) 0.07s both',
+            minHeight: '260px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
-          <span style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontStyle: 'italic', color: 'var(--gold)' }}>
-            Check in with Locus →
-          </span>
-        </Link>
-      )}
+          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', opacity: 0.85, marginBottom: '18px' }}>
+            From Locus
+          </p>
+          {insightText ? (
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(17px, 2vw, 21px)', lineHeight: 1.65, color: 'oklch(0.93 0.012 80 / 0.95)', margin: 0, flex: 1 }}>
+              {insightText}
+              {streaming && <span style={{ opacity: 0.4 }}> |</span>}
+            </p>
+          ) : streaming ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              {[88, 72, 60].map((w, i) => (
+                <div key={i} style={{ height: '14px', borderRadius: '4px', background: 'oklch(1 0 0 / 0.08)', width: `${w}%`, animation: `pulse 1.6s ease-in-out ${i * 0.15}s infinite` }} />
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(16px, 1.8vw, 19px)', lineHeight: 1.65, color: 'var(--text-2)', fontStyle: 'italic', margin: 0, flex: 1 }}>
+              {hasCheckin ? 'Your brief is being prepared…' : 'Check in to get your daily insight.'}
+            </p>
+          )}
+        </section>
+
+        {/* Right: stacked metric cards */}
+        <div className="home-right">
+
+          {/* Energy */}
+          {energyLevel != null && (
+            <div className="home-right-section" style={{ animation: 'fadeUp 0.4s var(--ease) 0.12s both' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '10px' }}>
+                Energy
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-0)', margin: 0 }}>
+                  {energyToLabel(energyLevel)}
+                </p>
+                <EnergyDial level={energyLevel} />
+              </div>
+            </div>
+          )}
+
+          {/* Today's priorities */}
+          {priorities.length > 0 && (
+            <div className="home-right-section" style={{ animation: 'fadeUp 0.4s var(--ease) 0.17s both' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '14px' }}>
+                Today
+              </p>
+              <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {priorities.map((p, i) => (
+                  <li key={i} style={{ display: 'flex', gap: '14px', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--gold)', opacity: 0.8, fontSize: '13px', width: '12px', flexShrink: 0 }}>
+                      {i + 1}
+                    </span>
+                    <span style={{ fontSize: '14px', lineHeight: 1.5, color: 'oklch(0.93 0.012 80 / 0.9)' }}>
+                      {p.title}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* Habits strip */}
+          {todayHabits.length > 0 && (
+            <div className="home-right-section" style={{ animation: 'fadeUp 0.4s var(--ease) 0.22s both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
+                  Habits
+                </p>
+                <Link
+                  href="/habits"
+                  style={{ fontSize: '12px', color: 'var(--text-3)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px', transition: 'color 0.15s', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+                >
+                  All
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8h10M9 4l4 4-4 4" />
+                  </svg>
+                </Link>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {todayHabits.map((h, i) => (
+                  <li key={h.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 0',
+                    borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)',
+                  }}>
+                    <span style={{ fontSize: '14px', color: h.done ? 'var(--text-3)' : 'oklch(0.93 0.012 80 / 0.9)', transition: 'color 0.2s' }}>
+                      {h.name}
+                    </span>
+                    <span style={{
+                      width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                      background: h.done ? 'var(--sage)' : 'transparent',
+                      border: h.done ? 'none' : '1.5px solid oklch(1 0 0 / 0.25)',
+                      transition: 'all 0.2s',
+                    }} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Check-in CTA */}
+          {!hasCheckin && (
+            <Link
+              href="/checkin"
+              className="glass-card"
+              style={{ display: 'block', padding: '20px 24px', textAlign: 'center', textDecoration: 'none', transition: 'border-color 0.2s', animation: 'fadeUp 0.4s var(--ease) 0.27s both', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'oklch(0.78 0.11 78 / 0.4)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
+            >
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', fontStyle: 'italic', color: 'var(--gold)' }}>
+                Check in with Locus →
+              </span>
+            </Link>
+          )}
+
+        </div>
+      </div>
 
     </div>
   )

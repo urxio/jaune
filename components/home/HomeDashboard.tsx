@@ -311,7 +311,7 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName,
       </div>
 
       {/* ── Calendar widget (self-fetching; renders nothing if not connected or no events) ── */}
-      <div style={{ marginTop: '16px', animation: 'fadeUp 0.45s var(--ease) 0.2s both' }}>
+      <div style={{ marginTop: '10px', animation: 'fadeUp 0.45s var(--ease) 0.2s both' }}>
         <CalendarWidget />
       </div>
 

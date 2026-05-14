@@ -4,12 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
-  { href: '/',         label: 'Home',     icon: <HomeIcon /> },
-  { href: '/checkin',  label: 'Check-in', icon: <CheckinIcon /> },
-  { href: '/habits',   label: 'Habits',   icon: <HabitsIcon /> },
-  { href: '/capture',  label: 'Capture',  icon: <CaptureIcon /> },
-  { href: '/goals',    label: 'Goals',    icon: <GoalsIcon /> },
-  { href: '/planner',  label: 'Planner',  icon: <PlannerIcon /> },
+  { href: '/',        label: 'Home',     icon: <HomeIcon /> },
+  { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
+  { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
+  { href: '/capture', label: 'Capture',  icon: <CaptureIcon /> },
+  { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
 ]
 
 export default function BottomNav({ overdueStepCount = 0 }: { overdueStepCount?: number }) {
@@ -93,6 +92,3 @@ function GoalsIcon() {
   )
 }
 
-function PlannerIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><rect x="3" y="4" width="14" height="13" rx="2" /><path d="M7 2v4M13 2v4M3 9h14" strokeLinecap="round" /></svg>
-}

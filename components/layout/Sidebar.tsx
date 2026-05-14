@@ -4,14 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const MAIN_NAV = [
-  { href: '/',        label: 'Home',          icon: <HomeIcon /> },
-  { href: '/checkin', label: 'Check-in',      icon: <CheckinIcon /> },
-  { href: '/habits',  label: 'Habits',        icon: <HabitsIcon /> },
-  { href: '/capture', label: 'Capture',       icon: <CaptureIcon /> },
-  { href: '/goals',   label: 'Goals',         icon: <GoalsIcon /> },
-  { href: '/planner', label: 'Planner',       icon: <PlannerIcon /> },
-  { href: '/network', label: 'Network',       icon: <NetworkIcon /> },
-  { href: '/review',  label: 'Weekly Review', icon: <ReviewIcon /> },
+  { href: '/',        label: 'Home',     icon: <HomeIcon /> },
+  { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
+  { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
+  { href: '/capture', label: 'Capture',  icon: <CaptureIcon /> },
+  { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
 ]
 
 export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0 }: {
@@ -183,18 +180,6 @@ function CaptureIcon() {
 
 function GoalsIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><path d="M4 15l4-4 3 3 5-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-}
-
-function PlannerIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><rect x="3" y="4" width="14" height="13" rx="2" /><path d="M7 2v4M13 2v4M3 9h14" strokeLinecap="round" /></svg>
-}
-
-function ReviewIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><path d="M4 10a6 6 0 1 0 6-6" strokeLinecap="round" /><path d="M4 6v4h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-}
-
-function NetworkIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><circle cx="10" cy="7" r="3" /><path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" strokeLinecap="round" /></svg>
 }
 
 function SettingsIcon() {

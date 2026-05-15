@@ -61,6 +61,7 @@ export default function HabitCalendar({ habits, today }: {
   const [logMap, setLogMap] = useState<LogMap>(new Map())
   const [loading, setLoading] = useState(true)
   const [pendingSet, setPendingSet] = useState<Set<string>>(new Set())
+  const [selectedDay, setSelectedDay] = useState<string | null>(today)
 
   const isCurrentMonth =
     year  === todayDate.getFullYear() &&
@@ -257,34 +258,39 @@ export default function HabitCalendar({ habits, today }: {
             const bgColor = isFuture ? 'transparent' : completionColor(pct, hasScheduled)
             const isPending = scheduledHabits.some(h => pendingSet.has(`${h.id}:${dateStr}`))
 
+            const isSelected = selectedDay === dateStr
+            const isClickable = hasScheduled && !isFuture
+
             return (
               <div
                 key={dateStr}
-                role={hasScheduled && !isFuture ? 'button' : undefined}
-                tabIndex={hasScheduled && !isFuture ? 0 : -1}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : -1}
                 onClick={() => {
-                  if (!isFuture && hasScheduled) {
-                    scheduledHabits.forEach(h => toggleLog(h.id, dateStr))
-                  }
+                  if (isClickable) setSelectedDay(isSelected ? null : dateStr)
                 }}
                 onKeyDown={e => {
-                  if (!isFuture && hasScheduled && (e.key === 'Enter' || e.key === ' ')) {
-                    scheduledHabits.forEach(h => toggleLog(h.id, dateStr))
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    setSelectedDay(isSelected ? null : dateStr)
                   }
                 }}
                 style={{
                   aspectRatio: '1',
                   borderRadius: '10px',
                   background: bgColor,
-                  border: isToday ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.05)',
-                  cursor: hasScheduled && !isFuture && !isPending ? 'pointer' : 'default',
+                  border: isSelected
+                    ? '2px solid var(--gold)'
+                    : isToday
+                    ? '2px solid rgba(212,168,83,0.45)'
+                    : '1px solid rgba(255,255,255,0.05)',
+                  cursor: isClickable ? 'pointer' : 'default',
                   opacity: isFuture ? 0.22 : isPending ? 0.5 : 1,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
                   justifyContent: 'flex-start',
                   padding: '7px 6px 5px',
-                  transition: 'background 0.15s, opacity 0.15s',
+                  transition: 'border-color 0.15s, opacity 0.15s',
                   boxSizing: 'border-box',
                   position: 'relative',
                   overflow: 'hidden',
@@ -293,10 +299,10 @@ export default function HabitCalendar({ habits, today }: {
                 {/* Day number */}
                 <span style={{
                   fontSize: '13px',
-                  fontWeight: isToday ? 700 : 500,
-                  color: isToday
+                  fontWeight: isSelected || isToday ? 700 : 500,
+                  color: isSelected || isToday
                     ? 'var(--gold)'
-                    : pct === 1
+                    : pct >= 0.8
                     ? '#E8C96A'
                     : 'var(--text-1)',
                   lineHeight: 1,
@@ -346,6 +352,87 @@ export default function HabitCalendar({ habits, today }: {
             </span>
           )}
         </div>
+        {/* ── Day summary panel ── */}
+        {selectedDay && (() => {
+          const selHabits   = habits.filter(h => isHabitScheduledOnDate(h, selectedDay))
+          if (selHabits.length === 0) return null
+          const doneCount   = selHabits.filter(h => (logMap.get(h.id) ?? new Set()).has(selectedDay)).length
+          const canToggle   = selectedDay <= today
+          const selDate     = new Date(selectedDay + 'T12:00:00')
+          const isSelToday  = selectedDay === today
+          const dayLabel    = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+          return (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+              {/* Summary header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div>
+                  <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '3px' }}>
+                    {isSelToday ? 'Today' : canToggle ? 'Past' : 'Upcoming'}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 400, color: 'var(--text-0)' }}>
+                    {dayLabel}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{doneCount}</span> of {selHabits.length} completed
+                  </span>
+                  <button
+                    onClick={() => setSelectedDay(null)}
+                    className="icon-btn"
+                    aria-label="Close"
+                    style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, flexShrink: 0 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              {/* Habit rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {selHabits.map(h => {
+                  const done      = (logMap.get(h.id) ?? new Set()).has(selectedDay)
+                  const isPend    = pendingSet.has(`${h.id}:${selectedDay}`)
+
+                  return (
+                    <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      {/* Emoji chip */}
+                      <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 }}>
+                        {h.emoji}
+                      </div>
+                      <span style={{ flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--text-1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {h.name}
+                      </span>
+                      {canToggle ? (
+                        <button
+                          onClick={() => toggleLog(h.id, selectedDay)}
+                          disabled={isPend}
+                          className="icon-btn"
+                          style={{
+                            background: done ? 'var(--gold-dim)' : 'var(--bg-2)',
+                            border: `1px solid ${done ? 'var(--gold)' : 'var(--border)'}`,
+                            borderRadius: '20px', padding: '5px 14px',
+                            fontSize: '12px', fontWeight: 600,
+                            color: done ? 'var(--gold)' : 'var(--text-3)',
+                            cursor: isPend ? 'wait' : 'pointer',
+                            opacity: isPend ? 0.5 : 1,
+                            transition: 'all 0.15s',
+                            whiteSpace: 'nowrap', flexShrink: 0,
+                          }}
+                        >
+                          {done ? '✓ Done' : 'Missed'}
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: 'var(--text-3)', flexShrink: 0 }}>Upcoming</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {habits.length === 0 && (

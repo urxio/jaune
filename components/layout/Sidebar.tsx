@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 const MAIN_NAV = [
   { href: '/',        label: 'Home',     icon: <HomeIcon /> },
@@ -22,10 +23,29 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, che
   const pathname = usePathname()
   const initial = userName.charAt(0).toUpperCase()
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [popoverPos, setPopoverPos] = useState<{ left: number; bottom: number } | null>(null)
+  const [mounted, setMounted] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
   const hasAttention = !checkinDoneToday || habitsRemainingToday > 0 || overdueStepCount > 0
+
+  useEffect(() => { setMounted(true) }, [])
+
+  useLayoutEffect(() => {
+    if (!popoverOpen || !triggerRef.current) return
+    const updatePos = () => {
+      const r = triggerRef.current!.getBoundingClientRect()
+      setPopoverPos({ left: r.left, bottom: window.innerHeight - r.top + 10 })
+    }
+    updatePos()
+    window.addEventListener('resize', updatePos)
+    window.addEventListener('scroll', updatePos, true)
+    return () => {
+      window.removeEventListener('resize', updatePos)
+      window.removeEventListener('scroll', updatePos, true)
+    }
+  }, [popoverOpen])
 
   useEffect(() => {
     if (!popoverOpen) return
@@ -43,55 +63,53 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, che
 
   return (
     <aside className="app-sidebar">
+      {/* Status popover — portaled to body to escape stacking-context traps */}
+      {mounted && popoverOpen && popoverPos && createPortal(
+        <div ref={popoverRef} style={{
+          position: 'fixed',
+          left: popoverPos.left,
+          bottom: popoverPos.bottom,
+          zIndex: 1100,
+          background: 'rgba(18, 22, 26, 0.98)',
+          border: '1px solid rgba(255, 255, 255, 0.10)',
+          borderRadius: '14px',
+          boxShadow: '0 24px 48px -12px rgba(0,0,0,0.7), 0 8px 20px -6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4)',
+          padding: '14px 16px',
+          minWidth: '200px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
+            Today&rsquo;s status
+          </p>
+          <StatusRow
+            done={checkinDoneToday}
+            label="Check-in"
+            detail={checkinDoneToday ? 'Done' : 'Pending'}
+            href="/checkin"
+            onClose={() => setPopoverOpen(false)}
+          />
+          <StatusRow
+            done={habitsRemainingToday === 0}
+            label="Habits"
+            detail={habitsRemainingToday === 0 ? 'All done' : `${habitsRemainingToday} remaining`}
+            href="/habits"
+            onClose={() => setPopoverOpen(false)}
+          />
+          <StatusRow
+            done={overdueStepCount === 0}
+            label="Goal steps"
+            detail={overdueStepCount === 0 ? 'On track' : `${overdueStepCount} overdue`}
+            href="/goals"
+            onClose={() => setPopoverOpen(false)}
+          />
+        </div>,
+        document.body
+      )}
+
       {/* Floating nav pill — centered */}
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-        {/* Status popover */}
-        {popoverOpen && (
-          <div ref={popoverRef} style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 10px)',
-            top: 'auto',
-            left: 0,
-            zIndex: 200,
-            background: 'rgba(18, 22, 26, 0.97)',
-            border: '1px solid rgba(255, 255, 255, 0.10)',
-            borderRadius: '14px',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            boxShadow: '0 24px 48px -12px rgba(0,0,0,0.7), 0 8px 20px -6px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4)',
-            padding: '14px 16px',
-            minWidth: '200px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}>
-            <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
-              Today&rsquo;s status
-            </p>
-            <StatusRow
-              done={checkinDoneToday}
-              label="Check-in"
-              detail={checkinDoneToday ? 'Done' : 'Pending'}
-              href="/checkin"
-              onClose={() => setPopoverOpen(false)}
-            />
-            <StatusRow
-              done={habitsRemainingToday === 0}
-              label="Habits"
-              detail={habitsRemainingToday === 0 ? 'All done' : `${habitsRemainingToday} remaining`}
-              href="/habits"
-              onClose={() => setPopoverOpen(false)}
-            />
-            <StatusRow
-              done={overdueStepCount === 0}
-              label="Goal steps"
-              detail={overdueStepCount === 0 ? 'On track' : `${overdueStepCount} overdue`}
-              href="/goals"
-              onClose={() => setPopoverOpen(false)}
-            />
-          </div>
-        )}
-
         {/* Glass pill */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '2px',

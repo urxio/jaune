@@ -12,16 +12,11 @@ import { disconnectCalendar } from '@/app/actions/calendar'
 // ── Cover presets ─────────────────────────────────────────────────────────────
 
 const COVER_PRESETS = [
-  { id: 'fog-mountains',   url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1400&q=80', label: 'Fog & peaks' },
-  { id: 'night-sky',       url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1400&q=80', label: 'Night sky' },
-  { id: 'dark-forest',     url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1400&q=80', label: 'Forest' },
-  { id: 'desert-dunes',    url: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1400&q=80', label: 'Desert' },
-  { id: 'ocean-horizon',   url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1400&q=80', label: 'Ocean' },
-  { id: 'mountain-lake',   url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80', label: 'Mountain lake' },
-  { id: 'dark-water',      url: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=1400&q=80', label: 'Still water' },
-  { id: 'minimal-arch',    url: 'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1400&q=80', label: 'Architecture' },
-  { id: 'golden-field',    url: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1400&q=80', label: 'Golden field' },
-  { id: 'dark-canyon',     url: 'https://images.unsplash.com/photo-1512273222628-4daea6a6a6b5?w=1400&q=80', label: 'Canyon' },
+  { id: 'locus-1', url: '/wallpapers/locus-1.jpg',  label: 'Locus I' },
+  { id: 'locus-2', url: '/wallpapers/locus-2.jpg',  label: 'Locus II' },
+  { id: 'locus-3', url: '/wallpapers/locus-3.avif', label: 'Locus III' },
+  { id: 'locus-4', url: '/wallpapers/locus-4.jpg',  label: 'Locus IV' },
+  { id: 'locus-5', url: '/wallpapers/locus-5.jpg',  label: 'Locus V' },
 ]
 
 // ── Section wrapper ───────────────────────────────────────────────────────────

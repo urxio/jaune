@@ -192,8 +192,8 @@ function smoothCurvePath(pts: [number, number][]): string {
 }
 
 function EnergyCurveChart({ days, checkinByDay }: { days: string[]; checkinByDay: Map<string, CheckIn> }) {
-  const W = 560; const H = 140
-  const padL = 8; const padR = 8; const padT = 20; const padB = 32
+  const W = 560; const H = 220
+  const padL = 28; const padR = 12; const padT = 24; const padB = 36
   const chartW = W - padL - padR
   const chartH = H - padT - padB
 
@@ -214,80 +214,104 @@ function EnergyCurveChart({ days, checkinByDay }: { days: string[]; checkinByDay
     : ''
 
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const gridLines = [2, 4, 6, 8, 10]
+
+  // Peak point
+  const peak = dataPoints.reduce<typeof dataPoints[0] | null>((best, p) => (!best || p[3] > best[3] ? p : best), null)
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      style={{ width: '100%', height: 'auto', overflow: 'visible' }}
-      aria-label="Energy this week"
-    >
-      <defs>
-        <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7eb89a" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#7eb89a" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#c8a96e" />
-          <stop offset="100%" stopColor="#7eb89a" />
-        </linearGradient>
-      </defs>
+    <div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: '100%', height: 'auto', overflow: 'visible' }}
+        aria-label="Energy this week"
+      >
+        <defs>
+          <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7eb89a" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#7eb89a" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#c8a96e" />
+            <stop offset="100%" stopColor="#7eb89a" />
+          </linearGradient>
+          <filter id="dotGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
 
-      {/* Horizontal grid lines */}
-      {[2, 4, 6, 8, 10].map(v => (
-        <line
-          key={v}
-          x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)}
-          stroke="oklch(1 0 0 / 0.06)" strokeWidth="1"
-        />
-      ))}
-
-      {/* Area fill */}
-      {areaPath && <path d={areaPath} fill="url(#energyGrad)" />}
-
-      {/* Curve line */}
-      {linePath && (
-        <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-
-      {/* Data points + value labels */}
-      {dataPoints.map(([, x, y, val]) => {
-        const color = val >= 7 ? '#7eb89a' : val >= 5 ? '#c8a96e' : '#c08060'
-        return (
-          <g key={x}>
-            <circle cx={x} cy={y} r="4" fill={color} stroke="oklch(0.14 0 0)" strokeWidth="1.5" />
-            <text
-              x={x} y={y - 10}
-              textAnchor="middle"
-              fontSize="11"
-              fontFamily="var(--font-serif)"
-              fill="oklch(1 0 0 / 0.7)"
-            >{val}</text>
+        {/* Y-axis labels + grid */}
+        {gridLines.map(v => (
+          <g key={v}>
+            <line x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)}
+              stroke="oklch(1 0 0 / 0.07)" strokeWidth="1" strokeDasharray={v === 10 || v === 2 ? '0' : '4 4'} />
+            <text x={padL - 6} y={yOf(v) + 4} textAnchor="end" fontSize="9"
+              fill="oklch(1 0 0 / 0.28)" fontFamily="var(--font-sans, sans-serif)">{v}</text>
           </g>
-        )
-      })}
+        ))}
 
-      {/* Empty day markers */}
-      {days.map((day, i) => {
-        if (checkinByDay.has(day)) return null
+        {/* Area fill */}
+        {areaPath && <path d={areaPath} fill="url(#energyGrad)" />}
+
+        {/* Curve line */}
+        {linePath && (
+          <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round" />
+        )}
+
+        {/* Empty day ticks */}
+        {days.map((day, i) => {
+          if (checkinByDay.has(day)) return null
+          return <circle key={day} cx={xOf(i)} cy={padT + chartH + 2} r="2" fill="oklch(1 0 0 / 0.1)" />
+        })}
+
+        {/* Data dots */}
+        {dataPoints.map(([, x, y, val]) => {
+          const color = val >= 7 ? '#7eb89a' : val >= 5 ? '#c8a96e' : '#c08060'
+          const isPeak = peak && x === peak[1]
+          return (
+            <g key={x}>
+              {isPeak && <circle cx={x} cy={y} r="9" fill={color} opacity="0.15" filter="url(#dotGlow)" />}
+              <circle cx={x} cy={y} r={isPeak ? 5.5 : 4} fill={color} stroke="oklch(0.13 0 0)" strokeWidth="1.5" />
+              <text x={x} y={y - 12} textAnchor="middle" fontSize="11"
+                fontFamily="var(--font-serif)" fill={isPeak ? color : 'oklch(1 0 0 / 0.65)'}
+                fontWeight={isPeak ? '600' : '400'}>{val}</text>
+            </g>
+          )
+        })}
+
+        {/* X-axis day labels */}
+        {days.map((day, i) => (
+          <text key={day} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="10"
+            fill={checkinByDay.has(day) ? 'oklch(1 0 0 / 0.5)' : 'oklch(1 0 0 / 0.22)'}
+            fontFamily="var(--font-sans, sans-serif)" fontWeight="500" letterSpacing="0.06em">
+            {dayLabels[i]}
+          </text>
+        ))}
+      </svg>
+
+      {/* Mini stats row below chart */}
+      {dataPoints.length > 0 && (() => {
+        const avg = dataPoints.reduce((s, p) => s + p[3], 0) / dataPoints.length
+        const peakDay = peak ? dayLabels[peak[0]] : '—'
+        const logged = dataPoints.length
         return (
-          <circle key={day} cx={xOf(i)} cy={padT + chartH} r="2" fill="oklch(1 0 0 / 0.12)" />
+          <div style={{ display: 'flex', gap: '0', marginTop: '16px', borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: '16px' }}>
+            {[
+              { label: 'Avg energy', value: avg.toFixed(1) },
+              { label: 'Peak day', value: peakDay },
+              { label: 'Logged', value: `${logged}/7` },
+            ].map(({ label, value }, i) => (
+              <div key={label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? '1px solid oklch(1 0 0 / 0.07)' : 'none', padding: '0 12px' }}>
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', color: 'var(--text-0)', margin: '0 0 3px', fontWeight: 400 }}>{value}</p>
+                <p style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>{label}</p>
+              </div>
+            ))}
+          </div>
         )
-      })}
-
-      {/* X-axis day labels */}
-      {days.map((day, i) => (
-        <text
-          key={day}
-          x={xOf(i)} y={H - 6}
-          textAnchor="middle"
-          fontSize="10"
-          fill="oklch(1 0 0 / 0.35)"
-          fontFamily="var(--font-sans, sans-serif)"
-          fontWeight="500"
-          letterSpacing="0.04em"
-        >{dayLabels[i]}</text>
-      ))}
-    </svg>
+      })()}
+    </div>
   )
 }
 
@@ -413,18 +437,22 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
                 {habitWeekStats.map((h, i) => {
                   const pct = Math.round((h.done / h.target) * 100)
                   const onTrack = pct >= 100
+                  const barColor = onTrack ? 'var(--sage)' : pct >= 50 ? 'var(--gold)' : 'oklch(1 0 0 / 0.2)'
                   return (
-                    <li key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)' }}>
-                      <span style={{ fontSize: '15px', flexShrink: 0 }}>{h.emoji}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '14px', color: 'var(--text-1)', margin: '0 0 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</p>
-                        <div style={{ height: '2px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: onTrack ? 'var(--sage)' : 'var(--gold)', borderRadius: '2px', transition: 'width 0.4s' }} />
-                        </div>
+                    <li key={h.id} style={{ padding: '11px 0', borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '15px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
+                        <p style={{ flex: 1, fontSize: '14px', color: 'var(--text-1)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</p>
+                        <span style={{
+                          fontSize: '11px', fontWeight: 600, flexShrink: 0, minWidth: '36px', textAlign: 'right',
+                          color: onTrack ? 'var(--sage)' : pct >= 50 ? 'var(--gold)' : 'var(--text-3)',
+                        }}>
+                          {h.done}/{h.target}
+                        </span>
                       </div>
-                      <span style={{ fontSize: '12px', color: onTrack ? 'var(--sage)' : 'var(--text-3)', flexShrink: 0 }}>
-                        {h.done}/{h.target}
-                      </span>
+                      <div style={{ height: '4px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: barColor, borderRadius: '4px', transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)' }} />
+                      </div>
                     </li>
                   )
                 })}

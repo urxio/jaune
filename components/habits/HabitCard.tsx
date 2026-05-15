@@ -102,6 +102,7 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
   const curMonth       = todayDateObj.getMonth()
   const curFirstDow    = new Date(curYear, curMonth, 1).getDay()
   const curDaysInMonth = new Date(curYear, curMonth + 1, 0).getDate()
+  const curMonthName   = todayDateObj.toLocaleDateString('en-US', { month: 'short' })
 
   // Month calendar data (for the "Month ▾" dropdown, tracks monthOffset)
   const baseDate = new Date(today + 'T12:00:00')
@@ -191,10 +192,10 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
           {/* Streak pill */}
           {streak > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '20px', padding: '4px 10px 4px 8px' }}>
-              <span style={{ fontSize: '14px', lineHeight: 1 }}>{streak >= 30 ? '🔥🔥' : streak >= 14 ? '🔥' : '⚡'}</span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', fontWeight: 400, color: 'var(--gold)', lineHeight: 1 }}>{streak}</span>
-              <span style={{ fontSize: '10px', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '20px', padding: '5px 10px 5px 8px' }}>
+              <span style={{ fontSize: '13px', lineHeight: 1 }}>{streak >= 30 ? '🔥🔥' : streak >= 14 ? '🔥' : '⚡'}</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--gold)', lineHeight: 1, letterSpacing: '-0.01em' }}>{streak}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500, letterSpacing: '0.02em' }}>
                 day{streak !== 1 ? 's' : ''}
               </span>
             </div>
@@ -215,6 +216,9 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
 
       {/* ── Current month mini-calendar ── */}
       <div style={{ marginTop: '18px' }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '5px' }}>
+          {curMonthName}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 12px)', gap: '3px', marginBottom: '3px' }}>
           {DOW_LABELS.map((d, i) => (
             <div key={i} style={{ width: '12px', textAlign: 'center', fontSize: '8px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.02em' }}>{d}</div>
@@ -243,14 +247,20 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
                 style={{
                   width: '12px', height: '12px',
                   borderRadius: '3px',
-                  border: isToday ? `1.5px solid ${habitColor}` : 'none',
+                  border: isToday
+                    ? `1.5px solid ${habitColor}`
+                    : !scheduled && !isFuture
+                    ? '1px dashed rgba(255,255,255,0.12)'
+                    : 'none',
                   background: done
                     ? habitColor
                     : scheduled && !isFuture
                       ? 'var(--bg-3)'
+                      : !scheduled && !isFuture
+                      ? 'transparent'
                       : 'var(--bg-2)',
                   cursor: pending ? 'wait' : isFuture ? 'default' : 'pointer',
-                  opacity: pending ? 0.4 : isFuture ? 0.2 : scheduled ? 1 : 0.25,
+                  opacity: pending ? 0.4 : isFuture ? 0.15 : 1,
                   transition: 'background 0.15s, opacity 0.15s',
                   flexShrink: 0,
                   boxSizing: 'border-box',

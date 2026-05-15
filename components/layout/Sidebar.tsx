@@ -45,12 +45,13 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, che
   return (
     <aside className="app-sidebar">
       {/* Floating nav pill — centered */}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
         {/* Status popover */}
         {popoverOpen && (
           <div ref={popoverRef} style={{
             position: 'absolute',
-            top: 'calc(100% + 10px)',
+            bottom: 'calc(100% + 10px)',
+            top: 'auto',
             left: 0,
             zIndex: 200,
             background: 'var(--glass-card-bg)',

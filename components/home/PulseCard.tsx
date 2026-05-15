@@ -1,6 +1,6 @@
 'use client'
 
-import type { Goal, Brief, MemoryNote } from '@/lib/types'
+import type { Goal, Brief } from '@/lib/types'
 
 export type MessageSegment = { text: string; highlight?: 'sage' | 'gold' | 'muted' }
 export type MessageLine    = MessageSegment[]
@@ -15,12 +15,11 @@ export function buildPulseMessage(opts: {
   goalsActive: number
   firstGoal:   Goal | null
   energyScore: number | null
-  topNote:     MemoryNote | null
   brief:       Brief | null | undefined
 }): MessageLine[] {
   const { firstName, hour, dayName, day, month,
           habitsTotal, goalsActive, firstGoal,
-          energyScore, topNote, brief } = opts
+          energyScore, brief } = opts
 
   const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Hey' : 'Evening'
   const followUp = hour < 12 ? ', hope you slept well. Today is '
@@ -45,14 +44,7 @@ export function buildPulseMessage(opts: {
     ])
   }
 
-  if (topNote) {
-    const snippet = topNote.content.length > 80 ? topNote.content.slice(0, 77) + '…' : topNote.content
-    lines.push([
-      { text: 'I noticed you captured something worth revisiting: ' },
-      { text: `"${snippet}"`, highlight: 'muted' },
-      { text: ' — might be worth acting on today.' },
-    ])
-  } else if (brief?.insight_text) {
+  if (brief?.insight_text) {
     lines.push([{ text: brief.insight_text.split('.').slice(0, 1).join('.') + '.' }])
   }
 

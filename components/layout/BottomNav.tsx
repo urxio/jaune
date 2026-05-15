@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   { href: '/',        label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
   { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
-  { href: '/capture', label: 'Capture',  icon: <CaptureIcon /> },
   { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
   { href: '/review',  label: 'Review',   icon: <ReviewIcon /> },
 ]
@@ -67,15 +66,6 @@ function HabitsIcon() {
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20">
       <circle cx="10" cy="10" r="7" />
       <path d="M7 10l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function CaptureIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20">
-      <path d="M13 3H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
-      <path d="M10 8v6M7 11h6" strokeLinecap="round" />
     </svg>
   )
 }

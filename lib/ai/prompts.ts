@@ -371,34 +371,6 @@ export function buildUserMessage(ctx: BriefContext): string {
     lines.push('')
   }
 
-  // ── MEMORY NOTES (user-captured reminders, ideas, resources) ──
-  if (ctx.memoryNotes && ctx.memoryNotes.length > 0) {
-    const now = ctx.date
-    lines.push(`MEMORY NOTES — the user explicitly captured these to be remembered`)
-    ctx.memoryNotes.forEach(note => {
-      const typeLabel = note.type === 'reminder' ? '⏰ REMINDER' : note.type === 'resource' ? '🔗 RESOURCE' : '💡 IDEA'
-      const datePart = note.trigger_date ? ` [due ${note.trigger_date}]` : ''
-      const daysUntil = note.trigger_date
-        ? Math.ceil((new Date(note.trigger_date + 'T12:00:00').getTime() - new Date(now + 'T12:00:00').getTime()) / 86400000)
-        : null
-      const urgencyPart = daysUntil !== null
-        ? daysUntil <= 0 ? ' ← DUE TODAY'
-        : daysUntil === 1 ? ' ← TOMORROW'
-        : daysUntil <= 3 ? ` ← in ${daysUntil} days`
-        : ''
-        : ''
-      lines.push(`  ${typeLabel}${datePart}${urgencyPart}: "${note.content}"`)
-    })
-    lines.push(``)
-    lines.push(`  HOW TO USE THESE:`)
-    lines.push(`  - REMINDERS due today or tomorrow: mention explicitly by name in insight_text or as a priority. Do not skip them.`)
-    lines.push(`  - REMINDERS due within 3 days: include as a priority with urgency in the reasoning.`)
-    lines.push(`  - REMINDERS with no date: surface if they connect to today's goals or energy.`)
-    lines.push(`  - IDEAS: mention if they connect to today's habits, goals, or mood — make the connection explicit.`)
-    lines.push(`  - RESOURCES: surface by name when the user's context touches that topic (e.g. they mention travel → mention the flight site they saved).`)
-    lines.push('')
-  }
-
   return lines.join('\n')
 }
 

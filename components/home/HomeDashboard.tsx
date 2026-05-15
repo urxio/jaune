@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import type { Goal, CheckIn, HabitWithLogs, Brief, MemoryNote } from '@/lib/types'
+import type { Goal, CheckIn, HabitWithLogs, Brief } from '@/lib/types'
 import { logHabitAction, unlogHabitAction } from '@/app/actions/habits'
 
 type Props = {
@@ -11,7 +11,6 @@ type Props = {
   habits:       HabitWithLogs[]
   brief?:       Brief | null
   userName?:    string | null
-  memoryNotes?: MemoryNote[]
 }
 
 function todayStr() {

@@ -3,10 +3,9 @@ import { getTodayCheckin, getRecentCheckins } from '@/lib/db/checkins'
 import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { readUserMemory, type UserMemory } from '@/lib/ai/memory'
 import { getTodayJournal, getRecentJournals } from '@/lib/db/journals'
-import { getContextualNotes } from '@/lib/db/memory-notes'
 import { getPeople } from '@/lib/db/people'
 import { getCalendarEventsForAI } from '@/lib/google/calendar'
-import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, MemoryNote, Person, CalendarEvent } from '@/lib/types'
+import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, Person, CalendarEvent } from '@/lib/types'
 
 export type NeglectedHabit = {
   name: string
@@ -28,7 +27,6 @@ export type BriefContext = {
   todayJournal: JournalEntry | null
   recentJournals: JournalEntry[]
   isFirstBrief: boolean
-  memoryNotes: MemoryNote[]  // contextual notes to surface today
   catchupPeople: Pick<Person, 'name' | 'notes'>[]
   calendarEvents: CalendarEvent[]
 }
@@ -45,14 +43,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     getPeople(userId),
     getCalendarEventsForAI(userId),
   ])
-
-  // Build topic keywords from today's context for memory note matching
-  const topicKeywords = [
-    ...goalsWithSteps.map(g => g.category),
-    ...goalsWithSteps.map(g => g.title.toLowerCase().split(' ')).flat(),
-    ...habits.map(h => h.name.toLowerCase()),
-    todayCheckin?.mood_note ?? '',
-  ].filter(Boolean)
 
   const avgEnergy = recentCheckins.length
     ? Math.round((recentCheckins.reduce((s, c) => s + c.energy_level, 0) / recentCheckins.length) * 10) / 10
@@ -76,8 +66,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
   const onboardedToday = onboardedAt ? onboardedAt.slice(0, 10) === date : false
   const isFirstBrief = onboardedToday || recentCheckins.length === 0
 
-  const memoryNotes = await getContextualNotes(userId, date, topicKeywords)
-
   const catchupPeople = allPeople
     .filter(p => p.want_catchup)
     .map(p => ({ name: p.name, notes: p.notes }))
@@ -95,7 +83,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     todayJournal,
     recentJournals,
     isFirstBrief,
-    memoryNotes,
     catchupPeople,
     calendarEvents,
   }

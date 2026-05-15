@@ -39,6 +39,140 @@ function energyToLabel(level: number): string {
   return 'Depleted'
 }
 
+type HabitStat = { id: string; name: string; emoji: string; done: number; target: number }
+
+function buildReflection(
+  checkins: CheckIn[],
+  habitStats: HabitStat[],
+  goals: GoalWithSteps[],
+  briefs: Brief[],
+) {
+  const worked: string[] = []
+  const adjust: string[] = []
+
+  // Energy
+  const highEnergyDays = checkins.filter(c => c.energy_level >= 7)
+  const lowEnergyDays  = checkins.filter(c => c.energy_level < 5)
+  const avgEnergy = checkins.length
+    ? checkins.reduce((s, c) => s + c.energy_level, 0) / checkins.length
+    : null
+
+  if (highEnergyDays.length >= 3) {
+    worked.push(`Strong energy across ${highEnergyDays.length} days — you were consistently at 7 or above.`)
+  } else if (avgEnergy != null && avgEnergy >= 6) {
+    worked.push(`Solid average energy of ${avgEnergy.toFixed(1)} — you stayed above baseline most of the week.`)
+  }
+  if (lowEnergyDays.length >= 2) {
+    const days = lowEnergyDays.map(c =>
+      new Date(c.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
+    ).join(' and ')
+    adjust.push(`Energy dipped below 5 on ${days} — worth examining what drained you those days.`)
+  }
+
+  // Highlights from check-ins
+  const highlights = checkins.filter(c => c.highlight && c.highlight.trim().length > 0)
+  if (highlights.length > 0) {
+    worked.push(`You logged ${highlights.length} highlight${highlights.length > 1 ? 's' : ''} — moments worth building on.`)
+  }
+
+  // Blockers
+  const withBlockers = checkins.filter(c => c.blockers && c.blockers.length > 0)
+  if (withBlockers.length >= 2) {
+    adjust.push(`Blockers showed up on ${withBlockers.length} days — identifying their root cause could unlock your next gear.`)
+  }
+
+  // Habits
+  const onTrack = habitStats.filter(h => h.target > 0 && h.done >= h.target)
+  const offTrack = habitStats.filter(h => h.target > 0 && h.done < h.target * 0.5)
+  if (onTrack.length > 0) {
+    worked.push(`${onTrack.map(h => `${h.emoji} ${h.name}`).join(', ')} hit ${onTrack.length > 1 ? 'their' : 'its'} target — consistency is compounding.`)
+  }
+  if (offTrack.length > 0) {
+    adjust.push(`${offTrack.map(h => h.name).join(', ')} fell short of halfway — consider reducing friction or resetting the target.`)
+  }
+
+  // Goals
+  const progressingGoals = goals.filter(g => g.progress_pct >= 50)
+  if (progressingGoals.length > 0) {
+    worked.push(`${progressingGoals.length > 1 ? `${progressingGoals.length} goals are` : `"${progressingGoals[0].title}" is`} past the halfway mark — you're in motion.`)
+  }
+
+  // Pull one insight from briefs if available
+  if (briefs.length > 0 && briefs[0].insight_text) {
+    const insight = briefs[0].insight_text
+    if (insight.length < 180) {
+      worked.push(insight)
+    }
+  }
+
+  // Fallbacks
+  if (worked.length === 0) worked.push('You showed up this week — that alone is worth noting.')
+  if (adjust.length === 0) adjust.push('No clear friction points this week — keep the streak going and watch for where energy starts to dip.')
+
+  return { worked, adjust }
+}
+
+function WeeklyReflection({
+  checkins,
+  habitStats,
+  goals,
+  briefs,
+}: {
+  checkins: CheckIn[]
+  habitStats: HabitStat[]
+  goals: GoalWithSteps[]
+  briefs: Brief[]
+}) {
+  const { worked, adjust } = buildReflection(checkins, habitStats, goals, briefs)
+
+  return (
+    <section style={{ marginBottom: '32px' }}>
+      <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '20px' }}>
+        Weekly Reflection from Locus
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+
+        {/* What worked */}
+        <div className="glass-card" style={{ padding: '22px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--sage)', opacity: 0.9 }}>↑</span>
+            <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--sage)', margin: 0, opacity: 0.9 }}>
+              What worked
+            </p>
+          </div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {worked.map((item, i) => (
+              <li key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '11px', color: 'var(--sage)', opacity: 0.6, marginTop: '3px', flexShrink: 0 }}>—</span>
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '14px', lineHeight: 1.65, color: 'var(--text-1)', margin: 0 }}>{item}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* What to adjust */}
+        <div className="glass-card" style={{ padding: '22px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--gold)', opacity: 0.9 }}>↻</span>
+            <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', margin: 0, opacity: 0.9 }}>
+              What to adjust
+            </p>
+          </div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {adjust.map((item, i) => (
+              <li key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '11px', color: 'var(--gold)', opacity: 0.6, marginTop: '3px', flexShrink: 0 }}>—</span>
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '14px', lineHeight: 1.65, color: 'var(--text-1)', margin: 0 }}>{item}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+      </div>
+    </section>
+  )
+}
+
 function EnergyBar({ value, max = 10 }: { value: number; max?: number }) {
   const pct = (value / max) * 100
   const color = value >= 7 ? 'var(--sage)' : value >= 5 ? 'var(--gold)' : '#c08060'
@@ -237,25 +371,14 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
         </section>
       )}
 
-      {/* ── Brief insights — horizontal grid on desktop ── */}
-      {weekBriefs.length > 0 && (
-        <section style={{ marginBottom: '32px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
-            From Locus this week
-          </p>
-          <div className="review-briefs-grid">
-            {weekBriefs.slice(0, 3).map(b => (
-              <div key={b.id} className="glass-card" style={{ padding: '20px 22px' }}>
-                <p style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                  {new Date(b.brief_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
-                </p>
-                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', lineHeight: 1.6, color: 'var(--text-1)', margin: 0 }}>
-                  {b.insight_text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* ── Weekly Reflection from Locus ── */}
+      {(weekCheckins.length > 0 || weekBriefs.length > 0) && (
+        <WeeklyReflection
+          checkins={weekCheckins}
+          habitStats={habitWeekStats}
+          goals={activeGoals}
+          briefs={weekBriefs}
+        />
       )}
 
       {/* ── Empty state ── */}

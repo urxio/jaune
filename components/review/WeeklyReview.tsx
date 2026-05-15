@@ -173,16 +173,121 @@ function WeeklyReflection({
   )
 }
 
-function EnergyBar({ value, max = 10 }: { value: number; max?: number }) {
-  const pct = (value / max) * 100
-  const color = value >= 7 ? 'var(--sage)' : value >= 5 ? 'var(--gold)' : '#c08060'
+function smoothCurvePath(pts: [number, number][]): string {
+  if (pts.length === 0) return ''
+  if (pts.length === 1) return `M ${pts[0][0]} ${pts[0][1]}`
+  const d: string[] = [`M ${pts[0][0]} ${pts[0][1]}`]
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = i === 0 ? pts[0] : pts[i - 1]
+    const [x1, y1] = pts[i]
+    const [x2, y2] = pts[i + 1]
+    const [x3, y3] = i + 2 < pts.length ? pts[i + 2] : pts[i + 1]
+    const cp1x = x1 + (x2 - x0) / 6
+    const cp1y = y1 + (y2 - y0) / 6
+    const cp2x = x2 - (x3 - x1) / 6
+    const cp2y = y2 - (y3 - y1) / 6
+    d.push(`C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`)
+  }
+  return d.join(' ')
+}
+
+function EnergyCurveChart({ days, checkinByDay }: { days: string[]; checkinByDay: Map<string, CheckIn> }) {
+  const W = 560; const H = 140
+  const padL = 8; const padR = 8; const padT = 20; const padB = 32
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+
+  const xOf = (i: number) => padL + (i / (days.length - 1)) * chartW
+  const yOf = (v: number) => padT + (1 - (v - 1) / 9) * chartH
+
+  const dataPoints: [number, number, number, number][] = []
+  days.forEach((day, i) => {
+    const ci = checkinByDay.get(day)
+    if (ci) dataPoints.push([i, xOf(i), yOf(ci.energy_level), ci.energy_level])
+  })
+
+  const curvePts: [number, number][] = dataPoints.map(([, x, y]) => [x, y])
+  const linePath = smoothCurvePath(curvePts)
+
+  const areaPath = curvePts.length > 1
+    ? `${linePath} L ${curvePts[curvePts.length - 1][0]} ${padT + chartH} L ${curvePts[0][0]} ${padT + chartH} Z`
+    : ''
+
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <div style={{ flex: 1, height: '3px', background: 'oklch(1 0 0 / 0.10)', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '2px', transition: 'width 0.4s' }} />
-      </div>
-      <span style={{ fontSize: '13px', fontFamily: 'var(--font-serif)', color: 'var(--text-1)', width: '22px', textAlign: 'right' }}>{value}</span>
-    </div>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: 'auto', overflow: 'visible' }}
+      aria-label="Energy this week"
+    >
+      <defs>
+        <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7eb89a" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#7eb89a" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c8a96e" />
+          <stop offset="100%" stopColor="#7eb89a" />
+        </linearGradient>
+      </defs>
+
+      {/* Horizontal grid lines */}
+      {[2, 4, 6, 8, 10].map(v => (
+        <line
+          key={v}
+          x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)}
+          stroke="oklch(1 0 0 / 0.06)" strokeWidth="1"
+        />
+      ))}
+
+      {/* Area fill */}
+      {areaPath && <path d={areaPath} fill="url(#energyGrad)" />}
+
+      {/* Curve line */}
+      {linePath && (
+        <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+
+      {/* Data points + value labels */}
+      {dataPoints.map(([, x, y, val]) => {
+        const color = val >= 7 ? '#7eb89a' : val >= 5 ? '#c8a96e' : '#c08060'
+        return (
+          <g key={x}>
+            <circle cx={x} cy={y} r="4" fill={color} stroke="oklch(0.14 0 0)" strokeWidth="1.5" />
+            <text
+              x={x} y={y - 10}
+              textAnchor="middle"
+              fontSize="11"
+              fontFamily="var(--font-serif)"
+              fill="oklch(1 0 0 / 0.7)"
+            >{val}</text>
+          </g>
+        )
+      })}
+
+      {/* Empty day markers */}
+      {days.map((day, i) => {
+        if (checkinByDay.has(day)) return null
+        return (
+          <circle key={day} cx={xOf(i)} cy={padT + chartH} r="2" fill="oklch(1 0 0 / 0.12)" />
+        )
+      })}
+
+      {/* X-axis day labels */}
+      {days.map((day, i) => (
+        <text
+          key={day}
+          x={xOf(i)} y={H - 6}
+          textAnchor="middle"
+          fontSize="10"
+          fill="oklch(1 0 0 / 0.35)"
+          fontFamily="var(--font-sans, sans-serif)"
+          fontWeight="500"
+          letterSpacing="0.04em"
+        >{dayLabels[i]}</text>
+      ))}
+    </svg>
   )
 }
 
@@ -288,28 +393,13 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
         <div className="glass-card" style={{ padding: '24px 26px', marginBottom: '20px' }}>
         <div className="review-mid" style={{ marginBottom: 0 }}>
 
-          {/* Energy by day */}
+          {/* Energy curve chart */}
           {weekCheckins.length > 0 && (
             <section>
               <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '16px' }}>
                 Energy this week
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {weekDays.map(day => {
-                  const ci = checkinByDay.get(day)
-                  const label = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })
-                  return (
-                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-3)', width: '28px', flexShrink: 0 }}>{label}</span>
-                      {ci ? (
-                        <div style={{ flex: 1 }}><EnergyBar value={ci.energy_level} /></div>
-                      ) : (
-                        <div style={{ flex: 1, height: '3px', background: 'oklch(1 0 0 / 0.06)', borderRadius: '2px' }} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+              <EnergyCurveChart days={weekDays} checkinByDay={checkinByDay} />
             </section>
           )}
 

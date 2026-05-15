@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react'
 const MAIN_NAV = [
   { href: '/',        label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
+  { href: '/journal', label: 'Journal',  icon: <JournalIcon /> },
   { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
   { href: '/capture', label: 'Capture',  icon: <CaptureIcon /> },
   { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
@@ -290,6 +291,10 @@ function GoalsIcon() {
 
 function ReviewIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><rect x="4" y="3" width="12" height="14" rx="2" /><path d="M7 7h6M7 10h6M7 13h4" strokeLinecap="round" /></svg>
+}
+
+function JournalIcon() {
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20"><rect x="5" y="2" width="10" height="16" rx="2" /><path d="M8 6h4M8 9h4M8 12h2" strokeLinecap="round" /></svg>
 }
 
 function SettingsIcon() {

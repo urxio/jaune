@@ -7,7 +7,6 @@ import { useState, useRef, useEffect } from 'react'
 const MAIN_NAV = [
   { href: '/',        label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
-  { href: '/journal', label: 'Journal',  icon: <JournalIcon /> },
   { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
   { href: '/capture', label: 'Capture',  icon: <CaptureIcon /> },
   { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },

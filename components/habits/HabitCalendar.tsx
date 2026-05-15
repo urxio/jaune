@@ -28,13 +28,23 @@ function isHabitScheduledOnDate(habit: HabitWithLogs, dateStr: string): boolean 
   return habit.days_of_week.includes(new Date(dateStr + 'T12:00:00').getDay())
 }
 
-/* Completion tier → fill color */
+/* Completion tier → fill color
+   4 bands: none | some (<40%) | most (40–79%) | all (≥80%) */
+function completionTier(pct: number): 'none' | 'some' | 'most' | 'all' {
+  if (pct === 0)    return 'none'
+  if (pct < 0.4)   return 'some'
+  if (pct < 0.8)   return 'most'
+  return 'all'
+}
+const TIER_COLORS = {
+  none: 'rgba(255,255,255,0.07)',
+  some: '#5C3D10',
+  most: '#8A5F14',
+  all:  '#BF8B1C',
+} as const
 function completionColor(pct: number, scheduled: boolean): string {
   if (!scheduled || pct < 0) return 'transparent'
-  if (pct === 0)   return 'rgba(255,255,255,0.04)'
-  if (pct < 0.5)   return '#3D2F12'   // some  — dark brown
-  if (pct < 1)     return '#6B4E17'   // most  — medium gold-brown
-  return '#A67C1E'                     // all   — bright gold
+  return TIER_COLORS[completionTier(pct)]
 }
 
 type LogMap = Map<string, Set<string>>
@@ -299,7 +309,7 @@ export default function HabitCalendar({ habits, today }: {
                   <span style={{
                     fontSize: '10px',
                     fontWeight: 500,
-                    color: pct === 1 ? 'rgba(232,201,106,0.75)' : 'var(--text-3)',
+                    color: pct >= 0.8 ? 'rgba(232,201,106,0.80)' : 'var(--text-3)',
                     lineHeight: 1,
                     marginTop: '3px',
                   }}>
@@ -319,10 +329,10 @@ export default function HabitCalendar({ habits, today }: {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {[
-              { label: 'none',  color: 'rgba(255,255,255,0.18)' },
-              { label: 'some',  color: '#3D2F12' },
-              { label: 'most',  color: '#6B4E17' },
-              { label: 'all',   color: '#A67C1E' },
+              { label: 'none',  color: TIER_COLORS.none },
+              { label: 'some',  color: TIER_COLORS.some },
+              { label: 'most',  color: TIER_COLORS.most },
+              { label: 'all',   color: TIER_COLORS.all  },
             ].map(({ label, color }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }} />

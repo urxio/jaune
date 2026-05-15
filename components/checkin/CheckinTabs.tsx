@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import ConversationalCheckin from './ConversationalCheckin'
+import CheckinFlow from './CheckinFlow'
 import JournalSection from './JournalSection'
 import BriefHistory from '@/components/brief/BriefHistory'
 import PostCheckinBrief from '@/components/brief/PostCheckinBrief'
@@ -20,7 +20,10 @@ type Props = {
   initialTab?:     Tab
 }
 
-export default function CheckinTabs({ existingCheckin, todayJournal, recentJournals, memory, hasBrief = false, pastBriefs = [], initialTab = 'checkin' }: Props) {
+export default function CheckinTabs({
+  existingCheckin, todayJournal, recentJournals,
+  memory, hasBrief = false, pastBriefs = [], initialTab = 'checkin',
+}: Props) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [briefReady, setBriefReady] = useState(hasBrief || !!existingCheckin)
   const [briefKey, setBriefKey] = useState(0)
@@ -31,213 +34,93 @@ export default function CheckinTabs({ existingCheckin, todayJournal, recentJourn
   }
 
   return (
-    <div>
-      <div style={{ display: tab === 'checkin' ? 'block' : 'none', animation: tab === 'checkin' ? 'fadeUp 0.22s var(--ease) both' : 'none' }}>
-        <CheckinLayout
+    <div style={{ position: 'relative' }}>
+      {/* ── Check-in content (always mounted) ── */}
+      <div className="page-pad" style={{ maxWidth: '680px', width: '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+        <CheckinFlow
           existingCheckin={existingCheckin}
-          memory={memory}
-          hasBrief={hasBrief}
-          tab={tab}
-          setTab={setTab}
-          todayJournalHasContent={!!todayJournal?.content}
-          briefReady={briefReady}
-          briefKey={briefKey}
           onCheckinSaved={handleCheckinSaved}
-          pastBriefs={pastBriefs}
+          onOpenJournal={() => setTab('journal')}
         />
+
+        {briefReady && (
+          <div style={{ marginTop: '24px' }}>
+            <PostCheckinBrief key={briefKey} memory={memory} />
+          </div>
+        )}
+
+        {pastBriefs.length > 0 && (
+          <div style={{ marginTop: '24px' }}>
+            <BriefHistory briefs={pastBriefs} />
+          </div>
+        )}
       </div>
 
-      <div style={{ display: tab === 'journal' ? 'block' : 'none', animation: tab === 'journal' ? 'fadeUp 0.22s var(--ease) both' : 'none' }}>
-        <JournalSection
-          existing={todayJournal}
-          recentJournals={recentJournals}
-          tab={tab}
-          setTab={setTab}
-          todayJournalHasContent={!!todayJournal?.content}
-        />
-      </div>
-    </div>
-  )
-}
-
-/* ── Two-column check-in layout ─────────────────────────────────────────── */
-function CheckinLayout({
-  existingCheckin, memory, hasBrief, tab, setTab,
-  todayJournalHasContent, briefReady, briefKey, onCheckinSaved, pastBriefs,
-}: {
-  existingCheckin: CheckIn | null
-  memory?: UserMemory | null
-  hasBrief: boolean
-  tab: Tab
-  setTab: (t: Tab) => void
-  todayJournalHasContent: boolean
-  briefReady: boolean
-  briefKey: number
-  onCheckinSaved: () => void
-  pastBriefs: Brief[]
-}) {
-  const CARD_H = 'min(680px, calc(100vh - 156px))'
-
-  return (
-    <div className="page-pad" style={{ maxWidth: '1180px', width: '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-      <div className="checkin-two-col">
-
-        {/* ── LEFT: Chat card ── */}
-        <div className="glass-card" style={{
-          height: CARD_H,
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden', position: 'relative',
+      {/* ── Journal — slides in from the right as a fullscreen panel ── */}
+      <div
+        aria-hidden={tab !== 'journal'}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 300,
+          transform: tab === 'journal' ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          background: 'oklch(0.11 0.015 60 / 0.96)',
+          backdropFilter: 'blur(48px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Back button */}
+        <div style={{
+          flexShrink: 0,
+          padding: '20px 28px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
         }}>
-          {/* Card overlay gradient — matches home page bento cards */}
-          <div aria-hidden style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-            background: 'var(--card-overlay)', opacity: 0.28,
-          }} />
-          {/* Top ambient glow */}
-          <div aria-hidden style={{
-            position: 'absolute', top: '-60px', left: '-40px',
-            width: '280px', height: '280px', borderRadius: '50%',
-            background: 'radial-gradient(circle, oklch(0.78 0.07 165 / 0.09) 0%, transparent 70%)',
-            pointerEvents: 'none', zIndex: 0,
-          }} />
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-            <ConversationalCheckin
-              existingCheckin={existingCheckin}
-              memory={memory}
-              hasBrief={hasBrief}
-              tab={tab}
-              setTab={setTab}
-              todayJournalHasContent={todayJournalHasContent}
-              onCheckinSaved={onCheckinSaved}
-            />
-          </div>
+          <button
+            onClick={() => setTab('checkin')}
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '9999px',
+              padding: '8px 18px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'oklch(0.75 0.01 70)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 3L5 8l5 5"/>
+            </svg>
+            Check-in
+          </button>
         </div>
 
-        {/* ── RIGHT: Brief card (independently scrollable) ── */}
-        <div className="glass-card-soft" style={{
-          height: CARD_H,
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden', position: 'relative',
-        }}>
-          {/* Card overlay gradient */}
-          <div aria-hidden style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-            background: 'var(--card-overlay)', opacity: 0.35,
-          }} />
-          {/* Top-right ambient glow */}
-          <div aria-hidden style={{
-            position: 'absolute', top: '-50px', right: '-50px',
-            width: '220px', height: '220px', borderRadius: '50%',
-            background: 'radial-gradient(circle, oklch(0.78 0.09 75 / 0.10) 0%, transparent 70%)',
-            pointerEvents: 'none', zIndex: 0,
-          }} />
-
-          {/* Card header */}
-          <div style={{
-            padding: '22px 24px 16px', flexShrink: 0, position: 'relative', zIndex: 1,
-            borderBottom: '1px solid var(--glass-card-border-subtle)',
-          }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '7px',
-              fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em',
-              textTransform: 'uppercase', color: 'var(--text-3)',
-            }}>
-              <div style={{
-                width: '5px', height: '5px', borderRadius: '50%',
-                background: briefReady ? 'var(--gold)' : 'var(--text-3)',
-                animation: briefReady ? 'pulse 2s ease-in-out infinite' : 'none',
-              }} />
-              Daily Brief
-            </div>
-          </div>
-
-          {/* Scrollable body */}
-          <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
-            {briefReady ? (
-              <PostCheckinBrief key={briefKey} memory={memory} sidebar />
-            ) : (
-              <BriefPlaceholder />
-            )}
-          </div>
-        </div>
-
-      </div>
-
-      {/* Past briefs below */}
-      {pastBriefs.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <BriefHistory briefs={pastBriefs} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── Placeholder shown before check-in is complete ──────────────────────── */
-function BriefPlaceholder() {
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      height: '100%', minHeight: '380px',
-      padding: '40px 28px', textAlign: 'center',
-      gap: '0',
-    }}>
-      {/* Icon */}
-      <div style={{
-        width: '44px', height: '44px', borderRadius: '14px', marginBottom: '18px',
-        background: 'linear-gradient(135deg, rgba(212,168,83,0.18) 0%, rgba(212,168,83,0.06) 100%)',
-        border: '1px solid rgba(212,168,83,0.2)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-          <circle cx="10" cy="10" r="3" fill="var(--gold)" opacity="0.8"/>
-          <circle cx="10" cy="3" r="1.5" fill="var(--gold)" opacity="0.4"/>
-          <circle cx="10" cy="17" r="1.5" fill="var(--gold)" opacity="0.4"/>
-          <circle cx="3" cy="10" r="1.5" fill="var(--gold)" opacity="0.4"/>
-          <circle cx="17" cy="10" r="1.5" fill="var(--gold)" opacity="0.4"/>
-        </svg>
-      </div>
-
-      <div style={{
-        fontFamily: 'var(--font-serif)', fontSize: '17px', fontWeight: 400,
-        color: 'var(--text-1)', lineHeight: 1.4, marginBottom: '10px',
-      }}>
-        Your brief is waiting
-      </div>
-      <div style={{
-        fontSize: '12.5px', color: 'var(--text-3)', lineHeight: 1.6,
-        maxWidth: '220px',
-      }}>
-        Check in with Locus and it will prepare your daily insight.
-      </div>
-
-      {/* Decorative skeleton lines */}
-      <div style={{ marginTop: '36px', width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', opacity: 0.4 }}>
-        {[90, 75, 82, 60].map((w, i) => (
-          <div key={i} style={{
-            height: '8px', borderRadius: '6px',
-            background: 'var(--glass-card-border)',
-            width: `${w}%`, margin: '0 auto',
-            animation: `pulse 2.4s ease-in-out ${i * 0.18}s infinite`,
-          }} />
-        ))}
-        <div style={{ marginTop: '16px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} style={{
-              height: '52px', flex: 1, borderRadius: '12px',
-              background: 'var(--glass-card-bg-strong)',
-              border: '1px solid var(--glass-card-border-subtle)',
-              animation: `pulse 2.4s ease-in-out ${i * 0.22}s infinite`,
-            }} />
-          ))}
+        {/* Journal content */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <JournalSection
+            existing={todayJournal}
+            recentJournals={recentJournals}
+          />
         </div>
       </div>
     </div>
   )
 }
 
-/* ── Shared tab toggle ───────────────────────────────────────────────────── */
+/* ── Shared tab toggle (used by JournalSection) ──────────────────────────── */
 export function TabToggle({
   tab,
   setTab,

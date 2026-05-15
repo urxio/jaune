@@ -169,8 +169,8 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
         <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
           {dateLabel}
         </p>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 4.5vw, 54px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)' }}>
-          {greeting(hour)},<br />
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 4.5vw, 54px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)', whiteSpace: 'nowrap' }}>
+          {greeting(hour)},{' '}
           {firstName && (
             <em style={{ fontStyle: 'italic', color: 'var(--gold)', opacity: 0.9 }}>{firstName}</em>
           )}

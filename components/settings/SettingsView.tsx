@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useTransition } from 'react'
 import { updateProfile } from '@/app/actions/settings'
 import { signOut } from '@/app/actions/auth'
 import ThemeToggle from '@/components/layout/ThemeToggle'
@@ -18,6 +17,18 @@ const COVER_PRESETS = [
   { id: 'locus-5', url: '/wallpapers/locus-5.jpg',  label: 'Dusk' },
 ]
 
+// ── Shared card style ─────────────────────────────────────────────────────────
+
+const CARD: React.CSSProperties = {
+  background: 'var(--glass-card-bg)',
+  backdropFilter: 'blur(32px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+  border: '1px solid var(--glass-card-border)',
+  boxShadow: 'var(--glass-card-shadow-sm)',
+  borderRadius: '14px',
+  overflow: 'hidden',
+}
+
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -26,7 +37,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '12px' }}>
         {title}
       </div>
-      <div style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+      <div style={CARD}>
         {children}
       </div>
     </div>
@@ -38,7 +49,7 @@ function Row({ label, children, last }: { label: string; children: React.ReactNo
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       gap: '16px', padding: '14px 18px',
-      borderBottom: last ? 'none' : '1px solid var(--border)',
+      borderBottom: last ? 'none' : '1px solid var(--glass-card-border-subtle)',
     }}>
       <span style={{ fontSize: '13.5px', color: 'var(--text-1)', fontWeight: 500, flexShrink: 0 }}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -48,17 +59,114 @@ function Row({ label, children, last }: { label: string; children: React.ReactNo
   )
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
+// ── Avatar with upload ────────────────────────────────────────────────────────
 
-function Avatar({ url, name }: { url: string | null; name: string }) {
+function AvatarUpload({
+  url, name, onUpload,
+}: {
+  url: string | null
+  name: string
+  onUpload: (newUrl: string) => void
+}) {
+  const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
   const initial = name.charAt(0).toUpperCase() || '?'
-  if (url) {
-    return <img src={url} alt={name} style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${user.id}/avatar.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      // bust cache so img re-fetches
+      onUpload(`${publicUrl}?t=${Date.now()}`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
+
   return (
-    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #4a6e5a 0%, #2a4a3a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 600, color: '#a0d4b8', flexShrink: 0 }}>
-      {initial}
-    </div>
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={handleFile}
+        style={{ display: 'none' }}
+        aria-label="Upload avatar"
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        title="Upload photo"
+        style={{
+          position: 'relative', width: '44px', height: '44px',
+          borderRadius: '50%', border: 'none', padding: 0,
+          cursor: uploading ? 'default' : 'pointer', flexShrink: 0,
+          background: 'none',
+        }}
+      >
+        {/* Avatar image or initial */}
+        {url ? (
+          <img
+            src={url} alt={name}
+            style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #4a6e5a 0%, #2a4a3a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 600, color: '#a0d4b8' }}>
+            {uploading ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}>
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            ) : initial}
+          </div>
+        )}
+
+        {/* Upload overlay on hover */}
+        {!uploading && (
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: 0, transition: 'opacity 0.15s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+        )}
+
+        {uploading && url && (
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}>
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          </div>
+        )}
+      </button>
+    </>
   )
 }
 
@@ -85,17 +193,27 @@ function ProfileSection({ name: initialName, avatarUrl: initialUrl, coverUrl }: 
     })
   }
 
+  async function handleAvatarUpload(newUrl: string) {
+    setAvatarUrl(newUrl)
+    try {
+      await updateProfile(name, newUrl, coverUrl)
+      toast.success('Photo updated')
+    } catch {
+      toast.error('Failed to save photo')
+    }
+  }
+
   return (
     <Section title="Profile">
-      <div style={{ padding: '14px 18px', borderBottom: editing ? '1px solid var(--border)' : 'none', display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <Avatar url={avatarUrl || null} name={name} />
+      <div style={{ padding: '14px 18px', borderBottom: editing ? '1px solid var(--glass-card-border-subtle)' : 'none', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <AvatarUpload url={avatarUrl || null} name={name} onUpload={handleAvatarUpload} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-0)' }}>{name || '—'}</div>
           <button
             onClick={() => setEditing(e => !e)}
             style={{ fontSize: '12px', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: '2px' }}
           >
-            {editing ? 'Cancel' : 'Edit profile'}
+            {editing ? 'Cancel' : 'Edit name'}
           </button>
         </div>
       </div>
@@ -107,16 +225,7 @@ function ProfileSection({ name: initialName, avatarUrl: initialUrl, coverUrl }: 
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '8px', padding: '9px 12px', fontSize: '14px', color: 'var(--text-0)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Avatar URL</span>
-            <input
-              value={avatarUrl}
-              onChange={e => setAvatarUrl(e.target.value)}
-              placeholder="https://…"
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '8px', padding: '9px 12px', fontSize: '14px', color: 'var(--text-0)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              style={{ background: 'var(--bg-2)', border: '1px solid var(--glass-card-border)', borderRadius: '8px', padding: '9px 12px', fontSize: '14px', color: 'var(--text-0)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             />
           </label>
           <button
@@ -130,7 +239,7 @@ function ProfileSection({ name: initialName, avatarUrl: initialUrl, coverUrl }: 
               alignSelf: 'flex-start', transition: 'all 0.15s',
             }}
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       )}
@@ -164,8 +273,7 @@ function AppearanceSection({ name, avatarUrl, initialCoverUrl }: { name: string;
         <ThemeToggle />
       </Row>
 
-      {/* Wallpaper picker */}
-      <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ padding: '14px 18px', borderTop: '1px solid var(--glass-card-border-subtle)' }}>
         <div style={{ fontSize: '13.5px', color: 'var(--text-1)', fontWeight: 500, marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Wallpaper</span>
           {saving && <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Saving…</span>}
@@ -178,20 +286,16 @@ function AppearanceSection({ name, avatarUrl, initialCoverUrl }: { name: string;
                 key={preset.id}
                 type="button"
                 onClick={() => selectPreset(preset.url)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
               >
                 <div style={{
                   width: '100%', aspectRatio: '3/4',
                   borderRadius: '9px',
                   border: selected ? '2px solid var(--gold)' : '2px solid transparent',
                   background: `url(${preset.url}) center/cover no-repeat`,
-                  boxShadow: selected ? '0 0 0 1px var(--gold)' : '0 0 0 1px var(--border)',
+                  boxShadow: selected ? '0 0 0 1px var(--gold)' : '0 0 0 1px var(--glass-card-border)',
                   transition: 'border-color 0.12s, box-shadow 0.12s',
-                  position: 'relative',
-                  overflow: 'hidden',
+                  position: 'relative', overflow: 'hidden',
                 }}>
                   {selected && (
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(212,168,83,0.15)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: '5px' }}>
@@ -242,14 +346,14 @@ function ChangePasswordSection() {
   }
 
   const iStyle: React.CSSProperties = {
-    background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '8px',
+    background: 'var(--bg-2)', border: '1px solid var(--glass-card-border)', borderRadius: '8px',
     padding: '9px 12px', fontSize: '14px', color: 'var(--text-0)', outline: 'none',
     width: '100%', boxSizing: 'border-box', fontFamily: 'inherit',
   }
 
   return (
     <Section title="Security">
-      <div style={{ padding: '14px 18px', borderBottom: open ? '1px solid var(--border)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '14px 18px', borderBottom: open ? '1px solid var(--glass-card-border-subtle)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '13.5px', color: 'var(--text-1)', fontWeight: 500 }}>Password</span>
         <button
           onClick={() => setOpen(o => !o)}
@@ -296,7 +400,6 @@ export default function SettingsView({
   return (
     <div className="page-pad" style={{ maxWidth: '560px', animation: 'fadeUp 0.3s var(--ease) both' }}>
 
-      {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '30px', fontWeight: 400, color: 'var(--text-0)', margin: '0 0 4px' }}>
           Settings

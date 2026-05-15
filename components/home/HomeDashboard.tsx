@@ -32,8 +32,15 @@ function energyToLabel(level: number | null): string {
   return 'Running on empty'
 }
 
+function energyColor(level: number): string {
+  if (level >= 7) return 'var(--sage)'
+  if (level >= 5) return 'var(--gold)'
+  return 'oklch(0.68 0.10 45)'
+}
+
 function EnergyDial({ level }: { level: number }) {
   const filled = Math.round((level / 10) * 5)
+  const color = energyColor(level)
   return (
     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
       {[1, 2, 3, 4, 5].map(d => (
@@ -41,7 +48,7 @@ function EnergyDial({ level }: { level: number }) {
           height: '6px',
           borderRadius: '3px',
           transition: 'all 0.3s',
-          background: d <= filled ? 'var(--gold)' : 'oklch(1 0 0 / 0.12)',
+          background: d <= filled ? color : 'oklch(1 0 0 / 0.12)',
           width: d <= filled ? '20px' : '8px',
         }} />
       ))}
@@ -215,9 +222,14 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
                 Energy
               </p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-0)', margin: 0 }}>
-                  {energyToLabel(energyLevel)}
-                </p>
+                <div>
+                  <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-0)', margin: '0 0 4px' }}>
+                    {energyToLabel(energyLevel)}
+                  </p>
+                  <p style={{ fontSize: '12px', color: energyColor(energyLevel), margin: 0, fontWeight: 500 }}>
+                    {energyLevel}/10
+                  </p>
+                </div>
                 <EnergyDial level={energyLevel} />
               </div>
             </div>

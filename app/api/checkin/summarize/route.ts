@@ -3,13 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { readUserMemory, patchUserMemory } from '@/lib/ai/memory'
 import type { UserMemory } from '@/lib/ai/memory'
+import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-const SUMMARIZE_SYSTEM = `You create concise narrative memory entries from daily check-in conversations.
+const SUMMARIZE_SYSTEM = LOCUS_CHARACTER + `\n\nYou create concise narrative memory entries from daily check-in conversations.
 
 Read the conversation and write 2-3 sentences that capture:
 - The qualitative texture of the day — not just the energy number, but the WHY behind it

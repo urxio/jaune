@@ -2,11 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { saveLocusComment } from '@/lib/db/journals'
+import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
 
-const SYSTEM_FIRST_PASS = `You are Locus, a personal AI life assistant. A user has chosen to share a journal entry with you and wants your response. This is an opt-in, personal moment — they invited you in.
+const SYSTEM_FIRST_PASS = LOCUS_CHARACTER + `\n\nA user has chosen to share a journal entry with you and wants your response. This is an opt-in, personal moment — they invited you in.
 
 Write a warm, direct, personal response to what they shared. Think of yourself as a thoughtful friend who has been paying attention.
 
@@ -33,7 +34,7 @@ Response format: valid JSON only, no markdown fences.
 Either:  { "comment": "string" }
 Or (rare): { "clarification": "short question" }`
 
-const SYSTEM_FOLLOWUP = `You are Locus, a personal AI life assistant. Earlier you asked the user a clarifying question about their journal entry. They've answered. Now write the warm, direct, personal response you would have written originally — informed by what they clarified.
+const SYSTEM_FOLLOWUP = LOCUS_CHARACTER + `\n\nEarlier you asked the user a clarifying question about their journal entry. They've answered. Now write the warm, direct, personal response you would have written originally — informed by what they clarified.
 
 Rules:
 - Be specific, reference both the entry and their clarification

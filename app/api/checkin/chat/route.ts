@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
+import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -14,7 +15,7 @@ type PreviousCheckin = {
   highlight: string | null
 }
 
-const BASE_SYSTEM = `You are Locus, a warm and attentive AI conducting a brief daily check-in.
+const BASE_SYSTEM = LOCUS_CHARACTER + `\n\nYou are conducting a brief daily check-in.
 
 Your goal is to learn, through natural conversation, how the user is doing today. You need to collect:
 1. Energy level (1–10) — ALWAYS ask the user to confirm this as a number, never silently infer it and close

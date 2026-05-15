@@ -2,11 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { getRecentJournals } from '@/lib/db/journals'
+import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
 
-const SYSTEM = `You are Locus, a personal AI life assistant. You have access to a user's recent journal entries. Your job is to surface ONE meaningful observation or pattern — something specific that would genuinely help them understand themselves better.
+const SYSTEM = LOCUS_CHARACTER + `\n\nYou have access to a user's recent journal entries. Your job is to surface ONE meaningful observation or pattern — something specific that would genuinely help them understand themselves better.
 
 Rules:
 - Be specific: reference what they actually wrote, not generic advice

@@ -1,13 +1,14 @@
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
+import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-const SYSTEM = `You are Locus, a warm and thoughtful AI helping a new user set up their personal life OS. Your job is to learn about them through friendly conversation — who they are, what they're working towards, and what habits matter to them.
+const SYSTEM = LOCUS_CHARACTER + `\n\nYou are helping a new user set up their personal life OS. Your job is to learn about them through friendly conversation — who they are, what they're working towards, and what habits matter to them.
 
 You need to collect (in a natural, flowing conversation):
 1. **Goals** — what they want to achieve (1–5 goals). For each, infer: title, category (one of: product, health, learning, financial, wellbeing, other), timeframe (quarter, year, or ongoing).

@@ -3,7 +3,6 @@
 import { useState, useRef, useTransition } from 'react'
 import { updateProfile } from '@/app/actions/settings'
 import { signOut } from '@/app/actions/auth'
-import ThemeToggle from '@/components/layout/ThemeToggle'
 import { useToast } from '@/components/ui/ToastContext'
 import { createClient } from '@/lib/supabase/client'
 
@@ -269,11 +268,7 @@ function AppearanceSection({ name, avatarUrl, initialCoverUrl }: { name: string;
 
   return (
     <Section title="Appearance">
-      <Row label="Theme">
-        <ThemeToggle />
-      </Row>
-
-      <div style={{ padding: '14px 18px', borderTop: '1px solid var(--glass-card-border-subtle)' }}>
+      <div style={{ padding: '14px 18px' }}>
         <div style={{ fontSize: '13.5px', color: 'var(--text-1)', fontWeight: 500, marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Wallpaper</span>
           {saving && <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Saving…</span>}
@@ -398,7 +393,7 @@ export default function SettingsView({
   const [signingOut, startSignOut] = useTransition()
 
   return (
-    <div className="page-pad" style={{ maxWidth: '560px', animation: 'fadeUp 0.3s var(--ease) both' }}>
+    <div className="page-pad" style={{ maxWidth: '560px', margin: '0 auto', animation: 'fadeUp 0.3s var(--ease) both' }}>
 
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '30px', fontWeight: 400, color: 'var(--text-0)', margin: '0 0 4px' }}>

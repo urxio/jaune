@@ -17,7 +17,7 @@ export default async function CheckinHistoryPage() {
   ])
 
   return (
-    <div className="page-pad" style={{ maxWidth: '860px', animation: 'fadeUp 0.3s var(--ease) both' }}>
+    <div className="page-pad" style={{ maxWidth: '860px', margin: '0 auto', animation: 'fadeUp 0.3s var(--ease) both' }}>
 
       {/* Page header */}
       <div style={{ marginBottom: '36px' }}>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import type { Goal, CheckIn, HabitWithLogs, Brief } from '@/lib/types'
 import { logHabitAction, unlogHabitAction } from '@/app/actions/habits'
+import { localDateStr } from '@/lib/utils/date'
 
 type Props = {
   goals:        Goal[]
@@ -11,10 +12,6 @@ type Props = {
   habits:       HabitWithLogs[]
   brief?:       Brief | null
   userName?:    string | null
-}
-
-function todayStr() {
-  return new Date().toISOString().split('T')[0]
 }
 
 function greeting(hour: number): string {
@@ -139,7 +136,7 @@ function usePulse(hasCheckin: boolean) {
 export default function HomeDashboard({ goals, checkin, habits, brief, userName }: Props) {
   const now        = new Date()
   const hour       = now.getHours()
-  const today      = todayStr()
+  const today      = localDateStr()
   const firstName  = userName?.split(' ')[0] ?? ''
   const hasCheckin = !!checkin
 

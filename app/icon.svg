@@ -1,37 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <!-- Back petal: deep burgundy-mahogany -->
-    <radialGradient id="pb" cx="50" cy="50" r="46" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#0E0604"/>
-      <stop offset="45%"  stop-color="#2A100A"/>
-      <stop offset="80%"  stop-color="#3D1C12"/>
-      <stop offset="100%" stop-color="#52281A"/>
-    </radialGradient>
-
-    <!-- Front petal: rich dark warm -->
-    <radialGradient id="pf" cx="50" cy="50" r="46" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#140805"/>
-      <stop offset="40%"  stop-color="#321410"/>
-      <stop offset="72%"  stop-color="#4A1E14"/>
-      <stop offset="100%" stop-color="#6B2E1E"/>
-    </radialGradient>
-
-    <!-- Petal edge highlight: subtle warm rim -->
-    <radialGradient id="rim" cx="50" cy="50" r="46" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#6B2E1E" stop-opacity="0"/>
-      <stop offset="80%"  stop-color="#6B2E1E" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#8B4030" stop-opacity="0.35"/>
-    </radialGradient>
-
-    <!-- Center absolute dark -->
-    <radialGradient id="cg" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#060201" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#0E0604" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Directional highlight: subtle sheen from upper-left -->
+    <!-- Subtle sheen for 3D depth -->
     <radialGradient id="hl" cx="32" cy="28" r="42" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.14"/>
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
@@ -39,37 +10,22 @@
   <!-- White background -->
   <circle cx="50" cy="50" r="50" fill="#FFFFFF"/>
 
-  <!-- Back layer — 4 petals at 45° offsets -->
-  <g fill="url(#pb)" opacity="0.85">
+  <!-- Back layer — 4 petals at 45° offsets, slightly lighter black -->
+  <g fill="#1A1A1A" opacity="0.75">
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(45,50,50)"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(135,50,50)"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(225,50,50)"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(315,50,50)"/>
   </g>
 
-  <!-- Front layer — 4 petals at cardinal angles -->
-  <g fill="url(#pf)">
+  <!-- Front layer — 4 petals at cardinal angles, true black -->
+  <g fill="#0A0A0A">
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(90,50,50)"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(180,50,50)"/>
     <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(270,50,50)"/>
   </g>
 
-  <!-- Warm rim on petal edges -->
-  <g fill="url(#rim)">
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(90,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(180,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(270,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(45,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(135,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(225,50,50)"/>
-    <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(315,50,50)"/>
-  </g>
-
-  <!-- Center dark core -->
-  <circle cx="50" cy="50" r="13" fill="url(#cg)"/>
-
-  <!-- Upper-left sheen for 3D depth -->
+  <!-- Upper-left sheen for sculptural depth -->
   <circle cx="50" cy="50" r="50" fill="url(#hl)"/>
 </svg>

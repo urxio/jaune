@@ -70,16 +70,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastShell>
-      {/* OS Landscape Background — visible in light mode (html bg covers it in dark) */}
-      <div
+      {/* OS Landscape Background */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         aria-hidden
+        src={bgUrl}
+        alt=""
+        fetchPriority="high"
+        decoding="async"
         style={{
           position: 'fixed',
           inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center',
           zIndex: -1,
-          backgroundImage: `url(${bgUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
         }}
       />
       {/* Light mode gradient overlay */}

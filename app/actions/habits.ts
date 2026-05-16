@@ -27,6 +27,7 @@ export async function logHabitAction(habitId: string, date?: string) {
   revalidatePath('/habits')
   revalidatePath('/brief')
   revalidatePath('/goals')
+  revalidatePath('/', 'layout')
 }
 
 export async function unlogHabitAction(habitId: string, date?: string) {
@@ -49,6 +50,7 @@ export async function unlogHabitAction(habitId: string, date?: string) {
   revalidatePath('/habits')
   revalidatePath('/brief')
   revalidatePath('/goals')
+  revalidatePath('/', 'layout')
 }
 
 /** Check if the habit's linked goal uses tracking_mode='habits'; if so, sync.
@@ -162,6 +164,7 @@ export async function updateHabitAction(habitId: string, data: HabitFormData) {
   revalidatePath('/habits')
   revalidatePath('/brief')
   revalidatePath('/goals')
+  revalidatePath('/', 'layout')
 }
 
 /**

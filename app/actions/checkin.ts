@@ -58,4 +58,5 @@ export async function submitCheckin(input: CheckinInput) {
 
   revalidatePath('/brief')
   revalidatePath('/checkin')
+  revalidatePath('/', 'layout')
 }

@@ -49,13 +49,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase
       .from('habits')
       .select('id, days_of_week')
-      .eq('user_id', user.id)
-      .eq('archived', false),
+      .eq('user_id', user.id),
     supabase
       .from('habit_logs')
       .select('habit_id')
       .eq('user_id', user.id)
-      .eq('date', today),
+      .eq('logged_date', today),
   ])
 
   const checkinDoneToday = !!checkinRow

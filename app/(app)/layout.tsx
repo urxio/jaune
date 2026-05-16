@@ -6,7 +6,7 @@ import TimezoneSync from '@/components/layout/TimezoneSync'
 import ToastShell from '@/components/ui/ToastShell'
 import { dateInTz } from '@/lib/utils/date'
 
-const DEFAULT_BG = '/wallpapers/locus-1.jpg'
+const DEFAULT_BG = '/wallpapers/locus-5.jpg'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

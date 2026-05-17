@@ -130,15 +130,15 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
         border: `1px solid ${hovered ? 'rgba(255,255,255,0.22)' : 'var(--glass-card-border)'}`,
         boxShadow: 'var(--glass-card-shadow-sm)',
         borderRadius: '16px',
-        padding: '20px',
+        padding: '14px 16px',
         transition: 'border-color 0.2s var(--ease)',
         opacity: habit.isScheduledToday ? 1 : 0.65,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
     >
-      {/* ── Top row: icon · name · streak · actions ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+      {/* ── Top row: icon · name · calendar · streak · actions ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
         {/* Colored icon square — click to toggle today */}
         <button
@@ -146,7 +146,7 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           title={todayDone ? 'Mark undone' : 'Mark done today'}
           disabled={pendingSet.has(`${habit.id}:${today}`)}
           style={{
-            width: '48px', height: '48px', borderRadius: '13px', flexShrink: 0,
+            width: '40px', height: '40px', borderRadius: '11px', flexShrink: 0,
             background: todayDone ? habitColor : `${habitColor}28`,
             border: `2px solid ${todayDone ? habitColor : `${habitColor}55`}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -157,17 +157,17 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           }}
         >
           {todayDone
-            ? <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            ? <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
                 <path d="M5 11.5l4.5 4.5 7.5-9" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            : <span style={{ fontSize: '22px', lineHeight: 1 }}>{habit.emoji}</span>
+            : <span style={{ fontSize: '20px', lineHeight: 1 }}>{habit.emoji}</span>
           }
         </button>
 
         {/* Name + meta */}
-        <div style={{ flex: 1, minWidth: 0, paddingTop: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap', marginBottom: '4px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-0)', lineHeight: 1.2 }}>{habit.name}</span>
+        <div style={{ minWidth: 0, width: '140px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-0)', lineHeight: 1.2 }}>{habit.name}</span>
             {!habit.isScheduledToday && (
               <span style={{ fontSize: '10px', color: 'var(--text-3)', fontStyle: 'italic' }}>not today</span>
             )}
@@ -178,8 +178,8 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-3)', fontWeight: 500 }}>{freqDisplay(habit)}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500 }}>{freqDisplay(habit)}</span>
             {endDays !== null && (
               <span style={{ fontSize: '10px', fontWeight: 600, color: endDays <= 3 ? '#e07060' : 'var(--text-3)', background: endDays <= 3 ? 'rgba(200,80,60,0.08)' : 'var(--bg-3)', border: `1px solid ${endDays <= 3 ? 'rgba(200,80,60,0.2)' : 'var(--border)'}`, borderRadius: '5px', padding: '1px 6px' }}>
                 {endDays <= 0 ? 'Ended' : endDays === 1 ? 'Ends tomorrow' : endDays <= 7 ? `${endDays}d left` : `Until ${habit.ends_at}`}
@@ -188,9 +188,65 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           </div>
         </div>
 
+        {/* Mini-calendar — inline, occupies the empty space */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '4px' }}>
+            {curMonthName}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 11px)', gap: '2px', marginBottom: '2px' }}>
+            {DOW_LABELS.map((d, i) => (
+              <div key={i} style={{ width: '11px', textAlign: 'center', fontSize: '7px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.02em' }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 11px)', gap: '2px' }}>
+            {Array.from({ length: curFirstDow }, (_, i) => (
+              <div key={`pad-${i}`} style={{ width: '11px', height: '11px', flexShrink: 0 }} />
+            ))}
+            {Array.from({ length: curDaysInMonth }, (_, i) => {
+              const dayNum  = i + 1
+              const dateStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+              const done      = loggedDates.has(dateStr)
+              const isToday   = dateStr === today
+              const isFuture  = dateStr > today
+              const scheduled = isScheduledOn(dateStr, habit.days_of_week ?? null)
+              const pending   = pendingSet.has(`${habit.id}:${dateStr}`)
+              return (
+                <div
+                  key={dateStr}
+                  role="button"
+                  tabIndex={isFuture ? -1 : 0}
+                  onClick={() => !isFuture && onToggle(dateStr)}
+                  onKeyDown={e => !isFuture && (e.key === 'Enter' || e.key === ' ') && onToggle(dateStr)}
+                  title={`${dateStr} — ${done ? 'logged ✓' : scheduled ? 'not logged' : 'not scheduled'}`}
+                  style={{
+                    width: '11px', height: '11px',
+                    borderRadius: '2px',
+                    border: isToday
+                      ? `1.5px solid ${habitColor}`
+                      : !scheduled && !isFuture
+                      ? '1px dashed rgba(255,255,255,0.12)'
+                      : 'none',
+                    background: done
+                      ? habitColor
+                      : scheduled && !isFuture
+                        ? 'var(--bg-3)'
+                        : !scheduled && !isFuture
+                        ? 'transparent'
+                        : 'var(--bg-2)',
+                    cursor: pending ? 'wait' : isFuture ? 'default' : 'pointer',
+                    opacity: pending ? 0.4 : isFuture ? 0.15 : 1,
+                    transition: 'background 0.15s, opacity 0.15s',
+                    flexShrink: 0,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
+
         {/* Right: streak badge + edit/delete */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-          {/* Streak pill */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
           {streak > 0 && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'oklch(0.78 0.13 70)' }}>
               <svg viewBox="0 0 16 16" fill="none" width="16" height="16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -199,8 +255,7 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
               <span style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1, letterSpacing: '-0.01em' }}>{streak}</span>
             </div>
           )}
-          {/* Edit / delete */}
-          <div style={{ height: '26px', display: 'flex', alignItems: 'center' }}>
+          <div style={{ height: '24px', display: 'flex', alignItems: 'center' }}>
             {confirmDelete ? (
               <ConfirmDelete onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
             ) : (
@@ -213,65 +268,8 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
         </div>
       </div>
 
-      {/* ── Current month mini-calendar ── */}
-      <div style={{ marginTop: '18px' }}>
-        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '5px' }}>
-          {curMonthName}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 12px)', gap: '3px', marginBottom: '3px' }}>
-          {DOW_LABELS.map((d, i) => (
-            <div key={i} style={{ width: '12px', textAlign: 'center', fontSize: '8px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.02em' }}>{d}</div>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 12px)', gap: '3px' }}>
-          {Array.from({ length: curFirstDow }, (_, i) => (
-            <div key={`pad-${i}`} style={{ width: '12px', height: '12px', flexShrink: 0 }} />
-          ))}
-          {Array.from({ length: curDaysInMonth }, (_, i) => {
-            const dayNum  = i + 1
-            const dateStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-            const done      = loggedDates.has(dateStr)
-            const isToday   = dateStr === today
-            const isFuture  = dateStr > today
-            const scheduled = isScheduledOn(dateStr, habit.days_of_week ?? null)
-            const pending   = pendingSet.has(`${habit.id}:${dateStr}`)
-            return (
-              <div
-                key={dateStr}
-                role="button"
-                tabIndex={isFuture ? -1 : 0}
-                onClick={() => !isFuture && onToggle(dateStr)}
-                onKeyDown={e => !isFuture && (e.key === 'Enter' || e.key === ' ') && onToggle(dateStr)}
-                title={`${dateStr} — ${done ? 'logged ✓' : scheduled ? 'not logged' : 'not scheduled'}`}
-                style={{
-                  width: '12px', height: '12px',
-                  borderRadius: '3px',
-                  border: isToday
-                    ? `1.5px solid ${habitColor}`
-                    : !scheduled && !isFuture
-                    ? '1px dashed rgba(255,255,255,0.12)'
-                    : 'none',
-                  background: done
-                    ? habitColor
-                    : scheduled && !isFuture
-                      ? 'var(--bg-3)'
-                      : !scheduled && !isFuture
-                      ? 'transparent'
-                      : 'var(--bg-2)',
-                  cursor: pending ? 'wait' : isFuture ? 'default' : 'pointer',
-                  opacity: pending ? 0.4 : isFuture ? 0.15 : 1,
-                  transition: 'background 0.15s, opacity 0.15s',
-                  flexShrink: 0,
-                  boxSizing: 'border-box',
-                }}
-              />
-            )
-          })}
-        </div>
-      </div>
-
       {/* ── Progress + month toggle ── */}
-      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Progress bar */}
         <div style={{ flex: 1 }}>
           <div style={{ height: '4px', background: 'var(--bg-3)', borderRadius: '4px', overflow: 'hidden' }}>

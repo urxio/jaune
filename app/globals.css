@@ -225,10 +225,17 @@ body {
   --font-display: var(--font-serif);
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Suppress noise overlay on the landing page */
+body:has(.landing-page) {
+  --noise-opacity: 0;
 }
 
 html {
@@ -878,15 +885,11 @@ input[type="range"]::-moz-range-thumb {
 /* ── LANDING PAGE UTILITIES ── */
 .glass {
   position: relative;
-  background: linear-gradient(
-    180deg,
-    oklch(0.22 0.01 250 / 0.55),
-    oklch(0.15 0.008 250 / 0.55)
-  );
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid oklch(1 0 0 / 0.06);
-  box-shadow: 0 20px 60px -20px oklch(0 0 0 / 0.6), 0 1px 0 0 oklch(1 0 0 / 0.06) inset;
+  background: linear-gradient(145deg, oklch(0.26 0.014 75 / 0.90), oklch(0.18 0.010 75 / 0.94));
+  backdrop-filter: blur(40px) saturate(160%);
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 0.14);
+  box-shadow: 0 24px 64px -16px oklch(0 0 0 / 0.65), 0 1px 0 0 oklch(1 0 0 / 0.10) inset;
   border-radius: 1.5rem;
   overflow: hidden;
 }
@@ -895,25 +898,25 @@ input[type="range"]::-moz-range-thumb {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 20%, oklch(1 0 0 / 0.07) 40%, oklch(1 0 0 / 0.02) 55%, transparent 75%);
+  background: linear-gradient(135deg, oklch(1 0 0 / 0.07) 0%, transparent 50%, oklch(1 0 0 / 0.03) 100%);
   pointer-events: none;
-  opacity: 0.9;
 }
 
 .lp-glass-pill {
-  background: oklch(0.22 0.01 250 / 0.65);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid oklch(1 0 0 / 0.08);
+  background: oklch(0.22 0.012 75 / 0.88);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid oklch(1 0 0 / 0.13);
   border-radius: 9999px;
-  box-shadow: 0 10px 30px -10px oklch(0 0 0 / 0.5);
+  box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.55);
 }
 
 .silk-bg {
-  background-color: oklch(0.13 0.008 250);
+  background-color: oklch(0.11 0.012 75);
   background-image:
-    radial-gradient(ellipse 80% 50% at 70% 20%, oklch(0.78 0.13 70 / 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 20% 80%, oklch(0.4 0.05 250 / 0.25), transparent 60%);
+    radial-gradient(ellipse 110% 65% at 65% -5%, oklch(0.38 0.13 75 / 0.22), transparent 65%),
+    radial-gradient(ellipse 85% 60% at -10% 90%, oklch(0.28 0.07 250 / 0.28), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 105% 55%, oklch(0.22 0.06 30 / 0.18), transparent 55%);
 }
 
 .silk-streak {

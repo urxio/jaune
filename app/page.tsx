@@ -519,7 +519,7 @@ export default async function Landing() {
   if (user) redirect("/home");
   return (
     <main
-      className="silk-bg min-h-screen relative overflow-hidden"
+      className="landing-page silk-bg min-h-screen relative overflow-x-hidden"
       style={{ color: "oklch(0.96 0.005 250)", fontFamily: "var(--font-sans)" }}
     >
       <Nav />

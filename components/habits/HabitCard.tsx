@@ -137,70 +137,68 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
     >
-      {/* ── Top row: icon · name · calendar · streak · actions ── */}
+      {/* ── Top row: icon · name · calendar · streak/actions ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
-        {/* Colored icon square — click to toggle today */}
+        {/* Circular icon — click to toggle today */}
         <button
           onClick={() => onToggle(today)}
           title={todayDone ? 'Mark undone' : 'Mark done today'}
           disabled={pendingSet.has(`${habit.id}:${today}`)}
           style={{
             width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
-            background: todayDone ? habitColor : `${habitColor}28`,
-            border: `2px solid ${todayDone ? habitColor : `${habitColor}55`}`,
+            background: todayDone ? habitColor : `${habitColor}22`,
+            border: `1.5px solid ${todayDone ? habitColor : `${habitColor}44`}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: pendingSet.has(`${habit.id}:${today}`) ? 'wait' : 'pointer',
             transition: 'all 0.2s var(--ease)',
-            boxShadow: todayDone ? `0 4px 16px ${habitColor}44` : 'none',
+            boxShadow: todayDone ? `0 0 12px ${habitColor}55` : 'none',
             padding: 0,
           }}
         >
           {todayDone
-            ? <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+            ? <svg width="16" height="16" viewBox="0 0 22 22" fill="none">
                 <path d="M5 11.5l4.5 4.5 7.5-9" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            : <span style={{ fontSize: '20px', lineHeight: 1 }}>{habit.emoji}</span>
+            : <span style={{ fontSize: '19px', lineHeight: 1 }}>{habit.emoji}</span>
           }
         </button>
 
-        {/* Name + meta */}
-        <div style={{ minWidth: 0, width: '140px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-0)', lineHeight: 1.2 }}>{habit.name}</span>
+        {/* Name + meta — grows to fill space */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-0)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</span>
             {!habit.isScheduledToday && (
-              <span style={{ fontSize: '10px', color: 'var(--text-3)', fontStyle: 'italic' }}>not today</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-3)', fontStyle: 'italic', flexShrink: 0 }}>not today</span>
             )}
             {habit.linkedGoal && (
-              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', fontWeight: 600, letterSpacing: '0.04em', background: 'var(--bg-3)', color: 'var(--text-3)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '3px', maxWidth: '120px' }}>
+              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', fontWeight: 600, letterSpacing: '0.04em', background: 'var(--bg-3)', color: 'var(--text-3)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '3px', maxWidth: '100px', flexShrink: 0 }}>
                 <span>↗</span>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.linkedGoal.title}</span>
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500 }}>{freqDisplay(habit)}</span>
-            {endDays !== null && (
-              <span style={{ fontSize: '10px', fontWeight: 600, color: endDays <= 3 ? '#e07060' : 'var(--text-3)', background: endDays <= 3 ? 'rgba(200,80,60,0.08)' : 'var(--bg-3)', border: `1px solid ${endDays <= 3 ? 'rgba(200,80,60,0.2)' : 'var(--border)'}`, borderRadius: '5px', padding: '1px 6px' }}>
-                {endDays <= 0 ? 'Ended' : endDays === 1 ? 'Ends tomorrow' : endDays <= 7 ? `${endDays}d left` : `Until ${habit.ends_at}`}
-              </span>
-            )}
-          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>{freqDisplay(habit)}</span>
+          {endDays !== null && (
+            <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: endDays <= 3 ? '#e07060' : 'var(--text-3)', background: endDays <= 3 ? 'rgba(200,80,60,0.08)' : 'var(--bg-3)', border: `1px solid ${endDays <= 3 ? 'rgba(200,80,60,0.2)' : 'var(--border)'}`, borderRadius: '5px', padding: '1px 6px' }}>
+              {endDays <= 0 ? 'Ended' : endDays === 1 ? 'Ends tomorrow' : endDays <= 7 ? `${endDays}d left` : `Until ${habit.ends_at}`}
+            </span>
+          )}
         </div>
 
-        {/* Mini-calendar — inline, occupies the empty space */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '4px' }}>
+        {/* Mini-calendar — fixed width, separated by subtle left border */}
+        <div style={{ flexShrink: 0, paddingLeft: '12px', borderLeft: '1px solid var(--glass-card-border)' }}>
+          <div style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '4px' }}>
             {curMonthName}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 11px)', gap: '2px', marginBottom: '2px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 10px)', gap: '2px', marginBottom: '2px' }}>
             {DOW_LABELS.map((d, i) => (
-              <div key={i} style={{ width: '11px', textAlign: 'center', fontSize: '7px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.02em' }}>{d}</div>
+              <div key={i} style={{ width: '10px', textAlign: 'center', fontSize: '7px', color: 'var(--text-3)', fontWeight: 500 }}>{d}</div>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 11px)', gap: '2px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 10px)', gap: '2px' }}>
             {Array.from({ length: curFirstDow }, (_, i) => (
-              <div key={`pad-${i}`} style={{ width: '11px', height: '11px', flexShrink: 0 }} />
+              <div key={`pad-${i}`} style={{ width: '10px', height: '10px' }} />
             ))}
             {Array.from({ length: curDaysInMonth }, (_, i) => {
               const dayNum  = i + 1
@@ -219,24 +217,17 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
                   onKeyDown={e => !isFuture && (e.key === 'Enter' || e.key === ' ') && onToggle(dateStr)}
                   title={`${dateStr} — ${done ? 'logged ✓' : scheduled ? 'not logged' : 'not scheduled'}`}
                   style={{
-                    width: '11px', height: '11px',
+                    width: '10px', height: '10px',
                     borderRadius: '2px',
-                    border: isToday
-                      ? `1.5px solid ${habitColor}`
-                      : !scheduled && !isFuture
-                      ? '1px dashed rgba(255,255,255,0.12)'
-                      : 'none',
+                    border: isToday ? `1.5px solid ${habitColor}` : 'none',
                     background: done
                       ? habitColor
                       : scheduled && !isFuture
-                        ? 'var(--bg-3)'
-                        : !scheduled && !isFuture
-                        ? 'transparent'
-                        : 'var(--bg-2)',
+                        ? 'rgba(255,255,255,0.08)'
+                        : 'transparent',
                     cursor: pending ? 'wait' : isFuture ? 'default' : 'pointer',
-                    opacity: pending ? 0.4 : isFuture ? 0.15 : 1,
-                    transition: 'background 0.15s, opacity 0.15s',
-                    flexShrink: 0,
+                    opacity: pending ? 0.4 : isFuture ? 0.12 : !scheduled && !isFuture ? 0.25 : 1,
+                    transition: 'background 0.15s',
                     boxSizing: 'border-box',
                   }}
                 />
@@ -245,21 +236,21 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           </div>
         </div>
 
-        {/* Right: streak badge + edit/delete */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+        {/* Streak + actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0, minWidth: '36px' }}>
           {streak > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'oklch(0.78 0.13 70)' }}>
-              <svg viewBox="0 0 16 16" fill="none" width="16" height="16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'oklch(0.78 0.13 70)' }}>
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M8 14c-2.5 0-5-1.8-5-5 0-2.2 1.8-4 3-5.5.6 1 1.2 1.8 2 2.5.8-1.2.8-2.8.8-4 1.2 1 3.2 3.2 3.2 7 0 2.8-2 5-4 5Z" />
               </svg>
-              <span style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1, letterSpacing: '-0.01em' }}>{streak}</span>
+              <span style={{ fontSize: '15px', fontWeight: 600, lineHeight: 1, letterSpacing: '-0.02em' }}>{streak}</span>
             </div>
           )}
-          <div style={{ height: '24px', display: 'flex', alignItems: 'center' }}>
+          <div style={{ height: '22px', display: 'flex', alignItems: 'center' }}>
             {confirmDelete ? (
               <ConfirmDelete onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
             ) : (
-              <div style={{ display: 'flex', gap: '4px', opacity: hovered ? 1 : 0, pointerEvents: hovered ? 'auto' : 'none', transition: 'opacity 0.15s' }}>
+              <div style={{ display: 'flex', gap: '2px', opacity: hovered ? 1 : 0, pointerEvents: hovered ? 'auto' : 'none', transition: 'opacity 0.15s' }}>
                 <IconBtn title="Edit" onClick={onEdit}><PencilIcon /></IconBtn>
                 <IconBtn title="Delete" danger onClick={() => setConfirmDelete(true)}><TrashIcon /></IconBtn>
               </div>
@@ -269,14 +260,15 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
       </div>
 
       {/* ── Progress + month toggle ── */}
-      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Progress bar */}
+      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Progress bar + label */}
         <div style={{ flex: 1 }}>
-          <div style={{ height: '4px', background: 'var(--bg-3)', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', borderRadius: '4px', width: `${progressPct}%`, background: habitColor, transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)' }} />
+          <div style={{ height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: '4px', width: `${progressPct}%`, background: `linear-gradient(90deg, ${habitColor}99, ${habitColor})`, transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)' }} />
           </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px', fontWeight: 500 }}>
-            {progressPct}% completion · last 28 days
+          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px', fontWeight: 400, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ color: progressPct > 0 ? habitColor : 'var(--text-3)', fontWeight: progressPct > 0 ? 600 : 400 }}>{progressPct}%</span>
+            <span>· last 28 days</span>
           </div>
         </div>
         {/* Month dropdown toggle */}

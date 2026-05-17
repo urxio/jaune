@@ -146,7 +146,7 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           title={todayDone ? 'Mark undone' : 'Mark done today'}
           disabled={pendingSet.has(`${habit.id}:${today}`)}
           style={{
-            width: '40px', height: '40px', borderRadius: '11px', flexShrink: 0,
+            width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
             background: todayDone ? habitColor : `${habitColor}28`,
             border: `2px solid ${todayDone ? habitColor : `${habitColor}55`}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
-  { href: '/',        label: 'Home',     icon: <HomeIcon /> },
+  { href: '/home',    label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
   { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
   { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
@@ -17,7 +17,7 @@ export default function BottomNav({ overdueStepCount = 0 }: { overdueStepCount?:
   return (
     <nav className="bottom-nav">
       {NAV_ITEMS.map(item => {
-        const active = item.href === '/' ? pathname === '/' : pathname === item.href
+        const active = item.href === '/home' ? pathname === '/home' : pathname === item.href
         const showBadge = item.href === '/goals' && overdueStepCount > 0
         return (
           <Link

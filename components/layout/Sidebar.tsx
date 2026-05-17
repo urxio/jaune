@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 
 const MAIN_NAV = [
-  { href: '/',        label: 'Home',     icon: <HomeIcon /> },
+  { href: '/home',    label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
   { href: '/habits',  label: 'Habits',   icon: <HabitsIcon /> },
   { href: '/goals',   label: 'Goals',    icon: <GoalsIcon /> },
@@ -165,7 +165,7 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, due
           {/* Main nav — horizontal */}
           <nav style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '2px' }}>
             {MAIN_NAV.map(item => {
-              const active = item.href === '/' ? pathname === '/' : pathname === item.href
+              const active = item.href === '/home' ? pathname === '/home' : pathname === item.href
               const showBadge = item.href === '/goals' && overdueStepCount > 0
               return (
                 <DockItem key={item.href} href={item.href} label={item.label} active={active} badge={showBadge}>

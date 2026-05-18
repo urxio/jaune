@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 type Tab = 'home' | 'checkin' | 'habits' | 'goals' | 'review'
@@ -147,23 +147,42 @@ function SignInCTA({ label = 'Sign in to get started →' }: { label?: string })
 
 /* ── HOME VIEW ── */
 
+function useLiveDate() {
+  const [now, setNow] = useState<Date | null>(null)
+  useEffect(() => {
+    setNow(new Date())
+  }, [])
+  return now
+}
+
+function greeting(hour: number): string {
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 function HomeView({
   habitDone, setHabitDone,
 }: {
   habitDone: Record<string, boolean>
   setHabitDone: (id: string) => void
 }) {
+  const now = useLiveDate()
   const todayHabits = DEMO_HABITS.slice(0, 4).map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
+
+  const dateLabel = now
+    ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
+    : ' '
+  const greetingText = now ? greeting(now.getHours()) : 'Welcome'
 
   return (
     <div className="home-shell" style={{ animation: 'fadeUp 0.35s var(--ease) both' }}>
       <header style={{ marginBottom: '40px' }}>
         <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-          SATURDAY, MAY 17
+          {dateLabel}
         </p>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 4.5vw, 54px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)', whiteSpace: 'nowrap' }}>
-          Good morning,{' '}
-          <em style={{ fontStyle: 'italic', color: 'var(--gold)', opacity: 0.9 }}>Alex</em>.
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 4.5vw, 54px)', fontWeight: 400, lineHeight: 1.05, color: 'var(--text-0)' }}>
+          {greetingText}.
         </h1>
       </header>
 
@@ -177,10 +196,14 @@ function HomeView({
             From Locus
           </p>
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(17px, 2vw, 21px)', lineHeight: 1.7, color: 'oklch(0.93 0.012 80 / 0.95)', flex: 1 }}>
-            Welcome to Locus. I&apos;m your daily intelligence — I learn your rhythm from check-ins, hold the shape of your goals and habits, and each morning I write you a brief: what deserves your attention today, what the pattern in your week is telling you, and what can safely wait.
+            Welcome to Locus. I&apos;m your daily intelligence — I learn your rhythm from check-ins, hold the shape of your goals and habits, and each morning I write you a brief: what deserves your attention, what the pattern in your week is telling you, and what can safely wait.
           </p>
           <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(14px, 1.6vw, 17px)', lineHeight: 1.65, color: 'var(--text-3)', marginTop: '20px' }}>
-            This is a preview with example data. Sign in to start your first check-in — that&apos;s where your brief begins.
+            You&apos;re exploring a preview with template data. Explore the tabs to see what your Locus looks like — then{' '}
+            <Link href="/login" style={{ color: 'var(--gold)', textDecoration: 'none' }}>
+              sign in or create an account
+            </Link>
+            {' '}to get your own personalized brief.
           </p>
         </section>
 
@@ -283,14 +306,18 @@ function HomeView({
 /* ── CHECK-IN VIEW ── */
 
 function CheckinView() {
+  const now = useLiveDate()
   const [energy, setEnergy] = useState(7)
   const [submitted, setSubmitted] = useState(false)
+  const dateLabel = now
+    ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
+    : ' '
 
   return (
     <div className="page-pad" style={{ maxWidth: '680px', margin: '0 auto', animation: 'fadeUp 0.35s var(--ease) both' }}>
       <header style={{ marginBottom: '40px' }}>
         <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-          SATURDAY, MAY 17
+          {dateLabel}
         </p>
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: 400, lineHeight: 1.1, color: 'var(--text-0)' }}>
           How are you today?
@@ -403,15 +430,19 @@ function HabitsView({
   habitDone: Record<string, boolean>
   setHabitDone: (id: string) => void
 }) {
+  const now = useLiveDate()
   const habits = DEMO_HABITS.map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
   const doneCount = habits.filter(h => h.done).length
+  const dateLabel = now
+    ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
+    : ' '
 
   return (
     <div className="page-pad" style={{ maxWidth: '680px', margin: '0 auto', animation: 'fadeUp 0.35s var(--ease) both' }}>
       <header style={{ marginBottom: '32px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
           <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-            SATURDAY, MAY 17
+            {dateLabel}
           </p>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: 400, lineHeight: 1.1, color: 'var(--text-0)' }}>
             Habits

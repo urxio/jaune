@@ -472,22 +472,46 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
             Goals
           </p>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {activeGoals.map(g => (
-              <li key={g.id}>
-                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', color: 'var(--text-0)', margin: '0 0 8px', lineHeight: 1.3 }}>{g.title}</p>
-                <div style={{ height: '2px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '2px', overflow: 'hidden', marginBottom: '6px' }}>
-                  <div style={{ height: '100%', width: `${g.progress_pct}%`, background: 'var(--gold)', opacity: 0.8, borderRadius: '2px', transition: 'width 0.4s' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  {g.steps.find(s => !s.completed) && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-3)', fontStyle: 'italic', fontFamily: 'var(--font-serif)', margin: 0 }}>
-                      Next — {g.steps.find(s => !s.completed)?.title}
+            {activeGoals.map(g => {
+              const hasSteps = g.steps.length > 0
+              const weekSteps = hasSteps
+                ? g.steps.filter(s => {
+                    if (!s.completed_at) return false
+                    const d = new Date(s.completed_at)
+                    return d >= monday && d <= sunday
+                  })
+                : []
+              const weekPct = hasSteps
+                ? Math.round((weekSteps.length / g.steps.length) * 100)
+                : null
+              const displayPct = weekPct !== null ? weekPct : g.progress_pct
+              const nextStep = g.steps.find(s => !s.completed)
+              const barColor = weekSteps.length > 0 ? 'var(--gold)' : 'oklch(1 0 0 / 0.25)'
+              return (
+                <li key={g.id}>
+                  <p style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', color: 'var(--text-0)', margin: '0 0 8px', lineHeight: 1.3 }}>{g.title}</p>
+                  <div style={{ height: '2px', background: 'oklch(1 0 0 / 0.08)', borderRadius: '2px', overflow: 'hidden', marginBottom: '6px' }}>
+                    <div style={{ height: '100%', width: `${displayPct}%`, background: barColor, borderRadius: '2px', transition: 'width 0.4s' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-3)', fontStyle: 'italic', fontFamily: 'var(--font-serif)', margin: 0, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {hasSteps
+                        ? weekSteps.length > 0
+                          ? `${weekSteps.length} step${weekSteps.length !== 1 ? 's' : ''} completed this week`
+                          : nextStep
+                            ? `Next — ${nextStep.title}`
+                            : 'No steps this week'
+                        : nextStep
+                          ? `Next — ${nextStep.title}`
+                          : null}
                     </p>
-                  )}
-                  <span style={{ fontSize: '11px', color: 'var(--gold)', opacity: 0.8, marginLeft: 'auto' }}>{g.progress_pct}%</span>
-                </div>
-              </li>
-            ))}
+                    <span style={{ fontSize: '11px', color: weekSteps.length > 0 ? 'var(--gold)' : 'var(--text-3)', opacity: weekSteps.length > 0 ? 0.9 : 0.5, flexShrink: 0 }}>
+                      {weekPct !== null ? `${weekPct}%` : `${g.progress_pct}%`}
+                    </span>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </section>
         </div>

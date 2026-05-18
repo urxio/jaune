@@ -258,6 +258,7 @@ function HomeView({
   const now  = useLiveClock()
   const hour = now?.getHours() ?? null
   const { text: greetingText, lang: greetingLang, visible: greetingVisible } = useCyclingGreeting(hour)
+  const { displayed: locusText, done: locusDone } = useTypewriter(LOCUS_MESSAGE)
   const todayHabits = DEMO_HABITS.slice(0, 4).map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
 
   const dateLabel = now

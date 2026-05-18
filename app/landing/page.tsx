@@ -40,6 +40,272 @@ function EnergyDial({ level }: { level: number }) {
   )
 }
 
+/* ─── Energy curve chart (matches WeeklyReview) ─── */
+function smoothCurvePath(pts: [number, number][]): string {
+  if (pts.length === 0) return ''
+  if (pts.length === 1) return `M ${pts[0][0]} ${pts[0][1]}`
+  const d: string[] = [`M ${pts[0][0]} ${pts[0][1]}`]
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = i === 0 ? pts[0] : pts[i - 1]
+    const [x1, y1] = pts[i]
+    const [x2, y2] = pts[i + 1]
+    const [x3, y3] = i + 2 < pts.length ? pts[i + 2] : pts[i + 1]
+    const cp1x = x1 + (x2 - x0) / 6
+    const cp1y = y1 + (y2 - y0) / 6
+    const cp2x = x2 - (x3 - x1) / 6
+    const cp2y = y2 - (y3 - y1) / 6
+    d.push(`C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`)
+  }
+  return d.join(' ')
+}
+
+function EnergyCurveMock() {
+  const W = 560, H = 220
+  const padL = 28, padR = 12, padT = 24, padB = 36
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  // Mon, Tue: no data. Wed=7, Thu=5, Fri=2, Sat=6, Sun=8
+  const data: { i: number; v: number }[] = [
+    { i: 2, v: 7 }, { i: 3, v: 5 }, { i: 4, v: 2 }, { i: 5, v: 6 }, { i: 6, v: 8 },
+  ]
+  const xOf = (i: number) => padL + (i / (days.length - 1)) * chartW
+  const yOf = (v: number) => padT + (1 - (v - 1) / 9) * chartH
+  const pts: [number, number][] = data.map(p => [xOf(p.i), yOf(p.v)])
+  const linePath = smoothCurvePath(pts)
+  const areaPath = pts.length > 1
+    ? `${linePath} L ${pts[pts.length - 1][0]} ${padT + chartH} L ${pts[0][0]} ${padT + chartH} Z`
+    : ''
+  const gridLines = [2, 4, 6, 8, 10]
+  const peak = data.reduce((b, p) => (!b || p.v > b.v ? p : b), data[0])
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }} aria-label="Energy this week">
+      <defs>
+        <linearGradient id="lc-energyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7eb89a" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#7eb89a" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="lc-lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c8a96e" />
+          <stop offset="100%" stopColor="#7eb89a" />
+        </linearGradient>
+        <filter id="lc-dotGlow">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
+      {gridLines.map(v => (
+        <g key={v}>
+          <line x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)}
+            stroke="oklch(1 0 0 / 0.07)" strokeWidth="1" strokeDasharray={v === 10 || v === 2 ? '0' : '4 4'} />
+          <text x={padL - 6} y={yOf(v) + 4} textAnchor="end" fontSize="9"
+            fill="oklch(1 0 0 / 0.28)" fontFamily="var(--font-sans, sans-serif)">{v}</text>
+        </g>
+      ))}
+
+      <path d={areaPath} fill="url(#lc-energyGrad)" />
+      <path d={linePath} fill="none" stroke="url(#lc-lineGrad)" strokeWidth="2.5"
+        strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* empty-day ticks for Mon/Tue */}
+      {[0, 1].map(i => (
+        <circle key={i} cx={xOf(i)} cy={padT + chartH + 2} r="2" fill="oklch(1 0 0 / 0.1)" />
+      ))}
+
+      {data.map(p => {
+        const x = xOf(p.i), y = yOf(p.v)
+        const color = p.v >= 7 ? '#7eb89a' : p.v >= 5 ? '#c8a96e' : '#c08060'
+        const isPeak = p.i === peak.i
+        return (
+          <g key={p.i}>
+            {isPeak && <circle cx={x} cy={y} r="9" fill={color} opacity="0.15" filter="url(#lc-dotGlow)" />}
+            <circle cx={x} cy={y} r={isPeak ? 5.5 : 4} fill={color} stroke="oklch(0.13 0 0)" strokeWidth="1.5" />
+            <text x={x} y={y - 12} textAnchor="middle" fontSize="11"
+              fontFamily="var(--font-serif, Georgia, serif)" fill={isPeak ? color : 'oklch(1 0 0 / 0.65)'}
+              fontWeight={isPeak ? '600' : '400'}>{p.v}</text>
+          </g>
+        )
+      })}
+
+      {days.map((d, i) => {
+        const has = data.some(p => p.i === i)
+        return (
+          <text key={d} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="10"
+            fill={has ? 'oklch(1 0 0 / 0.5)' : 'oklch(1 0 0 / 0.22)'}
+            fontFamily="var(--font-sans, sans-serif)" fontWeight="500" letterSpacing="0.06em">
+            {d}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+/* ─── Weekly Review mock (matches /review page) ─── */
+function WeeklyReviewMock() {
+  const stats = [
+    { label: 'Check-ins', value: '5', sub: 'of 7 days', color: 'oklch(0.74 0.06 150)' },
+    { label: 'Avg energy', value: '5.6', sub: 'Steady', color: '#f0ede8' },
+    { label: 'Habits done', value: '19%', sub: '8 of 42', color: '#f0ede8' },
+    { label: 'Active goals', value: '3', sub: '22% avg', color: '#f0ede8' },
+  ]
+  const habits = [
+    { emoji: '💪', name: 'Workout', done: 0, target: 3 },
+    { emoji: '🧘', name: 'Spiritual Time', done: 2, target: 7 },
+    { emoji: '📚', name: 'Read 30 min', done: 0, target: 4 },
+    { emoji: '✍️', name: 'Schedule Day', done: 1, target: 7 },
+    { emoji: '🌿', name: 'Self-control', done: 2, target: 7 },
+    { emoji: '📚', name: 'Daily Text (read paper Bible)', done: 0, target: 7 },
+    { emoji: '😴', name: 'Good sleep', done: 3, target: 7 },
+  ]
+  const goals = [
+    { title: 'Prepeare for Associate Engineering Position', next: 'Study SQL and database fundamentals', pct: 0 },
+    { title: 'Love Jehovah More', next: '21 Days of PN Diet', pct: 0 },
+    { title: 'Be more disciplined', next: null, pct: 65 },
+  ]
+  const worked = [
+    'You logged 5 highlights — moments worth building on.',
+    '"Be more disciplined" is past the halfway mark — you’re in motion.',
+  ]
+  const adjust = [
+    'Blockers showed up on 2 days — identifying their root cause could unlock your next gear.',
+    'Workout, Spiritual Time, Read 30 min, Schedule Day, Self-control, Daily Text (read paper Bible), Good sleep fell short of halfway — consider reducing friction or resetting the target.',
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '4px' }}>
+        <div>
+          <p style={{ ...G.subLabel, marginBottom: '10px' }}>Weekly Review</p>
+          <h3 className="lc-h2" style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 'clamp(36px, 5vw, 60px)', fontWeight: 400, color: '#f0ede8', lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
+            This <em style={{ fontStyle: 'italic', color: '#c9a84c' }}>week.</em>
+          </h3>
+        </div>
+        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+          {[0, 1].map(i => (
+            <span key={i} style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(240,237,232,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                {i === 0 ? <path d="M10 4L6 8l4 4" /> : <path d="M6 4l4 4-4 4" />}
+              </svg>
+            </span>
+          ))}
+        </div>
+      </header>
+
+      {/* Stat cards row */}
+      <div className="lc-review-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ ...G.cardSm, padding: '18px 20px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(240,237,232,0.35)', marginBottom: '8px' }}>{s.label}</p>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 'clamp(24px, 2.5vw, 32px)', fontWeight: 400, color: s.color, lineHeight: 1, marginBottom: '6px' }}>{s.value}</p>
+            <p style={{ fontSize: '11px', color: 'rgba(240,237,232,0.35)', margin: 0 }}>{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Energy + Habits card */}
+      <div style={{ ...G.cardSm, padding: '26px 28px' }}>
+        <div className="lc-review-mid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '36px' }}>
+          {/* Energy chart */}
+          <section>
+            <p style={{ ...G.subLabel, marginBottom: '16px' }}>Energy this week</p>
+            <EnergyCurveMock />
+            <div style={{ display: 'flex', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '16px' }}>
+              {[{ label: 'Avg energy', value: '5.6' }, { label: 'Peak day', value: 'Sun' }, { label: 'Logged', value: '5/7' }].map((s, i) => (
+                <div key={s.label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.07)' : 'none', padding: '0 12px' }}>
+                  <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '20px', color: '#f0ede8', margin: '0 0 3px', fontWeight: 400 }}>{s.value}</p>
+                  <p style={{ fontSize: '10px', color: 'rgba(240,237,232,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Habits list */}
+          <section>
+            <p style={{ ...G.subLabel, marginBottom: '16px' }}>Habits</p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {habits.map((h, i) => {
+                const pct = Math.round((h.done / h.target) * 100)
+                const onTrack = pct >= 100
+                const barColor = onTrack ? 'oklch(0.74 0.06 150)' : pct >= 50 ? '#c9a84c' : 'rgba(255,255,255,0.2)'
+                const valueColor = onTrack ? 'oklch(0.74 0.06 150)' : pct >= 50 ? '#c9a84c' : 'rgba(240,237,232,0.35)'
+                return (
+                  <li key={i} style={{ padding: '10px 0', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '15px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
+                      <p style={{ flex: 1, fontSize: '14px', color: 'rgba(240,237,232,0.9)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</p>
+                      <span style={{ fontSize: '11px', fontWeight: 600, flexShrink: 0, minWidth: '36px', textAlign: 'right', color: valueColor }}>
+                        {h.done}/{h.target}
+                      </span>
+                    </div>
+                    <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: barColor, borderRadius: '4px' }} />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      {/* Goals card */}
+      <div style={{ ...G.cardSm, padding: '26px 28px' }}>
+        <p style={{ ...G.subLabel, marginBottom: '16px' }}>Goals</p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {goals.map((g, i) => (
+            <li key={i}>
+              <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '17px', color: '#f0ede8', margin: '0 0 8px', lineHeight: 1.3 }}>{g.title}</p>
+              <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginBottom: '6px' }}>
+                <div style={{ height: '100%', width: `${g.pct}%`, background: g.pct > 0 ? '#c9a84c' : 'rgba(255,255,255,0.25)', borderRadius: '2px' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
+                <p style={{ fontSize: '13px', color: 'rgba(240,237,232,0.35)', fontStyle: 'italic', fontFamily: 'var(--font-serif, Georgia, serif)', margin: 0, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {g.next ? `Next — ${g.next}` : ''}
+                </p>
+                <span style={{ fontSize: '11px', color: g.pct > 0 ? '#c9a84c' : 'rgba(240,237,232,0.35)', opacity: g.pct > 0 ? 0.9 : 0.5, flexShrink: 0 }}>
+                  {g.pct}%
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Weekly Reflection */}
+      <div>
+        <p style={{ ...G.subLabel, marginBottom: '16px' }}>Weekly Reflection from Locus</p>
+        <div className="lc-review-reflect" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {[
+            { items: worked, color: 'oklch(0.74 0.06 150)', icon: '↑', title: 'What worked' },
+            { items: adjust, color: '#c9a84c', icon: '↻', title: 'What to adjust' },
+          ].map((col, i) => (
+            <div key={i} style={{ ...G.cardSm, padding: '22px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '13px', color: col.color, opacity: 0.9 }}>{col.icon}</span>
+                <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: col.color, margin: 0, opacity: 0.9 }}>
+                  {col.title}
+                </p>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {col.items.map((item, j) => (
+                  <li key={j} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '11px', color: col.color, opacity: 0.6, marginTop: '6px', flexShrink: 0 }}>—</span>
+                    <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '16px', fontWeight: 300, lineHeight: 1.65, color: 'rgba(240,237,232,0.9)', margin: 0 }}>{item}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Home-style Daily Brief mock ─── */
 function BriefMock({ compact = false }: { compact?: boolean }) {
   const priorities = [
@@ -289,10 +555,13 @@ export default function LandingPage() {
           .lc-quote-grid { flex-direction: column !important; }
           .lc-cta-row { flex-direction: column !important; align-items: stretch !important; }
           .lc-input { max-width: 100% !important; }
+          .lc-review-mid { grid-template-columns: 1fr !important; gap: 28px !important; }
+          .lc-review-reflect { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
           .lc-h1 { font-size: clamp(36px, 10vw, 60px) !important; }
           .lc-h2 { font-size: clamp(26px, 7vw, 40px) !important; }
+          .lc-review-stats { grid-template-columns: repeat(2, 1fr) !important; }
         }
       `}</style>
 
@@ -548,6 +817,25 @@ export default function LandingPage() {
                   </ul>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════
+            THE WEEKLY REVIEW (preview)
+        ══════════════════════════════════════ */}
+        <section style={{ padding: '60px 40px 100px', position: 'relative' }}>
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '48px' }}>
+              <p className="l-reveal" style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#c9a84c', opacity: 0.85, marginBottom: '12px' }}>The weekly review</p>
+              <h2 className="l-reveal l-d1 lc-h2" style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 'clamp(32px, 4vw, 52px)', fontWeight: 400, color: '#f0ede8', lineHeight: 1.05, marginBottom: '0' }}>
+                Every Sunday, a portrait of{' '}
+                <em style={{ fontStyle: 'italic', color: '#c9a84c', opacity: 0.9 }}>your week.</em>
+              </h2>
+            </div>
+
+            <div className="l-reveal l-d2">
+              <WeeklyReviewMock />
             </div>
           </div>
         </section>

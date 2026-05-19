@@ -20,7 +20,8 @@ type HabitDraft = Omit<HabitInput, 'goal_index'> & { id: string; goalDraftId: st
 
 type Phase = 'chat' | 'review'
 
-const ONBOARDING_DATA_RE = /<onboarding_data>\s*([\s\S]*?)\s*<\/onboarding_data>/
+const ONBOARDING_DATA_RE         = /<onboarding_data>\s*([\s\S]*?)\s*<\/onboarding_data>/
+const ONBOARDING_DATA_PARTIAL_RE = /<onboarding_data>[\s\S]*$/
 
 const GOAL_CATEGORIES = [
   { value: 'product',   label: 'Product / Work' },
@@ -172,7 +173,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         const { done, value } = await reader.read()
         if (done) break
         fullText += decoder.decode(value, { stream: true })
-        const display = fullText.replace(ONBOARDING_DATA_RE, '').trim()
+        const display = fullText.replace(ONBOARDING_DATA_RE, '').replace(ONBOARDING_DATA_PARTIAL_RE, '').trim()
         setMessages(prev => { const next = [...prev]; next[next.length - 1] = { role: 'assistant', content: display }; return next })
       }
       const dataMatch = fullText.match(ONBOARDING_DATA_RE)

@@ -429,18 +429,6 @@ function HomeView({
             </ul>
           </div>
 
-          {/* CTA */}
-          <Link
-            href="/login"
-            className="glass-card"
-            style={{ display: 'block', padding: '20px 24px', textAlign: 'center', textDecoration: 'none', transition: 'border-color 0.2s', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'oklch(0.78 0.11 78 / 0.4)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
-          >
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', fontStyle: 'italic', color: 'var(--gold)' }}>
-              Begin your brief →
-            </span>
-          </Link>
         </div>
       </div>
     </div>
@@ -1085,33 +1073,6 @@ function DemoSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         </div>
       </div>
 
-      {/* Right: Sign-in CTA */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-3)', display: 'none' }} className="preview-label">
-          Preview
-        </span>
-        <Link
-          href="/login"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '5px',
-            fontSize: '13px', fontWeight: 500,
-            color: 'oklch(0.18 0.02 60)',
-            background: 'oklch(0.78 0.13 70)',
-            borderRadius: '99px', padding: '8px 18px',
-            textDecoration: 'none',
-            boxShadow: '0 4px 16px -6px oklch(0.78 0.13 70 / 0.5)',
-            transition: 'opacity 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-        >
-          Begin your brief
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </Link>
-      </div>
     </aside>
   )
 }

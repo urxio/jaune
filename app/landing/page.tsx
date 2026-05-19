@@ -334,7 +334,7 @@ function BriefMock({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <div style={{ ...G.card, padding: '28px 32px' }}>
-        <p style={G.label}>From Locus</p>
+        <p style={G.label}>From Jaune</p>
         <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '17px', lineHeight: 1.65, color: 'rgba(240,237,232,0.95)', margin: '0 0 20px' }}>
           Three low-energy days in a row — not a slump, just a pattern. Your writing habit is holding (day 14), but the investor outreach has been quiet since Tuesday. Today at 7/10 you have enough for one deep thing.
         </p>
@@ -359,7 +359,7 @@ function BriefMock({ compact = false }: { compact?: boolean }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
       {/* Left — insight */}
       <div style={{ ...G.card, padding: '32px 36px', minHeight: '260px', display: 'flex', flexDirection: 'column' }}>
-        <p style={G.label}>From Locus</p>
+        <p style={G.label}>From Jaune</p>
         <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 'clamp(17px, 2vw, 21px)', lineHeight: 1.65, color: 'rgba(240,237,232,0.95)', margin: 0, flex: 1 }}>
           Three low-energy days in a row — not a slump, just a pattern. Your writing habit is holding strong (day 14), but the investor outreach has been quiet since Tuesday. Today at 7/10 you have enough for one deep thing. Here&apos;s what actually matters.
         </p>
@@ -772,7 +772,7 @@ export default function LandingPage() {
 
             <div className="l-reveal l-d2 lc-brief-full" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
               <div style={{ ...G.card, padding: '32px 36px', minHeight: '280px', display: 'flex', flexDirection: 'column' }}>
-                <p style={G.label}>From Locus</p>
+                <p style={G.label}>From Jaune</p>
                 <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 'clamp(17px, 2vw, 21px)', lineHeight: 1.7, color: 'rgba(240,237,232,0.95)', margin: 0, flex: 1 }}>
                   Three low-energy days in a row — not a slump, just a pattern. Your writing habit is holding strong (day 14), but the investor outreach has been quiet since Tuesday. Today at 7/10 you have enough for one deep thing. Here&apos;s what actually matters today, in order.
                 </p>

@@ -330,13 +330,13 @@ function HomeView({
       </header>
 
       <div className="home-body">
-        {/* Left: From Locus welcome */}
+        {/* Left: From Jaune welcome */}
         <section
           className="glass-card"
           style={{ padding: '32px 36px', display: 'flex', flexDirection: 'column', minHeight: '260px' }}
         >
           <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', opacity: 0.85, marginBottom: '18px' }}>
-            From Locus
+            From Jaune
           </p>
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(17px, 2vw, 21px)', lineHeight: 1.7, color: 'oklch(0.93 0.012 80 / 0.95)', flex: 1, minHeight: '6em' }}>
             {locusText}

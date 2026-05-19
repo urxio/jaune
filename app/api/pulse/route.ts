@@ -72,7 +72,7 @@ export async function GET(req: Request) {
   const contextParts = [profileBlock, memoryBlock, clarifyingBlock, todayBlock, calendarBlock].filter(Boolean)
   const context = contextParts.join('\n\n')
 
-  const system = `You are Locus, a warm and perceptive AI life companion. Your job is to write a short, specific, thoughtful message to open the user's home page pulse.
+  const system = `You are Jaune, a warm and perceptive AI life companion. Your job is to write a short, specific, thoughtful message to open the user's home page pulse.
 
 Rules:
 - 2–4 sentences. Enough to feel substantive but not overwhelming.

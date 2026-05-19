@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     ? `Their recent energy avg is ${memory.energy.recent_avg}/10 (${memory.energy.trend}).`
     : ''
 
-  const system = `You are Locus, a warm and perceptive AI life companion. Be concise and human — like a thoughtful friend, not a therapist or productivity coach.`
+  const system = `You are Jaune, a warm and perceptive AI life companion. Be concise and human — like a thoughtful friend, not a therapist or productivity coach.`
 
   const userMsg = [
     `The user missed their habit "${habitEmoji} ${habitName}" yesterday.`,

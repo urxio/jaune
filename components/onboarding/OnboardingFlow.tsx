@@ -437,10 +437,10 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         {/* ── GOALS ── */}
         <ReviewCard title="Goals" count={goals.length}>
           {goals.map((g, i) => (
-            <div key={g.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 0', borderBottom: i < goals.length - 1 ? '1px solid var(--border)' : 'none' }}>
-              <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'var(--gold-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'var(--gold)', flexShrink: 0, marginTop: '1px' }}>{i + 1}</div>
+            <div key={g.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 0', borderBottom: i < goals.length - 1 ? '1px solid var(--glass-card-border-subtle)' : 'none' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: 'var(--gold-dim)', border: '1px solid rgba(212,168,83,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'var(--gold)', flexShrink: 0, marginTop: '1px' }}>{i + 1}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '2px' }}>{g.title}</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '3px' }}>{g.title}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>
                   {GOAL_CATEGORIES.find(c => c.value === g.category)?.label ?? g.category}
                   {' · '}
@@ -448,13 +448,13 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                 </div>
               </div>
               <button onClick={() => removeGoal(g.id)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, flexShrink: 0, padding: '0 2px', opacity: 0.6 }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '16px', cursor: 'pointer', lineHeight: 1, flexShrink: 0, padding: '2px 4px', opacity: 0.5, transition: 'opacity 0.15s' }}
                 aria-label="Remove goal">×</button>
             </div>
           ))}
 
           {addingGoal ? (
-            <div style={{ marginTop: goals.length > 0 ? '12px' : '0', padding: '14px', background: 'var(--bg-2)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ marginTop: goals.length > 0 ? '12px' : '0', padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-card-border-subtle)', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>Goal title</label>
                 <input value={gTitle} onChange={e => setGTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGoal()}
@@ -475,16 +475,16 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={addGoal} disabled={!gTitle.trim()} style={{ flex: 1, padding: '8px', background: gTitle.trim() ? 'var(--gold)' : 'var(--bg-3)', color: gTitle.trim() ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 700, cursor: gTitle.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                <button onClick={addGoal} disabled={!gTitle.trim()} style={{ flex: 1, padding: '10px', background: gTitle.trim() ? 'var(--gold)' : 'rgba(255,255,255,0.06)', color: gTitle.trim() ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: gTitle.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                   Add goal
                 </button>
-                <button onClick={() => { setAddingGoal(false); setGTitle('') }} style={{ padding: '8px 14px', background: 'none', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={() => { setAddingGoal(false); setGTitle('') }} style={{ padding: '10px 16px', background: 'none', border: '1px solid var(--glass-card-border)', borderRadius: '10px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               </div>
             </div>
           ) : goals.length < 5 ? (
             <button onClick={() => setAddingGoal(true)}
-              style={{ marginTop: goals.length > 0 ? '10px' : '0', width: '100%', padding: '8px', background: 'transparent', border: '1px dashed var(--border-md)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-              <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Add a goal
+              style={{ marginTop: goals.length > 0 ? '12px' : '0', width: '100%', padding: '10px', background: 'transparent', border: '1px dashed var(--glass-card-border)', borderRadius: '12px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'border-color 0.15s, color 0.15s' }}>
+              <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span> Add a goal
             </button>
           ) : null}
         </ReviewCard>
@@ -498,21 +498,21 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
             const linkedGoal = goals.find(g => g.id === h.goalDraftId) ?? null
 
             return (
-              <div key={h.id} style={{ padding: '10px 0', borderBottom: i < habits.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '20px', flexShrink: 0 }}>{h.emoji}</span>
+              <div key={h.id} style={{ padding: '14px 0', borderBottom: i < habits.length - 1 ? '1px solid var(--glass-card-border-subtle)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '22px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-0)' }}>{h.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '1px' }}>{freq}</div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-0)' }}>{h.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>{freq}</div>
                   </div>
                   <button onClick={() => setHabits(hs => hs.filter(x => x.id !== h.id))}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, flexShrink: 0, padding: '0 2px', opacity: 0.6 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '16px', cursor: 'pointer', lineHeight: 1, flexShrink: 0, padding: '2px 4px', opacity: 0.5, transition: 'opacity 0.15s' }}
                     aria-label="Remove habit">×</button>
                 </div>
 
                 {/* Goal link row */}
-                <div style={{ marginTop: '7px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>Linked goal:</span>
+                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>Linked goal:</span>
                   <select
                     value={h.goalDraftId ?? ''}
                     onChange={e => {
@@ -520,9 +520,10 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                       setHabits(hs => hs.map(x => x.id === h.id ? { ...x, goalDraftId: val || null } : x))
                     }}
                     style={{
-                      flex: 1, background: linkedGoal ? 'var(--gold-dim)' : 'var(--bg-2)',
-                      border: `1px solid ${linkedGoal ? 'rgba(212,168,83,0.35)' : 'var(--border)'}`,
-                      borderRadius: '6px', padding: '4px 8px', fontSize: '12px',
+                      flex: 1,
+                      background: linkedGoal ? 'var(--gold-dim)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${linkedGoal ? 'rgba(212,168,83,0.35)' : 'var(--glass-card-border)'}`,
+                      borderRadius: '8px', padding: '5px 10px', fontSize: '12.5px',
                       color: linkedGoal ? 'var(--gold)' : 'var(--text-3)',
                       cursor: 'pointer', fontFamily: 'inherit', outline: 'none', appearance: 'none',
                     }}
@@ -538,7 +539,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
           })}
 
           {addingHabit ? (
-            <div style={{ marginTop: habits.length > 0 ? '12px' : '0', padding: '14px', background: 'var(--bg-2)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ marginTop: habits.length > 0 ? '12px' : '0', padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-card-border-subtle)', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '10px' }}>
                 <div>
                   <label style={labelStyle}>Emoji</label>
@@ -558,7 +559,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                     const active = JSON.stringify([...p.days].sort()) === JSON.stringify([...hDays].sort())
                     return (
                       <button key={p.label} onClick={() => setHDays(p.days)}
-                        style={{ flex: 1, padding: '7px 4px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${active ? 'rgba(212,168,83,0.4)' : 'var(--border)'}`, background: active ? 'var(--gold-dim)' : 'var(--bg-3)', color: active ? 'var(--gold)' : 'var(--text-2)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
+                        style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${active ? 'rgba(212,168,83,0.4)' : 'var(--glass-card-border)'}`, background: active ? 'var(--gold-dim)' : 'rgba(255,255,255,0.04)', color: active ? 'var(--gold)' : 'var(--text-2)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
                         {p.label}
                       </button>
                     )
@@ -576,35 +577,35 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
               )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={addHabit} disabled={!hName.trim()}
-                  style={{ flex: 1, padding: '8px', background: hName.trim() ? 'var(--gold)' : 'var(--bg-3)', color: hName.trim() ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 700, cursor: hName.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '10px', background: hName.trim() ? 'var(--gold)' : 'rgba(255,255,255,0.06)', color: hName.trim() ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: hName.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                   Add habit
                 </button>
                 <button onClick={() => { setAddingHabit(false); setHName(''); setHEmoji('✨'); setHDays([]); setHGoalDraftId(null) }}
-                  style={{ padding: '8px 14px', background: 'none', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                  style={{ padding: '10px 16px', background: 'none', border: '1px solid var(--glass-card-border)', borderRadius: '10px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               </div>
             </div>
           ) : habits.length < 5 ? (
             <button onClick={() => setAddingHabit(true)}
-              style={{ marginTop: habits.length > 0 ? '10px' : '0', width: '100%', padding: '8px', background: 'transparent', border: '1px dashed var(--border-md)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-              <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Add a habit
+              style={{ marginTop: habits.length > 0 ? '12px' : '0', width: '100%', padding: '10px', background: 'transparent', border: '1px dashed var(--glass-card-border)', borderRadius: '12px', fontSize: '13px', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'border-color 0.15s, color 0.15s' }}>
+              <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span> Add a habit
             </button>
           ) : null}
         </ReviewCard>
 
         {/* ── CHECK-IN ── */}
         {checkin && (
-          <div style={{ background: 'var(--bg-1)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '16px 20px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>Today&apos;s Check-in</div>
+          <div className="glass-card" style={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Today&apos;s Check-in</div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: '9px', padding: '10px 13px' }}>
-                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: '3px' }}>Energy</div>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: 'var(--text-0)', lineHeight: 1 }}>{checkin.energy_level}<span style={{ fontSize: '12px', color: 'var(--text-3)', fontFamily: 'inherit' }}>/10</span></div>
-                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>{energyLabel}</div>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-card-border-subtle)', borderRadius: '12px', padding: '12px 14px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: '4px' }}>Energy</div>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: 'var(--text-0)', lineHeight: 1 }}>{checkin.energy_level}<span style={{ fontSize: '12px', color: 'var(--text-3)', fontFamily: 'inherit' }}>/10</span></div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '3px' }}>{energyLabel}</div>
               </div>
               {checkin.mood_note && (
-                <div style={{ flex: 2, background: 'var(--bg-2)', borderRadius: '9px', padding: '10px 13px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: '3px' }}>Mood</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-1)', lineHeight: 1.5 }}>{checkin.mood_note}</div>
+                <div style={{ flex: 2, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-card-border-subtle)', borderRadius: '12px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: '4px' }}>Mood</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-1)', lineHeight: 1.55 }}>{checkin.mood_note}</div>
                 </div>
               )}
             </div>
@@ -612,19 +613,19 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         )}
 
         {saveError && (
-          <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.18)', fontSize: '13px', color: '#e07060' }}>{saveError}</div>
+          <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(200,80,60,0.08)', border: '1px solid rgba(200,80,60,0.18)', fontSize: '13px', color: '#e07060' }}>{saveError}</div>
         )}
 
         {/* ── ACTIONS ── */}
         <div style={{ display: 'flex', gap: '10px', paddingTop: '4px' }}>
           <button
             onClick={() => { setPhase('chat'); setChatDone(false); dataRef.current = false; setMessages([]); initFetched.current = false }}
-            style={{ padding: '12px 18px', background: 'none', border: '1px solid var(--border-md)', color: 'var(--text-2)', borderRadius: '10px', fontSize: '13.5px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ padding: '13px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-card-border)', color: 'var(--text-2)', borderRadius: '12px', fontSize: '13.5px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', transition: 'background 0.15s' }}>
             ← Start over
           </button>
           <button onClick={handleLaunch}
             disabled={isPending || goals.length === 0 || habits.length === 0}
-            style={{ flex: 1, padding: '13px', background: (goals.length > 0 && habits.length > 0) ? 'var(--gold)' : 'var(--bg-3)', color: (goals.length > 0 && habits.length > 0) ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: (isPending || goals.length === 0 || habits.length === 0) ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1, fontFamily: 'inherit', transition: 'all 0.2s' }}>
+            style={{ flex: 1, padding: '13px', background: (goals.length > 0 && habits.length > 0) ? 'var(--gold)' : 'rgba(255,255,255,0.06)', color: (goals.length > 0 && habits.length > 0) ? '#131110' : 'var(--text-3)', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: (isPending || goals.length === 0 || habits.length === 0) ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1, fontFamily: 'inherit', transition: 'all 0.2s', letterSpacing: '0.01em' }}>
             {isPending ? 'Setting up your OS…' : 'Launch my Jaune →'}
           </button>
         </div>
@@ -643,10 +644,10 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
 /* ── Section card ── */
 function ReviewCard({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--bg-1)', border: '1px solid var(--border-md)', borderRadius: '12px', padding: '16px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: count > 0 ? '4px' : '0' }}>
-        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{title}</div>
-        <div style={{ fontSize: '11px', color: 'var(--text-3)', background: 'var(--bg-3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>{count}</div>
+    <div className="glass-card" style={{ padding: '20px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: count > 0 ? '8px' : '0' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
+        <div style={{ fontSize: '11px', color: 'var(--text-3)', background: 'rgba(255,255,255,0.07)', border: '1px solid var(--glass-card-border-subtle)', padding: '2px 9px', borderRadius: '10px', fontWeight: 600 }}>{count}</div>
       </div>
       {children}
     </div>

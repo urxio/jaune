@@ -304,7 +304,7 @@ function HomeView({
 
   return (
     <div className="home-shell" style={{ animation: 'fadeUp 0.35s var(--ease) both' }}>
-      <header style={{ marginBottom: '40px' }}>
+      <header style={{ marginBottom: '20px' }}>
         <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
           {dateLabel}
         </p>

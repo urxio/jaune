@@ -1118,8 +1118,8 @@ function MobileSignInBanner() {
         </span>
         <span style={{
           display: 'inline-flex', alignItems: 'center',
-          fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase',
-          padding: '3px 7px', borderRadius: '99px', lineHeight: 1,
+          fontSize: '8px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase',
+          padding: '2px 6px', borderRadius: '99px', lineHeight: 1,
           background: 'oklch(0.78 0.13 70 / 0.18)', color: 'oklch(0.82 0.15 75)',
         }}>
           Preview

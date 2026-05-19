@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import DemoApp from "./DemoApp";
 
 export const metadata: Metadata = {
-  title: "LocusAI — Your life, in focus.",
+  title: "Jaune — Your life, in focus.",
   description:
-    "LocusAI is the AI operating system for ambitious people — learns your rhythm, tells you what matters today, and turns intention into compounding progress.",
+    "Jaune is the AI operating system for ambitious people — learns your rhythm, tells you what matters today, and turns intention into compounding progress.",
   openGraph: {
-    title: "LocusAI — Your life, in focus.",
+    title: "Jaune — Your life, in focus.",
     description: "An AI that learns your rhythm and tells you what matters today.",
   },
 };

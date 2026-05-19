@@ -144,7 +144,7 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
           {mode === 'add' && form.tracking_mode !== 'habits' && (
             <div style={{ background: 'var(--gold-dim)', border: '1px solid rgba(212,168,83,0.2)', borderRadius: '8px', padding: '10px 13px', fontSize: '12.5px', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '14px' }}>✦</span>
-              Locus AI will automatically break this goal into steps when you save.
+              Jaune will automatically break this goal into steps when you save.
             </div>
           )}
           {mode === 'add' && form.tracking_mode === 'habits' && (

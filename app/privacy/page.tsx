@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Locus',
-  description: 'How Locus collects, uses, and protects your personal data.',
+  title: 'Privacy Policy — Jaune',
+  description: 'How Jaune collects, uses, and protects your personal data.',
 }
 
 const LAST_UPDATED = 'May 12, 2025'
 const CONTACT_EMAIL = 'privacy@locusai.space'
-const APP_NAME = 'Locus'
+const APP_NAME = 'Jaune'
 const APP_URL = 'https://locusai.space'
 
 export default function PrivacyPage() {

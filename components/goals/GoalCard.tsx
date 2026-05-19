@@ -411,7 +411,7 @@ export default function GoalCard({
               ))}
               <div style={{ fontSize: '12px', color: 'var(--gold)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--gold)', animation: 'pulse 1s ease-in-out infinite' }} />
-                Locus AI is breaking down your goal…
+                Jaune is breaking down your goal…
               </div>
             </div>
           )}

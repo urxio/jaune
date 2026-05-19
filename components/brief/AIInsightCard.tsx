@@ -102,7 +102,7 @@ export default function AIInsightCard({ text, onRegenerate, updating, sidebar = 
             letterSpacing: '0.05em', textTransform: 'uppercase',
           }}>
             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--gold)', animation: 'pulse 2s ease-in-out infinite' }} />
-            Locus AI · Daily Insight
+            Jaune · Daily Insight
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {updating && (

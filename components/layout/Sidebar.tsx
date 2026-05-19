@@ -9,7 +9,7 @@ function LocusIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
       {/* Small gold petals (diagonal) — scaled around (50,50) */}
-      <g fill="var(--gold)" transform="translate(22.5 22.5) scale(0.55)">
+      <g fill="var(--gold)" transform="translate(15 15) scale(0.7)">
         <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(45,50,50)" />
         <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(135,50,50)" />
         <path d="M50,50 C36,46 34,19 50,7 C66,19 64,46 50,50" transform="rotate(225,50,50)" />

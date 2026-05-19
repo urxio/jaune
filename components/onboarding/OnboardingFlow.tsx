@@ -130,6 +130,11 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
     if (box) box.scrollTop = box.scrollHeight
   }, [messages])
 
+  /* ── Keep input focused throughout the chat ── */
+  useEffect(() => {
+    if (!chatDone) inputRef.current?.focus()
+  }, [streaming, chatDone])
+
   /* ── Transition chat → review ── */
   const enterReview = useCallback((data: OnboardingData) => {
     setProfile(data.profile)
@@ -377,7 +382,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder={streaming ? '' : 'Type your reply…'}
-                  disabled={streaming}
+                  readOnly={streaming}
                   rows={1}
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-0)', resize: 'none', lineHeight: 1.5, overflow: 'hidden', padding: '4px 0' }}
                 />

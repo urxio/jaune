@@ -421,10 +421,10 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
   /*  REVIEW PHASE                                          */
   /* ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ width: '100%', maxWidth: '580px', animation: 'fadeUp 0.35s var(--ease) both' }}>
+    <div style={{ width: '100%', maxWidth: '580px', maxHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column', animation: 'fadeUp 0.35s var(--ease) both' }}>
 
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+      {/* Header — pinned */}
+      <div style={{ textAlign: 'center', marginBottom: '28px', flexShrink: 0 }}>
         <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, var(--gold) 0%, #a07830 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: '0 4px 20px rgba(212,168,83,0.3)' }}>
           <PetalSvg size={28} />
         </div>
@@ -432,7 +432,8 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>Review and edit before launching. You can always change this later.</div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Cards — scrollable */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '8px' }}>
 
         {/* ── GOALS ── */}
         <ReviewCard title="Goals" count={goals.length}>

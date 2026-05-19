@@ -137,13 +137,13 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
   }, [streaming, chatDone])
 
   /* ── Transition chat → review ── */
+  const [readyToReview, setReadyToReview] = useState(false)
+
   const enterReview = useCallback((data: OnboardingData) => {
     setProfile(data.profile)
     setCheckin(data.checkin)
-    // Build stable draft goals first so we can resolve goal_index
     const goalDrafts: GoalDraft[] = data.goals.map(g => ({ ...g, id: crypto.randomUUID() }))
     setGoals(goalDrafts)
-    // Map goal_index → goalDraftId
     setHabits(data.habits.map(h => ({
       id: crypto.randomUUID(),
       emoji: h.emoji,
@@ -152,7 +152,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
       goalDraftId: (h.goal_index != null && goalDrafts[h.goal_index]) ? goalDrafts[h.goal_index].id : null,
     })))
     setChatDone(true)
-    setTimeout(() => setPhase('review'), 800)
+    setReadyToReview(true)
   }, [])
 
   /* ── Stream ── */
@@ -357,12 +357,6 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                 </div>
               )
             })}
-            {chatDone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-3)', animation: 'fadeUp 0.25s var(--ease) both' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--gold)', animation: 'pulse 1.2s ease-in-out infinite' }} />
-                Preparing your summary…
-              </div>
-            )}
             <div style={{ height: '1px' }} />
           </div>
         </div>
@@ -402,10 +396,25 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                 Enter to send · Shift+Enter for new line
               </div>
             </>
+          ) : readyToReview ? (
+            <div style={{ padding: '12px 16px 14px' }}>
+              <button
+                onClick={() => setPhase('review')}
+                style={{
+                  width: '100%', padding: '13px', background: 'var(--gold)',
+                  border: 'none', borderRadius: '12px', fontSize: '14px',
+                  fontWeight: 700, color: '#131110', cursor: 'pointer',
+                  fontFamily: 'inherit', letterSpacing: '0.01em',
+                  transition: 'filter 0.15s',
+                }}
+              >
+                See my setup →
+              </button>
+            </div>
           ) : (
             <div style={{ padding: '13px 20px', fontSize: '13px', color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--gold-dim)', border: '1px solid var(--gold)', display: 'inline-block' }} />
-              Almost done…
+              Wrapping up…
             </div>
           )}
         </div>

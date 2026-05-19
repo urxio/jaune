@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -98,6 +98,14 @@ function DarkInput({ type, placeholder, value, onChange, autoFocus }: {
 }
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const searchParams = useSearchParams()
   const errorParam = searchParams.get('error')
   const urlError = errorParam === 'link_expired'

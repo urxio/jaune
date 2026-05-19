@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 type View = 'login' | 'forgot' | 'forgot-code' | 'forgot-reset' | 'magic-sent'
 
@@ -97,6 +98,14 @@ function DarkInput({ type, placeholder, value, onChange, autoFocus }: {
 }
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const errorParam = searchParams.get('error')
+  const urlError = errorParam === 'link_expired'
+    ? 'Your confirmation link has expired. Please sign up again or request a new one.'
+    : errorParam === 'link_invalid'
+    ? 'This confirmation link is invalid. Please sign up again.'
+    : null
+
   const [view,     setView]     = useState<View>('login')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -104,7 +113,7 @@ export default function LoginPage() {
   const [newPass,  setNewPass]  = useState('')
   const [confirm,  setConfirm]  = useState('')
   const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
+  const [error,    setError]    = useState<string | null>(urlError)
 
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current

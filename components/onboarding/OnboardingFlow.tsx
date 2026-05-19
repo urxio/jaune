@@ -198,7 +198,12 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
     const text = input.trim()
     if (!text || streaming || chatDone) return
     const next: Message[] = [...messages, { role: 'user', content: text }]
-    setMessages(next); setInput('')
+    setMessages(next)
+    setInput('')
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      inputRef.current.focus()
+    }
     await fetchReply(next)
   }, [input, messages, streaming, chatDone, fetchReply])
 

@@ -16,13 +16,15 @@ export const metadata: Metadata = {
 export default async function Landing({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; error_code?: string }>
+  searchParams: Promise<{ error?: string; error_code?: string; code?: string }>
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect("/home");
-
   const params = await searchParams;
+
+  // Forward confirmation codes to the auth callback handler
+  if (params.code) {
+    redirect(`/auth/callback?code=${params.code}&next=/email-confirmed`);
+  }
+
   if (params.error) {
     const isExpired = params.error_code === 'otp_expired';
     redirect(isExpired
@@ -30,6 +32,10 @@ export default async function Landing({
       : '/login?error=link_invalid'
     );
   }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect("/home");
 
   return <DemoApp />;
 }

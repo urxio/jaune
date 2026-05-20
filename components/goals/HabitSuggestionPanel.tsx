@@ -16,6 +16,7 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
   const [suggestions, setSuggestions] = useState<HabitSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set())
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
   const [targetCounts, setTargetCounts] = useState<Record<number, string>>({})
   const [isPending, startTransition] = useTransition()
 
@@ -34,10 +35,16 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalId])
 
-  function handleAdd(idx: number, s: HabitSuggestion) {
+  function handleInitAdd(idx: number) {
+    if (addedIds.has(idx) || pendingIds.has(idx)) return
+    setPendingIds(prev => new Set(prev).add(idx))
+  }
+
+  function handleConfirm(idx: number, s: HabitSuggestion) {
     if (addedIds.has(idx)) return
     const rawTarget = targetCounts[idx]
     const goal_target_count = rawTarget ? Number(rawTarget) || null : null
+    setPendingIds(prev => { const n = new Set(prev); n.delete(idx); return n })
     setAddedIds(prev => new Set(prev).add(idx))
     startTransition(async () => {
       try {
@@ -55,11 +62,11 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
       } catch (err) {
         console.error('createHabitAction from suggestion:', err)
         setAddedIds(prev => { const n = new Set(prev); n.delete(idx); return n })
+        setPendingIds(prev => new Set(prev).add(idx))
       }
     })
   }
 
-  // Auto-dismiss once all suggestions are added
   const allAdded = suggestions.length > 0 && addedIds.size >= suggestions.length
 
   if (!loading && suggestions.length === 0) return (
@@ -116,6 +123,7 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {suggestions.map((s, idx) => {
             const added = addedIds.has(idx)
+            const pending = pendingIds.has(idx)
             return (
               <div
                 key={idx}
@@ -127,43 +135,56 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
                   transition: 'all 0.15s',
                 }}
               >
+                {/* Name row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '18px', flexShrink: 0 }}>{s.emoji}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '1px' }}>{s.name}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-3)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.rationale}</div>
                   </div>
-                  <button
-                    onClick={() => handleAdd(idx, s)}
-                    disabled={added || isPending}
-                    style={{
-                      flexShrink: 0,
-                      padding: '5px 12px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      background: added ? 'rgba(122,158,138,0.25)' : 'var(--gold)',
-                      color: added ? 'var(--sage)' : '#131110',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: added || isPending ? 'default' : 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {added ? '✓ Added' : '+ Add'}
-                  </button>
+                  {!pending && (
+                    <button
+                      onClick={() => added ? undefined : handleInitAdd(idx)}
+                      disabled={added || isPending}
+                      style={{
+                        flexShrink: 0,
+                        padding: '5px 12px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        background: added ? 'rgba(122,158,138,0.25)' : 'var(--gold)',
+                        color: added ? 'var(--sage)' : '#131110',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: added || isPending ? 'default' : 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {added ? '✓ Added' : '+ Add'}
+                    </button>
+                  )}
                 </div>
-                {!added && (
-                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+                {/* Target count row — shown after user clicks Add */}
+                {pending && (
+                  <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input
+                      autoFocus
                       type="number"
                       min={1}
                       max={9999}
                       value={targetCounts[idx] ?? ''}
                       onChange={e => setTargetCounts(prev => ({ ...prev, [idx]: e.target.value }))}
-                      placeholder="Target count (e.g. 30)"
+                      onKeyDown={e => e.key === 'Enter' && handleConfirm(idx, s)}
+                      placeholder="Target completions (optional)"
                       style={{ flex: 1, background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 9px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
                     />
-                    <span style={{ fontSize: '10px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>completions</span>
+                    <button
+                      onClick={() => handleConfirm(idx, s)}
+                      disabled={isPending}
+                      style={{ flexShrink: 0, padding: '5px 12px', border: 'none', borderRadius: '6px', background: 'var(--gold)', color: '#131110', fontSize: '11px', fontWeight: 700, cursor: isPending ? 'default' : 'pointer' }}
+                    >
+                      Save
+                    </button>
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getUserLocalDate } from '@/lib/db/users'
+import { dateInTz } from '@/lib/utils/date'
 import type { SelfProfile } from '@/lib/ai/memory'
 import { patchUserMemory } from '@/lib/ai/memory'
 import { deriveFrequencyMeta } from '@/lib/habits/utils'
@@ -40,7 +41,9 @@ export async function completeOnboarding(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
-  const today = await getUserLocalDate(user.id)
+  // Use the client-provided timezone to compute today's date so the check-in
+  // date matches what getTodayCheckin will query after the timezone is saved.
+  const today = timezone ? dateInTz(timezone) : await getUserLocalDate(user.id)
 
   // 1. Save goals — select back IDs so habits can reference them
   const savedGoalIds: (string | null)[] = goals.map(() => null)

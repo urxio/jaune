@@ -318,16 +318,31 @@ export default function GoalCard({
               ⟳ Habit-tracked
             </span>
           </div>
-        ) : (
-          <button
-            onClick={() => onToggleExpand(goal.id)}
-            className="icon-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: '11px', fontWeight: 600, padding: '0', letterSpacing: '0.05em', textTransform: 'uppercase' }}
-          >
-            <svg width="11" height="11" viewBox="0 0 12 12" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 4l4 4 4-4"/></svg>
-            {isGenerating ? 'Jaune is planning steps…' : hasSteps ? `Steps (${doneCount}/${steps.length})` : 'Steps'}
-          </button>
-        )}
+        ) : (() => {
+          const linkedHabits = habits.filter(h => h.goal_id === goal.id)
+          const isUntracked = !hasSteps && !isGenerating && !isSuggesting && linkedHabits.length === 0
+          if (isUntracked) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>No tracking set up yet</span>
+              <button
+                onClick={() => { onRegenerate(goal.id); onToggleExpand(goal.id) }}
+                style={{ background: 'none', border: '1px solid rgba(212,168,83,0.35)', borderRadius: '6px', color: 'var(--gold)', fontSize: '10.5px', fontWeight: 700, padding: '3px 9px', cursor: 'pointer', letterSpacing: '0.04em' }}
+              >
+                ✦ Generate steps
+              </button>
+            </div>
+          )
+          return (
+            <button
+              onClick={() => onToggleExpand(goal.id)}
+              className="icon-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: '11px', fontWeight: 600, padding: '0', letterSpacing: '0.05em', textTransform: 'uppercase' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 4l4 4 4-4"/></svg>
+              {isGenerating ? 'Jaune is planning steps…' : hasSteps ? `Steps (${doneCount}/${steps.length})` : 'Steps'}
+            </button>
+          )
+        })()}
 
         {/* Linked habits */}
         {(() => {

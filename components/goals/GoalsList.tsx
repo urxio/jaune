@@ -12,6 +12,7 @@ import {
   deleteStepAction,
 } from '@/app/actions/goal-steps'
 import { getMilestoneCrossed } from '@/lib/utils/goal-vitality'
+import { updateGoalAction } from '@/app/actions/goals'
 import GoalCard, { type GoalCardProps } from './GoalCard'
 import GoalModal from './GoalModal'
 import MilestoneCelebration from './MilestoneCelebration'
@@ -82,10 +83,17 @@ export default function GoalsList({
         })
           .then(r => r.json())
           .then(({ modes }: { modes: Array<'habits' | 'steps'> }) => {
+            const habitsOnly = modes.includes('habits') && !modes.includes('steps')
             if (modes.includes('habits')) setSuggestingFor(s => new Set([...s, goalId]))
             if (modes.includes('steps')) {
               setExpanded(s => new Set([...s, goalId]))
               handleRegenerateSteps(goalId)
+            }
+            // Goal was created as steps-mode by default — switch to habits if Jaune
+            // decided steps aren't the right fit, so the card reflects the actual plan.
+            if (habitsOnly) {
+              setGoals(gs => gs.map(g => g.id === goalId ? { ...g, tracking_mode: 'habits' } : g))
+              updateGoalAction(goalId, { tracking_mode: 'habits' }).catch(console.error)
             }
           })
           .catch(() => {

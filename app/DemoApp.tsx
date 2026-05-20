@@ -49,12 +49,12 @@ const GREETINGS = {
 /* ── Demo Data ── */
 
 const DEMO_HABITS = [
-  { id: '1', name: 'Deep work block',     streak: 11, done: true  },
-  { id: '2', name: 'Read 20 pages',       streak: 6,  done: true  },
-  { id: '3', name: 'Move 30 min',         streak: 3,  done: false },
-  { id: '4', name: 'No phone before 9am', streak: 9,  done: false },
-  { id: '5', name: 'Journal entry',       streak: 4,  done: false },
-  { id: '6', name: 'Cold shower',         streak: 2,  done: false },
+  { id: '1', name: 'Deep work block',     streak: 11, done: true,  emoji: '🎯', freq: 'Daily'    },
+  { id: '2', name: 'Read 20 pages',       streak: 6,  done: true,  emoji: '📚', freq: 'Daily'    },
+  { id: '3', name: 'Move 30 min',         streak: 3,  done: false, emoji: '🏃', freq: 'Daily'    },
+  { id: '4', name: 'No phone before 9am', streak: 9,  done: false, emoji: '📵', freq: 'Weekdays' },
+  { id: '5', name: 'Journal entry',       streak: 4,  done: false, emoji: '✍️', freq: 'Daily'    },
+  { id: '6', name: 'Cold shower',         streak: 2,  done: false, emoji: '🚿', freq: 'Weekdays' },
 ]
 
 const DEMO_GOALS = [
@@ -566,86 +566,271 @@ function CheckinView() {
 
 /* ── HABITS VIEW ── */
 
+const HABIT_COLORS_DEMO = ['#7a9e8a', '#d4a853', '#7090c0', '#c09040', '#9080b0', '#50a0a0']
+const DEMO_TODAY_STR    = '2026-05-20'
+const DOW_LABELS_CAL    = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function getDemoLoggedDates(habitId: string, isDone: boolean): Set<string> {
+  const dates = new Set<string>()
+  const grid  = HABIT_GRID[habitId] ?? []
+  // Last 7 days from the grid (index 0 = 6 days ago, index 6 = today)
+  grid.forEach((done, i) => {
+    if (done) {
+      const d = new Date(DEMO_TODAY_STR + 'T12:00:00')
+      d.setDate(d.getDate() - (6 - i))
+      dates.add(d.toISOString().split('T')[0])
+    }
+  })
+  if (isDone) dates.add(DEMO_TODAY_STR)
+  // Generate plausible history for May 1–13
+  const seed = habitId.charCodeAt(0)
+  for (let day = 1; day <= 13; day++) {
+    if ((day * 7 + seed) % 3 !== 0) dates.add(`2026-05-${String(day).padStart(2, '0')}`)
+  }
+  return dates
+}
+
+function DemoHabitCard({ habit, colorIndex, isDone, onToggle }: {
+  habit: typeof DEMO_HABITS[0]
+  colorIndex: number
+  isDone: boolean
+  onToggle: () => void
+}) {
+  const [showMonth, setShowMonth] = useState(false)
+  const color       = HABIT_COLORS_DEMO[colorIndex % HABIT_COLORS_DEMO.length]
+  const loggedDates = getDemoLoggedDates(habit.id, isDone)
+
+  // May 2026 mini-calendar
+  const MAY_FIRST_DOW = 5  // Friday
+  const MAY_DAYS      = 31
+
+  // 28-day progress
+  let done28 = 0
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(DEMO_TODAY_STR + 'T12:00:00')
+    d.setDate(d.getDate() - (27 - i))
+    if (loggedDates.has(d.toISOString().split('T')[0])) done28++
+  }
+  const progressPct = Math.round((done28 / 28) * 100)
+
+  return (
+    <div style={{
+      background: 'var(--glass-card-bg)',
+      backdropFilter: 'blur(32px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+      border: '1px solid var(--glass-card-border)',
+      boxShadow: 'var(--glass-card-shadow-sm)',
+      borderRadius: '16px',
+      padding: '14px 16px',
+    }}>
+      {/* Top row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Icon button */}
+        <button
+          onClick={onToggle}
+          style={{
+            width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
+            background: isDone ? color : `${color}22`,
+            border: `1.5px solid ${isDone ? color : `${color}44`}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.2s var(--ease)',
+            boxShadow: isDone ? `0 0 12px ${color}55` : 'none', padding: 0,
+          }}
+        >
+          {isDone
+            ? <svg width="16" height="16" viewBox="0 0 22 22" fill="none">
+                <path d="M5 11.5l4.5 4.5 7.5-9" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            : <span style={{ fontSize: '19px', lineHeight: 1 }}>{habit.emoji}</span>
+          }
+        </button>
+
+        {/* Name + frequency */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-0)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '3px' }}>
+            {habit.name}
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>{habit.freq}</span>
+        </div>
+
+        {/* Mini month calendar */}
+        <div style={{ flexShrink: 0, paddingLeft: '12px', borderLeft: '1px solid var(--glass-card-border)' }}>
+          <div style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '4px' }}>May</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 10px)', gap: '2px', marginBottom: '2px' }}>
+            {DOW_LABELS_CAL.map((d, i) => (
+              <div key={i} style={{ width: '10px', textAlign: 'center', fontSize: '7px', color: 'var(--text-3)', fontWeight: 500 }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 10px)', gap: '2px' }}>
+            {Array.from({ length: MAY_FIRST_DOW }, (_, i) => <div key={`p${i}`} style={{ width: '10px', height: '10px' }} />)}
+            {Array.from({ length: MAY_DAYS }, (_, i) => {
+              const dayNum  = i + 1
+              const dateStr = `2026-05-${String(dayNum).padStart(2, '0')}`
+              const done    = loggedDates.has(dateStr)
+              const isToday = dateStr === DEMO_TODAY_STR
+              const isFuture = dateStr > DEMO_TODAY_STR
+              return (
+                <div key={dateStr} style={{
+                  width: '10px', height: '10px', borderRadius: '2px', boxSizing: 'border-box',
+                  border: isToday ? `1.5px solid ${color}` : 'none',
+                  background: done ? color : !isFuture ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  opacity: isFuture ? 0.12 : 1,
+                }} />
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Streak */}
+        <div style={{ flexShrink: 0, minWidth: '32px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          {habit.streak > 0 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'oklch(0.78 0.13 70)' }}>
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 14c-2.5 0-5-1.8-5-5 0-2.2 1.8-4 3-5.5.6 1 1.2 1.8 2 2.5.8-1.2.8-2.8.8-4 1.2 1 3.2 3.2 3.2 7 0 2.8-2 5-4 5Z" />
+              </svg>
+              <span style={{ fontSize: '15px', fontWeight: 600, lineHeight: 1, letterSpacing: '-0.02em' }}>{habit.streak}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Progress bar + month toggle */}
+      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: '4px', width: `${progressPct}%`, background: `linear-gradient(90deg, ${color}99, ${color})` }} />
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px', display: 'flex', gap: '4px' }}>
+            <span style={{ color: progressPct > 0 ? color : 'var(--text-3)', fontWeight: 600 }}>{progressPct}%</span>
+            <span>· last 28 days</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowMonth(v => !v)}
+          style={{
+            background: showMonth ? `${color}22` : 'var(--bg-2)',
+            border: `1px solid ${showMonth ? `${color}55` : 'var(--border)'}`,
+            borderRadius: '8px', padding: '5px 11px', fontSize: '11px', fontWeight: 600,
+            color: showMonth ? color : 'var(--text-3)', cursor: 'pointer', transition: 'all 0.15s',
+            display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0,
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="1" y="2" width="12" height="11" rx="2" /><path d="M4 1v2M10 1v2M1 6h12" />
+          </svg>
+          {showMonth ? 'Hide ▲' : 'Month ▾'}
+        </button>
+      </div>
+
+      {/* Monthly calendar dropdown */}
+      {showMonth && (
+        <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+          <div style={{ textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '12px' }}>May 2026</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+            {DOW_LABELS_CAL.map((d, i) => (
+              <div key={i} style={{ textAlign: 'center', fontSize: '9px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.04em', paddingBottom: '4px' }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+            {Array.from({ length: MAY_FIRST_DOW }, (_, i) => <div key={`e${i}`} />)}
+            {Array.from({ length: MAY_DAYS }, (_, i) => {
+              const dayNum  = i + 1
+              const dateStr = `2026-05-${String(dayNum).padStart(2, '0')}`
+              const done    = loggedDates.has(dateStr)
+              const isToday = dateStr === DEMO_TODAY_STR
+              const isFuture = dateStr > DEMO_TODAY_STR
+              return (
+                <div key={dateStr} style={{
+                  aspectRatio: '1', borderRadius: '7px', boxSizing: 'border-box',
+                  border: isToday ? `2px solid ${color}` : 'none',
+                  background: done ? color : !isFuture ? 'var(--bg-3)' : 'transparent',
+                  opacity: isFuture ? 0.25 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '11px', fontWeight: done ? 700 : 400,
+                  color: done ? '#fff' : isToday ? color : 'var(--text-2)',
+                }}>
+                  {dayNum}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function HabitsView({
   habitDone, setHabitDone,
 }: {
   habitDone: Record<string, boolean>
   setHabitDone: (id: string) => void
 }) {
-  const now = useLiveClock()
-  const habits = DEMO_HABITS.map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
+  const now       = useLiveClock()
+  const habits    = DEMO_HABITS.map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
   const doneCount = habits.filter(h => h.done).length
+  const total     = habits.length
+  const pct       = total > 0 ? (doneCount / total) * 100 : 0
   const dateLabel = now
     ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
     : ' '
 
   return (
-    <div className="page-pad inner-shell-sm" style={{ animation: 'fadeUp 0.35s var(--ease) both' }}>
-      <header style={{ marginBottom: '32px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+    <div className="page-pad" style={{ maxWidth: '760px', width: '100%', marginLeft: 'auto', marginRight: 'auto', animation: 'fadeUp 0.35s var(--ease) both' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', gap: '16px' }}>
         <div>
-          <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600, marginBottom: '6px', opacity: 0.85 }}>
             {dateLabel}
-          </p>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: 400, lineHeight: 1.1, color: 'var(--text-0)' }}>
-            Habits
-          </h1>
-        </div>
-        <div style={{
-          padding: '6px 14px', borderRadius: '99px',
-          background: doneCount === habits.length ? 'var(--sage-dim)' : 'var(--gold-dim)',
-          color: doneCount === habits.length ? 'var(--sage)' : 'var(--gold)',
-          fontSize: '13px', fontWeight: 500,
-        }}>
-          {doneCount} of {habits.length} today
-        </div>
-      </header>
-
-      <div className="glass-card" style={{ overflow: 'hidden' }}>
-        {habits.map((h, i) => (
-          <div
-            key={h.id}
-            onClick={() => setHabitDone(h.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              padding: '18px 24px',
-              borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)',
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'oklch(1 0 0 / 0.03)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            {/* Check */}
-            <span style={{
-              width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
-              background: h.done ? 'var(--sage)' : 'transparent',
-              border: h.done ? 'none' : '1.5px solid oklch(1 0 0 / 0.28)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s',
-            }}>
-              {h.done && (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="oklch(0.2 0.05 150)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5l2.5 2.5L8 3" />
-                </svg>
-              )}
-            </span>
-
-            {/* Name */}
-            <span style={{
-              fontSize: '15px', flex: 1, lineHeight: 1.3,
-              color: h.done ? 'var(--text-3)' : 'var(--text-0)',
-              textDecoration: h.done ? 'line-through' : 'none',
-              transition: 'color 0.2s',
-            }}>
-              {h.name}
-            </span>
-
-            {/* Streak */}
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'oklch(0.78 0.13 70)', fontSize: '13px', flexShrink: 0 }}>
-              <FlameIcon />
-              {h.streak}
-            </span>
           </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 3.5vw, 34px)', fontWeight: 400, color: 'var(--text-0)', lineHeight: 1.15 }}>
+            Today&apos;s <em style={{ fontStyle: 'italic', color: 'var(--text-1)' }}>habits.</em>
+          </div>
+          <div style={{ fontSize: '14px', color: 'var(--text-2)', marginTop: '6px' }}>
+            Tap the icon to log today.
+          </div>
+        </div>
+        <Link
+          href="/login"
+          style={{
+            background: 'var(--gold)', color: '#131110', borderRadius: '10px',
+            padding: '11px 18px', fontSize: '13px', fontWeight: 700,
+            whiteSpace: 'nowrap', textDecoration: 'none', flexShrink: 0, marginTop: '6px',
+            display: 'inline-block',
+          }}
+        >
+          + Add habit
+        </Link>
+      </div>
+
+      {/* Daily progress bar */}
+      <div style={{
+        background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+        border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)',
+        borderRadius: '14px', padding: '16px 20px', marginBottom: '20px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-2)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today&apos;s progress</span>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 400, color: doneCount === total ? 'var(--sage)' : 'var(--text-0)' }}>
+            {doneCount}<span style={{ fontSize: '14px', color: 'var(--text-2)' }}>/{total}</span>
+          </span>
+        </div>
+        <div style={{ height: '5px', background: 'var(--bg-4)', borderRadius: '5px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', borderRadius: '5px', width: `${pct}%`, transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)', background: doneCount === total ? 'linear-gradient(90deg, var(--sage), #a0c8a8)' : 'linear-gradient(90deg, var(--gold), #e8b86d)' }} />
+        </div>
+      </div>
+
+      {/* Habit cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {habits.map((h, i) => (
+          <DemoHabitCard
+            key={h.id}
+            habit={h}
+            colorIndex={i}
+            isDone={h.done}
+            onToggle={() => setHabitDone(h.id)}
+          />
         ))}
       </div>
 
@@ -812,9 +997,7 @@ function DemoEnergyCurveChart() {
   )
 }
 
-const HABIT_EMOJI: Record<string, string> = {
-  '1': '🎯', '2': '📚', '3': '🏃', '4': '📵', '5': '✍️', '6': '🚿',
-}
+const HABIT_EMOJI: Record<string, string> = Object.fromEntries(DEMO_HABITS.map(h => [h.id, h.emoji]))
 
 function ReviewView() {
   const avgEnergy = WEEK_ENERGY.reduce((a, b) => a + b, 0) / WEEK_ENERGY.length

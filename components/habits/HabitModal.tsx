@@ -57,8 +57,13 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
 
   const handleSubmit = () => {
     if (!name.trim()) { setError('Give your habit a name.'); return }
+    const linkedGoal = activeGoals.find(g => g.id === goalId) ?? null
+    if (linkedGoal?.tracking_mode === 'habits' && (!goalTargetCount || goalTargetCount <= 0)) {
+      setError('Set a target count so your check-ins can drive progress on this goal.')
+      return
+    }
     setError('')
-    const linkedGoalObj = activeGoals.find(g => g.id === goalId) ?? null
+    const linkedGoalObj = linkedGoal
     const data: HabitFormData = {
       name: name.trim(), emoji, days_of_week: daysOfWeek,
       ends_at: endsAt || null,
@@ -279,24 +284,21 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
 
                 {isHabitTracked && (
                   <div>
-                    <label style={labelStyle}>
-                      Target completions
-                      <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)', fontSize: '10px' }}> (optional)</span>
-                    </label>
+                    <label style={labelStyle}>Target completions</label>
                     <input
                       type="number"
                       min={1}
                       max={9999}
                       value={goalTargetCount ?? ''}
                       onChange={e => setGoalTargetCount(e.target.value ? Number(e.target.value) : null)}
-                      placeholder="e.g. 30  —  leave blank to track by schedule"
+                      placeholder="e.g. 30 runs, 20 sessions…"
                       style={inputStyle}
                     />
-                    <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '5px' }}>
-                      {goalTargetCount
-                        ? `Progress = completions ÷ ${goalTargetCount} × 100%`
-                        : 'Progress tracks how often you complete this vs. your schedule.'}
-                    </div>
+                    {goalTargetCount && goalTargetCount > 0 && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '5px' }}>
+                        Progress = completions ÷ {goalTargetCount} × 100%
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

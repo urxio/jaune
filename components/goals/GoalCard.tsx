@@ -341,35 +341,31 @@ export default function GoalCard({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {linked.map(h => {
                   const completions = habitCompletions[h.id] ?? 0
-                  const byCount = !!(h.goal_target_count && h.goal_target_count > 0)
-                  let pct = 0
-                  if (byCount) {
-                    pct = Math.min(100, Math.round((completions / h.goal_target_count!) * 100))
-                  } else {
-                    const today = new Date().toISOString().split('T')[0]
-                    const windowStart = goal.created_at.split('T')[0]
-                    const windowEnd = goal.target_date ?? today
-                    const habitStart = h.created_at.split('T')[0]
-                    const start = habitStart > windowStart ? habitStart : windowStart
-                    const daysOfWeek = h.days_of_week
-                    const cur = new Date(start + 'T12:00:00Z')
-                    const end = new Date(windowEnd + 'T12:00:00Z')
-                    let scheduled = 0
-                    while (cur <= end) {
-                      const dow = cur.getUTCDay()
-                      if (!daysOfWeek || daysOfWeek.length === 0 || daysOfWeek.includes(dow)) scheduled++
-                      cur.setUTCDate(cur.getUTCDate() + 1)
-                    }
-                    pct = scheduled > 0 ? Math.min(100, Math.round((completions / scheduled) * 100)) : 0
+                  const hasTarget = !!(h.goal_target_count && h.goal_target_count > 0)
+
+                  if (!hasTarget && isHabitTracked) {
+                    return (
+                      <div key={h.id} style={{ padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14px', flexShrink: 0 }}>{h.emoji}</span>
+                          <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-1)', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-3)', fontStyle: 'italic' }}>No target set — edit habit to track progress</span>
+                        </div>
+                      </div>
+                    )
                   }
+
+                  const pct = hasTarget
+                    ? Math.min(100, Math.round((completions / h.goal_target_count!) * 100))
+                    : 0
                   const barColor = pct >= 100 ? 'var(--sage)' : pct >= 60 ? 'var(--gold)' : 'var(--text-3)'
                   return (
                     <div key={h.id} style={{ padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <span style={{ fontSize: '14px', flexShrink: 0 }}>{h.emoji}</span>
                         <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-1)', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
-                        <span style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0, color: byCount ? 'var(--gold)' : 'var(--text-3)', background: byCount ? 'rgba(212,168,83,0.1)' : 'var(--bg-3)', border: `1px solid ${byCount ? 'rgba(212,168,83,0.25)' : 'var(--border)'}`, borderRadius: '10px', padding: '1px 6px' }}>
-                          {byCount ? `× ${h.goal_target_count}` : h.frequency}
+                        <span style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0, color: 'var(--gold)', background: 'rgba(212,168,83,0.1)', border: '1px solid rgba(212,168,83,0.25)', borderRadius: '10px', padding: '1px 6px' }}>
+                          × {h.goal_target_count}
                         </span>
                         <span style={{ fontSize: '11px', fontWeight: 700, color: barColor, flexShrink: 0, minWidth: '30px', textAlign: 'right' }}>{pct}%</span>
                       </div>
@@ -377,7 +373,7 @@ export default function GoalCard({
                         <div style={{ height: '100%', borderRadius: '4px', background: barColor, width: `${pct}%`, transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)' }} />
                       </div>
                       <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px' }}>
-                        {byCount ? `${completions} of ${h.goal_target_count} completions` : 'tracking by schedule'}
+                        {completions} of {h.goal_target_count} completions
                       </div>
                     </div>
                   )
@@ -392,6 +388,7 @@ export default function GoalCard({
           <HabitSuggestionPanel
             goalId={goal.id}
             existingHabitNames={habitNames}
+            isHabitTracked={isHabitTracked}
             onHabitAdded={onHabitAdded}
             onDismiss={() => onDismissSuggestion(goal.id)}
           />

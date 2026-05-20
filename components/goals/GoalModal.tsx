@@ -108,7 +108,7 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
                 <span>Progress updates automatically each time you check a linked habit.</span>
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-3)', paddingLeft: '22px' }}>
-                After saving, open each linked habit to set its individual completion target (e.g. "30 runs"). Leave blank to track by schedule instead.
+                After saving, link habits to this goal and set a target count for each (e.g. "30 runs") — that number drives the progress ring.
               </div>
             </div>
           ) : hasSteps || form.tracking_mode === 'steps' ? (

@@ -8,14 +8,16 @@ import type { Habit } from '@/lib/types'
 type Props = {
   goalId: string
   existingHabitNames: string[]
+  isHabitTracked: boolean
   onHabitAdded: (name: string, habit: Habit) => void
   onDismiss: () => void
 }
 
-export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHabitAdded, onDismiss }: Props) {
+export default function HabitSuggestionPanel({ goalId, existingHabitNames, isHabitTracked, onHabitAdded, onDismiss }: Props) {
   const [suggestions, setSuggestions] = useState<HabitSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set())
+  const [targetCounts, setTargetCounts] = useState<Record<number, string>>({})
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -35,6 +37,8 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
 
   function handleAdd(idx: number, s: HabitSuggestion) {
     if (addedIds.has(idx)) return
+    const rawTarget = targetCounts[idx]
+    const goal_target_count = isHabitTracked && rawTarget ? Number(rawTarget) || null : null
     setAddedIds(prev => new Set(prev).add(idx))
     startTransition(async () => {
       try {
@@ -44,7 +48,7 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
           days_of_week: [],
           ends_at: null,
           goal_id: goalId,
-          goal_target_count: null,
+          goal_target_count,
           motivation: null,
           time_of_day: null,
         })
@@ -117,7 +121,6 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
               <div
                 key={idx}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '10px 12px',
                   borderRadius: '8px',
                   background: added ? 'rgba(122,158,138,0.08)' : 'var(--bg-2)',
@@ -125,29 +128,45 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
                   transition: 'all 0.15s',
                 }}
               >
-                <span style={{ fontSize: '18px', flexShrink: 0 }}>{s.emoji}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '1px' }}>{s.name}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-3)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.rationale}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '18px', flexShrink: 0 }}>{s.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '1px' }}>{s.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-3)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.rationale}</div>
+                  </div>
+                  <button
+                    onClick={() => handleAdd(idx, s)}
+                    disabled={added || isPending}
+                    style={{
+                      flexShrink: 0,
+                      padding: '5px 12px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      background: added ? 'rgba(122,158,138,0.25)' : 'var(--gold)',
+                      color: added ? 'var(--sage)' : '#131110',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: added || isPending ? 'default' : 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {added ? '✓ Added' : '+ Add'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleAdd(idx, s)}
-                  disabled={added || isPending}
-                  style={{
-                    flexShrink: 0,
-                    padding: '5px 12px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: added ? 'rgba(122,158,138,0.25)' : 'var(--gold)',
-                    color: added ? 'var(--sage)' : '#131110',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: added || isPending ? 'default' : 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {added ? '✓ Added' : '+ Add'}
-                </button>
+                {isHabitTracked && !added && (
+                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={targetCounts[idx] ?? ''}
+                      onChange={e => setTargetCounts(prev => ({ ...prev, [idx]: e.target.value }))}
+                      placeholder="Target count (e.g. 30)"
+                      style={{ flex: 1, background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 9px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                    <span style={{ fontSize: '10px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>completions</span>
+                  </div>
+                )}
               </div>
             )
           })}

@@ -370,7 +370,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
           )}
           {!chatDone ? (
             <>
-              <div className="glass-card" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', margin: '12px 16px', padding: '12px 16px', borderRadius: '9999px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', margin: '10px 12px', padding: '8px 10px 8px 14px', borderRadius: '16px', background: 'oklch(1 0 0 / 0.05)', border: '1px solid var(--glass-card-border)' }}>
                 <textarea
                   ref={inputRef}
                   value={input}
@@ -379,20 +379,20 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                   placeholder={streaming ? '' : 'Type your reply…'}
                   readOnly={streaming}
                   rows={1}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-0)', resize: 'none', lineHeight: 1.5, overflow: 'hidden', padding: '4px 0' }}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-0)', resize: 'none', lineHeight: 1.5, overflow: 'hidden', padding: '2px 0' }}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!canSend}
                   aria-label="Send"
-                  style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0, background: canSend ? 'var(--gold)' : 'oklch(1 0 0 / 0.08)', border: 'none', color: canSend ? '#131110' : 'var(--text-3)', cursor: canSend ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, opacity 0.2s', alignSelf: 'flex-end', opacity: canSend ? 1 : 0.35 }}
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: canSend ? 'var(--gold)' : 'oklch(1 0 0 / 0.08)', border: 'none', color: canSend ? '#131110' : 'var(--text-3)', cursor: canSend ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, opacity 0.2s', alignSelf: 'flex-end', opacity: canSend ? 1 : 0.35 }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8 13V3M3 8l5-5 5 5"/>
                   </svg>
                 </button>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-3)', padding: '0 16px 10px', opacity: 0.55 }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-3)', padding: '0 14px 10px', opacity: 0.5 }}>
                 Enter to send · Shift+Enter for new line
               </div>
             </>

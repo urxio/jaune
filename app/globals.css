@@ -969,6 +969,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Onboarding mobile scroll fix ── */
 @media (max-width: 768px) {
+  /* Lock the page so body never scrolls — all scrolling stays inside the card. */
   .onboarding-outer {
     height: 100dvh !important;
     min-height: unset !important;
@@ -978,38 +979,20 @@ input[type="range"]::-moz-range-thumb {
     padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
   }
 
-  /*
-   * Explicit height (not max-height) so flex children get a definite
-   * parent size and flex:1 on the card / messages actually constrains them.
-   * Subtracts the top + bottom padding set on .onboarding-outer above.
-   */
-  .onboarding-chat-wrap {
-    width: 100%;
-    height: calc(100dvh - max(20px, env(safe-area-inset-top, 20px)) - max(12px, env(safe-area-inset-bottom, 12px)));
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
   .onboarding-chat-header {
     margin-bottom: 16px !important;
     flex-shrink: 0;
   }
 
-  .onboarding-card {
-    flex: 1;
-    min-height: 0;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden;
-  }
-
-  /* flex:1 1 0 + min-height:0 lets the messages box fill remaining card
-     height without growing past it, overriding the inline height:360px. */
+  /*
+   * Fixed-but-responsive height: capped at 360px (same as desktop), but
+   * automatically shrinks via dvh when the keyboard opens so the input
+   * bar stays visible. 300px covers header + identity bar + input + padding.
+   */
   .onboarding-messages {
-    flex: 1 1 0 !important;
-    height: auto !important;
-    min-height: 80px;
+    height: min(360px, calc(100dvh - 300px)) !important;
+    min-height: 80px !important;
+    flex: none !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }

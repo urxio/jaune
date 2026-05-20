@@ -41,7 +41,7 @@ JSON rules:
 - checkin.energy_level: integer 1–10 (required)
 - checkin.mood_note: one sentence or null
 
-After appending the data block, add one final warm closing sentence (e.g., "Setting up your Locus now — your first brief is almost ready."). Do not reveal the JSON or the tags.`
+After appending the data block, add one final warm closing sentence (e.g., "Setting up your Jaune now — your first brief is almost ready."). Do not reveal the JSON or the tags.`
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()

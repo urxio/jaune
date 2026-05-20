@@ -200,22 +200,73 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, due
         <DockItem href="/settings" label="Settings" active={pathname === '/settings'}>
           <SettingsIcon />
         </DockItem>
-        <div style={{
-          width: '32px', height: '32px',
-          borderRadius: '10px',
-          background: avatarUrl
-            ? `url(${avatarUrl}) center/cover no-repeat`
-            : 'linear-gradient(135deg, var(--sea-soft, #c8ddd7), var(--sage))',
-          border: '1.5px solid var(--glass-card-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '11px', fontWeight: 700,
-          color: 'var(--text-0)',
-          flexShrink: 0,
-        }}>
-          {!avatarUrl && initial}
-        </div>
+        <AvatarBadge avatarUrl={avatarUrl} initial={initial} />
       </div>
     </aside>
+  )
+}
+
+function AvatarBadge({ avatarUrl, initial }: { avatarUrl: string | null; initial: string }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        width: '36px', height: '36px',
+        flexShrink: 0,
+        cursor: 'default',
+      }}
+    >
+      {/* Gold ring */}
+      <span style={{
+        position: 'absolute',
+        inset: '-2px',
+        borderRadius: '50%',
+        background: 'conic-gradient(from 180deg, var(--gold, #c9a96e) 0%, #e8c98a 40%, var(--gold, #c9a96e) 70%, rgba(201,169,110,0.15) 100%)',
+        opacity: hovered ? 1 : 0.55,
+        transition: 'opacity 0.2s ease',
+        pointerEvents: 'none',
+      }} />
+      {/* Inner gap ring */}
+      <span style={{
+        position: 'absolute',
+        inset: '-1px',
+        borderRadius: '50%',
+        background: 'var(--glass-card-bg, rgba(18,22,26,0.85))',
+        pointerEvents: 'none',
+        zIndex: 1,
+      }} />
+      {/* Avatar face */}
+      <div style={{
+        position: 'relative',
+        zIndex: 2,
+        width: '36px', height: '36px',
+        borderRadius: '50%',
+        background: avatarUrl
+          ? `url(${avatarUrl}) center/cover no-repeat`
+          : 'linear-gradient(145deg, #2a3a32 0%, #1c2a24 55%, #14211c 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {!avatarUrl && (
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+            background: 'linear-gradient(135deg, #e8c98a 0%, var(--gold, #c9a96e) 60%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}>
+            {initial}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Goal } from '@/lib/types'
-import { createHabitAction, type HabitFormData } from '@/app/actions/habits'
+import type { Goal, Habit } from '@/lib/types'
+import { createHabitAction, updateHabitAction, type HabitFormData } from '@/app/actions/habits'
 import { deriveFrequencyMeta } from '@/lib/habits/utils'
 import { inputStyle, labelStyle } from '@/components/ui/FormStyles'
 
@@ -11,17 +11,26 @@ const DOW_LABELS        = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DOW_NAMES         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const EMOJI_SUGGESTIONS = ['🏃', '📚', '🧘', '💪', '✍️', '💧', '🥗', '😴', '🎸', '🧹', '🌿', '🏊']
 
-export default function HabitFormPage({ today, activeGoals }: { today: string; activeGoals: Goal[] }) {
+export default function HabitFormPage({
+  today,
+  activeGoals,
+  habit,
+}: {
+  today: string
+  activeGoals: Goal[]
+  habit?: Habit
+}) {
   const router = useRouter()
+  const mode = habit ? 'edit' : 'add'
 
-  const [name,           setName]           = useState('')
-  const [emoji,          setEmoji]          = useState('✨')
-  const [motivation,     setMotivation]     = useState('')
-  const [daysOfWeek,     setDaysOfWeek]     = useState<number[]>([])
-  const [endsAt,         setEndsAt]         = useState('')
-  const [goalId,         setGoalId]         = useState('')
-  const [goalTargetCount, setGoalTargetCount] = useState<number | null>(null)
-  const [scheduledTime,  setScheduledTime]  = useState('')
+  const [name,           setName]           = useState(habit?.name ?? '')
+  const [emoji,          setEmoji]          = useState(habit?.emoji ?? '✨')
+  const [motivation,     setMotivation]     = useState(habit?.motivation ?? '')
+  const [daysOfWeek,     setDaysOfWeek]     = useState<number[]>(habit?.days_of_week && habit.days_of_week.length > 0 ? habit.days_of_week : [])
+  const [endsAt,         setEndsAt]         = useState(habit?.ends_at ?? '')
+  const [goalId,         setGoalId]         = useState(habit?.goal_id ?? '')
+  const [goalTargetCount, setGoalTargetCount] = useState<number | null>(habit?.goal_target_count ?? null)
+  const [scheduledTime,  setScheduledTime]  = useState(habit?.time_of_day ?? '')
   const [error,          setError]          = useState('')
   const [isPending, startTransition]        = useTransition()
 
@@ -60,7 +69,11 @@ export default function HabitFormPage({ today, activeGoals }: { today: string; a
     }
     startTransition(async () => {
       try {
-        await createHabitAction(data)
+        if (mode === 'edit' && habit) {
+          await updateHabitAction(habit.id, data)
+        } else {
+          await createHabitAction(data)
+        }
         router.push('/habits')
         router.refresh()
       } catch (err) {
@@ -95,7 +108,7 @@ export default function HabitFormPage({ today, activeGoals }: { today: string; a
           ← Back
         </button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--text-0)' }}>
-          New habit
+          {mode === 'edit' ? 'Edit habit' : 'New habit'}
         </div>
       </div>
 
@@ -249,7 +262,7 @@ export default function HabitFormPage({ today, activeGoals }: { today: string; a
           onClick={handleSubmit} disabled={isPending}
           style={{ width: '100%', background: 'var(--gold)', color: '#131110', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 700, cursor: isPending ? 'wait' : 'pointer', opacity: isPending ? 0.7 : 1, marginBottom: '32px' }}
         >
-          {isPending ? 'Saving…' : 'Add habit'}
+          {isPending ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Add habit'}
         </button>
       </div>
     </div>

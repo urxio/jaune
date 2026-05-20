@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Habit } from '@/lib/types'
-import { createGoalAction, type GoalFormData } from '@/app/actions/goals'
+import type { Goal, Habit } from '@/lib/types'
+import { createGoalAction, updateGoalAction, type GoalFormData } from '@/app/actions/goals'
 import { linkHabitToGoalAction } from '@/app/actions/habits'
 import { inputStyle, labelStyle } from '@/components/ui/FormStyles'
 import { CATEGORY_COLORS } from './GoalCard'
@@ -17,10 +17,15 @@ const EMPTY_FORM: GoalFormData = {
   tracking_mode: 'steps',
 }
 
-export default function GoalFormPage({ habits = [] }: { habits?: Habit[] }) {
+export default function GoalFormPage({ habits = [], goal }: { habits?: Habit[]; goal?: Goal }) {
   const router = useRouter()
+  const mode = goal ? 'edit' : 'add'
 
-  const [form, setForm]       = useState<GoalFormData>(EMPTY_FORM)
+  const [form, setForm] = useState<GoalFormData>(
+    goal
+      ? { title: goal.title, category: goal.category, timeframe: goal.timeframe, progress_pct: goal.progress_pct, target_date: goal.target_date, status: goal.status, tracking_mode: goal.tracking_mode ?? 'manual' }
+      : EMPTY_FORM
+  )
   const [habitLinks, setHabitLinks] = useState<Map<string, number | null>>(new Map())
   const [habitSearch, setHabitSearch] = useState('')
   const [isPending, startTransition]  = useTransition()
@@ -57,13 +62,17 @@ export default function GoalFormPage({ habits = [] }: { habits?: Habit[] }) {
     setError('')
     startTransition(async () => {
       try {
-        const created = await createGoalAction(form)
-        if (form.tracking_mode === 'habits' && habitLinks.size > 0) {
-          await Promise.all(
-            [...habitLinks.entries()].map(([habitId, targetCount]) =>
-              linkHabitToGoalAction(habitId, created.id, targetCount)
+        if (mode === 'edit' && goal) {
+          await updateGoalAction(goal.id, form)
+        } else {
+          const created = await createGoalAction(form)
+          if (form.tracking_mode === 'habits' && habitLinks.size > 0) {
+            await Promise.all(
+              [...habitLinks.entries()].map(([habitId, targetCount]) =>
+                linkHabitToGoalAction(habitId, created.id, targetCount)
+              )
             )
-          )
+          }
         }
         router.push('/goals')
         router.refresh()
@@ -85,7 +94,7 @@ export default function GoalFormPage({ habits = [] }: { habits?: Habit[] }) {
           ← Back
         </button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--text-0)' }}>
-          New goal
+          {mode === 'edit' ? 'Edit goal' : 'New goal'}
         </div>
       </div>
 
@@ -245,7 +254,7 @@ export default function GoalFormPage({ habits = [] }: { habits?: Habit[] }) {
           onClick={handleSubmit} disabled={isPending}
           style={{ width: '100%', background: 'var(--gold)', color: '#131110', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 700, cursor: isPending ? 'wait' : 'pointer', opacity: isPending ? 0.7 : 1, marginBottom: '32px' }}
         >
-          {isPending ? 'Saving…' : 'Add goal'}
+          {isPending ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Add goal'}
         </button>
       </div>
     </div>

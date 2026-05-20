@@ -211,7 +211,7 @@ export default function HabitTracker({
                   today={today}
                   pendingSet={pendingSet}
                   onToggle={(date) => toggleLog(habit.id, date)}
-                  onEdit={() => setModal({ mode: 'edit', habit })}
+                  onEdit={() => window.innerWidth <= 768 ? router.push(`/habits/${habit.id}/edit`) : setModal({ mode: 'edit', habit })}
                   onDelete={() => handleDeleted(habit.id)}
                 />
               )

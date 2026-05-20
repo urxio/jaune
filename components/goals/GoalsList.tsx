@@ -201,7 +201,7 @@ export default function GoalsList({
   const sharedHandlers: SectionHandlers = {
     stepsMap, generatingFor, suggestingFor, habitNames, habits, habitCompletions,
     expanded, onToggleExpand: toggleExpand,
-    onEdit:    (g) => setModal({ mode: 'edit', goal: g }),
+    onEdit:    (g) => window.innerWidth <= 768 ? router.push(`/goals/${g.id}/edit`) : setModal({ mode: 'edit', goal: g }),
     onDelete:  handleDeleted,
     onUpdate:  (g) => setGoals(gs => gs.map(x => x.id === g.id ? g : x)),
     onToggleStep:  handleToggleStep,

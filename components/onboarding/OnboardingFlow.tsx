@@ -125,12 +125,10 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
   const initFetched    = useRef(false)
   const dataRef        = useRef(false)
 
-  /* ── Scroll to bottom (only when already near bottom — prevents fighting user scroll) ── */
+  /* ── Scroll to bottom ── */
   useEffect(() => {
     const box = messagesBoxRef.current
-    if (!box) return
-    const distFromBottom = box.scrollHeight - box.scrollTop - box.clientHeight
-    if (distFromBottom < 80) box.scrollTop = box.scrollHeight
+    if (box) box.scrollTop = box.scrollHeight
   }, [messages])
 
   /* ── Keep input focused throughout the chat ── */
@@ -323,7 +321,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         </div>
 
         {/* Messages */}
-        <div ref={messagesBoxRef} className="onboarding-messages" style={{ height: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollbarWidth: 'none', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as React.CSSProperties}>
+        <div ref={messagesBoxRef} className="onboarding-messages" style={{ height: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollbarWidth: 'none', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div style={{ flex: 1 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 16px 12px' }}>
             {messages.map((msg, i) => {

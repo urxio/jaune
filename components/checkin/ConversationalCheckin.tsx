@@ -187,6 +187,7 @@ export default function ConversationalCheckin({
 
           const display = fullText
             .replace(CHECKIN_DATA_RE, '')
+            .replace(/<checkin_data>[\s\S]*$/, '')
             .replace(SHOW_BRIEF_RE, '')
             .trim()
 

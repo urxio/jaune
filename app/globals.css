@@ -766,11 +766,10 @@ input[type="range"]::-moz-range-thumb {
   }
   .home-body {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 16px;
   }
   .home-right {
-    gap: 32px;
-    margin-top: 32px;
+    gap: 16px;
   }
 }
 
@@ -778,9 +777,6 @@ input[type="range"]::-moz-range-thumb {
   .home-shell {
     max-width: 480px;
     padding: 56px 24px 0;
-  }
-  .home-right {
-    margin-top: 0;
   }
 }
 

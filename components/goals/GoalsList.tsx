@@ -62,8 +62,6 @@ export default function GoalsList({
     if (isNew) {
       setGoals(gs => [...gs, goal])
       setStepsMap(m => new Map(m).set(goal.id, []))
-      // Only show AI habit suggestions if the user didn't link habits manually
-      if (!linkedHabits?.length) setSuggestingFor(s => new Set([...s, goal.id]))
       // Update local habits state to reflect newly linked goal_id
       if (linkedHabits?.length) {
         const linkedMap = new Map(linkedHabits.map(h => [h.id, h.goal_target_count]))
@@ -72,6 +70,28 @@ export default function GoalsList({
             ? { ...h, goal_id: goal.id, goal_target_count: linkedMap.get(h.id)! }
             : h
         ))
+      }
+      // Ask Jaune what to suggest — habits, steps, or both
+      // Skip if habits were manually linked (suggestion already acted on)
+      if (!linkedHabits?.length) {
+        const goalId = goal.id
+        fetch('/api/goals/suggest-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ goalId }),
+        })
+          .then(r => r.json())
+          .then(({ modes }: { modes: Array<'habits' | 'steps'> }) => {
+            if (modes.includes('habits')) setSuggestingFor(s => new Set([...s, goalId]))
+            if (modes.includes('steps')) {
+              setExpanded(s => new Set([...s, goalId]))
+              handleRegenerateSteps(goalId)
+            }
+          })
+          .catch(() => {
+            // Fall back to habits suggestion on error
+            setSuggestingFor(s => new Set([...s, goal.id]))
+          })
       }
     } else {
       setGoals(gs => gs.map(g => g.id === goal.id ? { ...goal, steps: stepsMap.get(goal.id) ?? [] } : g))

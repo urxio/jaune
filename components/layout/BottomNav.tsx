@@ -55,8 +55,8 @@ function HomeIcon() {
 function CheckinIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="20" height="20">
-      <path d="M17 11.5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
-      <path d="M10 8.5v3l2 1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="10" cy="10" r="7" />
+      <path d="M10 7v3l2 1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

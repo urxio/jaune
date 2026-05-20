@@ -407,6 +407,8 @@ input:focus,    input:focus-visible {
   z-index: 1;
   min-height: 0;
   padding-bottom: 84px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* ── RESPONSIVE LAYOUT HELPERS ── */

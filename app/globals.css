@@ -978,9 +978,14 @@ input[type="range"]::-moz-range-thumb {
     padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
   }
 
+  /*
+   * Explicit height (not max-height) so flex children get a definite
+   * parent size and flex:1 on the card / messages actually constrains them.
+   * Subtracts the top + bottom padding set on .onboarding-outer above.
+   */
   .onboarding-chat-wrap {
     width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 32px);
+    height: calc(100dvh - max(20px, env(safe-area-inset-top, 20px)) - max(12px, env(safe-area-inset-bottom, 12px)));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -999,9 +1004,13 @@ input[type="range"]::-moz-range-thumb {
     overflow: hidden;
   }
 
+  /* flex:1 1 0 + min-height:0 lets the messages box fill remaining card
+     height without growing past it, overriding the inline height:360px. */
   .onboarding-messages {
-    flex: 1 !important;
+    flex: 1 1 0 !important;
     height: auto !important;
     min-height: 80px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }

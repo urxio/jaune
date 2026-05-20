@@ -248,7 +248,14 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
           )}
           <div style={{ height: '22px', display: 'flex', alignItems: 'center' }}>
             {confirmDelete ? (
-              <ConfirmDelete onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                {habit.linkedGoal && (
+                  <span style={{ fontSize: '10px', color: 'var(--gold)', lineHeight: 1.3 }}>
+                    Linked to &ldquo;{habit.linkedGoal.title}&rdquo; — deleting will affect goal tracking.
+                  </span>
+                )}
+                <ConfirmDelete onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
+              </div>
             ) : (
               <div style={{ display: 'flex', gap: '2px', opacity: hovered ? 1 : 0, pointerEvents: hovered ? 'auto' : 'none', transition: 'opacity 0.15s' }}>
                 <IconBtn title="Edit" onClick={onEdit}><PencilIcon /></IconBtn>

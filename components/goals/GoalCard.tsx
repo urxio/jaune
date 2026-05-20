@@ -315,13 +315,13 @@ export default function GoalCard({
         {(() => {
           const linkedHabits = habits.filter(h => h.goal_id === goal.id)
           if (isHabitTracked && linkedHabits.length === 0 && !isSuggesting) return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>No habits linked yet</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Goal not tracked —</span>
               <button
-                onClick={() => { onRegenerate(goal.id); onToggleExpand(goal.id) }}
-                style={{ background: 'none', border: '1px solid rgba(212,168,83,0.35)', borderRadius: '6px', color: 'var(--gold)', fontSize: '10.5px', fontWeight: 700, padding: '3px 9px', cursor: 'pointer', letterSpacing: '0.04em' }}
+                onClick={() => onEdit(goal)}
+                style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '11px', fontWeight: 600, padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}
               >
-                ✦ Generate steps instead
+                edit to link habits
               </button>
             </div>
           )

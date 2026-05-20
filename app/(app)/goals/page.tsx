@@ -28,11 +28,10 @@ export default async function GoalsPage() {
     goals.splice(0, goals.length, ...fresh)
   }
 
-  // Build completion counts for habits linked to habit-tracked goals
-  // so the goal card can render per-habit progress mini-bars.
-  const habitTrackedGoalIds = new Set(habitTrackedGoals.map(g => g.id))
+  // Build completion counts for ALL habits linked to any goal
+  // so the goal card can render per-habit progress mini-bars regardless of tracking_mode.
   const linkedHabitIds = habits
-    .filter(h => h.goal_id && habitTrackedGoalIds.has(h.goal_id))
+    .filter(h => h.goal_id)
     .map(h => h.id)
 
   let habitCompletions: Record<string, number> = {}

@@ -140,7 +140,8 @@ export default function HabitTracker({
                 Calendar
               </button>
             </div>
-            <button onClick={() => setModal({ mode: 'add' })}
+            <button
+              onClick={() => window.innerWidth <= 768 ? router.push('/habits/new') : setModal({ mode: 'add' })}
               style={{ background: 'var(--gold)', color: '#131110', border: 'none', borderRadius: '10px', padding: '11px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               + Add habit
             </button>
@@ -171,7 +172,9 @@ export default function HabitTracker({
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>🌱</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 300, color: 'var(--text-1)', marginBottom: '8px' }}>No habits yet.</div>
             <div style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '20px' }}>Build habits that compound. Start with one.</div>
-            <button onClick={() => setModal({ mode: 'add' })} style={{ background: 'var(--gold)', color: '#131110', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
+            <button
+              onClick={() => window.innerWidth <= 768 ? router.push('/habits/new') : setModal({ mode: 'add' })}
+              style={{ background: 'var(--gold)', color: '#131110', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
               Add your first habit →
             </button>
           </div>

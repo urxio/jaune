@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import type { GoalWithSteps, Habit } from '@/lib/types'
 import { createGoalAction, updateGoalAction, type GoalFormData } from '@/app/actions/goals'
 import { linkHabitToGoalAction } from '@/app/actions/habits'
@@ -30,6 +30,7 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
   )
   // habitLinks: Map<habitId, targetCount | null>
   const [habitLinks, setHabitLinks] = useState<Map<string, number | null>>(new Map())
+  const [habitSearch, setHabitSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
 
@@ -97,6 +98,12 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
   // Habits available to link (exclude those already linked to other goals)
   const linkableHabits = habits.filter(h => !alreadyLinkedIds.has(h.id))
 
+  const filteredHabits = useMemo(() => {
+    const q = habitSearch.trim().toLowerCase()
+    if (!q) return linkableHabits.slice(0, 4)
+    return linkableHabits.filter(h => h.name.toLowerCase().includes(q) || h.emoji.includes(q))
+  }, [linkableHabits, habitSearch])
+
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>
       <div className="modal-box" style={{ padding: '32px', boxShadow: '0 8px 60px rgba(0,0,0,0.5)' }}>
@@ -161,73 +168,88 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
 
               {/* Habit picker */}
               {linkableHabits.length > 0 ? (
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={labelStyle}>
                     Link habits
                     <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)', fontSize: '10px' }}> — pick which ones count toward this goal</span>
                   </label>
+
+                  {/* Search */}
                   <div style={{ position: 'relative' }}>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '4px',
-                      maxHeight: '260px', overflowY: 'auto', paddingBottom: '36px',
-                      scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
-                    }}>
-                      {linkableHabits.map(h => {
-                        const isSelected = habitLinks.has(h.id)
-                        const targetVal = habitLinks.get(h.id)
-                        return (
-                          <div
-                            key={h.id}
-                            style={{
-                              borderRadius: '8px',
-                              background: isSelected ? 'rgba(212,168,83,0.07)' : 'var(--bg-3)',
-                              border: `1px solid ${isSelected ? 'rgba(212,168,83,0.35)' : 'var(--border)'}`,
-                              transition: 'all 0.15s',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer', userSelect: 'none' }}>
+                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: 'var(--text-3)', pointerEvents: 'none' }}>⌕</span>
+                    <input
+                      type="text"
+                      value={habitSearch}
+                      onChange={e => setHabitSearch(e.target.value)}
+                      placeholder="Search habits…"
+                      style={{ ...inputStyle, paddingLeft: '30px', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  {/* Habit rows */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {filteredHabits.length === 0 ? (
+                      <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '10px 12px', background: 'var(--bg-3)', borderRadius: '8px', textAlign: 'center' }}>
+                        No habits match &ldquo;{habitSearch}&rdquo;
+                      </div>
+                    ) : filteredHabits.map(h => {
+                      const isSelected = habitLinks.has(h.id)
+                      const targetVal = habitLinks.get(h.id)
+                      return (
+                        <div
+                          key={h.id}
+                          style={{
+                            borderRadius: '8px',
+                            background: isSelected ? 'rgba(212,168,83,0.07)' : 'var(--bg-3)',
+                            border: `1px solid ${isSelected ? 'rgba(212,168,83,0.35)' : 'var(--border)'}`,
+                            transition: 'all 0.15s',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={e => toggleHabit(h.id, e.target.checked)}
+                              style={{ accentColor: 'var(--gold)', width: '14px', height: '14px', flexShrink: 0, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '15px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: '13px', color: isSelected ? 'var(--text-0)' : 'var(--text-1)', fontWeight: isSelected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {h.name}
+                            </span>
+                            <span style={{
+                              flexShrink: 0, fontSize: '10px', fontWeight: 500,
+                              color: isSelected ? 'var(--gold)' : 'var(--text-3)',
+                              background: isSelected ? 'rgba(212,168,83,0.12)' : 'var(--bg-4)',
+                              borderRadius: '4px', padding: '2px 6px', whiteSpace: 'nowrap',
+                            }}>
+                              {h.frequency}
+                            </span>
+                          </label>
+                          {isSelected && (
+                            <div style={{ padding: '0 12px 10px 36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={e => toggleHabit(h.id, e.target.checked)}
-                                style={{ accentColor: 'var(--gold)', width: '14px', height: '14px', flexShrink: 0, cursor: 'pointer' }}
+                                type="number"
+                                min={1}
+                                max={9999}
+                                value={targetVal ?? ''}
+                                onChange={e => setTarget(h.id, e.target.value)}
+                                placeholder="Target completions (e.g. 30)"
+                                style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
                               />
-                              <span style={{ fontSize: '15px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
-                              <span style={{ flex: 1, minWidth: 0, fontSize: '13px', color: isSelected ? 'var(--text-0)' : 'var(--text-1)', fontWeight: isSelected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {h.name}
-                              </span>
-                              <span style={{
-                                flexShrink: 0,
-                                fontSize: '10px', fontWeight: 500,
-                                color: isSelected ? 'var(--gold)' : 'var(--text-3)',
-                                background: isSelected ? 'rgba(212,168,83,0.12)' : 'var(--bg-4)',
-                                border: `1px solid ${isSelected ? 'rgba(212,168,83,0.2)' : 'transparent'}`,
-                                borderRadius: '4px', padding: '2px 6px',
-                                whiteSpace: 'nowrap',
-                              }}>
-                                {h.frequency}
-                              </span>
-                            </label>
-                            {isSelected && (
-                              <div style={{ padding: '0 12px 10px 36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={9999}
-                                  value={targetVal ?? ''}
-                                  onChange={e => setTarget(h.id, e.target.value)}
-                                  placeholder="Target completions (e.g. 30)"
-                                  style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
-                                />
-                                <span style={{ fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>/ goal</span>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '44px', background: 'linear-gradient(to bottom, transparent, var(--surface-strong-bg))', pointerEvents: 'none', borderRadius: '0 0 8px 8px' }} />
+                              <span style={{ fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>/ goal</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Show hint when showing top 4 and there are more */}
+                    {!habitSearch && linkableHabits.length > 4 && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-3)', textAlign: 'center', padding: '4px 0' }}>
+                        {linkableHabits.length - 4} more — search to find them
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

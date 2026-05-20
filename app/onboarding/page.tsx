@@ -31,7 +31,9 @@ export default async function OnboardingPage({
 
   return (
     <div className="onboarding-outer" style={{
-      minHeight: '100vh',
+      height: '100dvh',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
       backgroundImage: 'url(/wallpapers/onboarding-bg.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
@@ -43,7 +45,7 @@ export default async function OnboardingPage({
     }}>
       {/* Dark overlay so text stays readable */}
       <div aria-hidden style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 0 }} />
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
         <OnboardingFlow userName={userName} isRedo={isRedo} />
       </div>
     </div>

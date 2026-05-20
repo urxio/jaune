@@ -969,25 +969,15 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Onboarding mobile scroll fix ── */
 @media (max-width: 768px) {
-  /* Lock the page so body never scrolls — all scrolling stays inside the card. */
-  .onboarding-outer {
-    height: 100dvh !important;
-    min-height: unset !important;
-    overflow: hidden !important;
-    align-items: flex-start !important;
-    padding-top: max(20px, env(safe-area-inset-top)) !important;
-    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
-  }
-
   .onboarding-chat-header {
     margin-bottom: 16px !important;
     flex-shrink: 0;
   }
 
   /*
-   * Fixed-but-responsive height: capped at 360px (same as desktop), but
-   * automatically shrinks via dvh when the keyboard opens so the input
-   * bar stays visible. 300px covers header + identity bar + input + padding.
+   * Fixed-but-responsive height: capped at 360px (same as desktop), shrinks
+   * via dvh when the keyboard opens. overscroll-behavior:contain keeps iOS
+   * from routing scroll gestures to the body — no page lock needed.
    */
   .onboarding-messages {
     height: min(360px, calc(100dvh - 300px)) !important;

@@ -431,7 +431,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
   /*  REVIEW PHASE                                          */
   /* ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ width: '100%', maxWidth: '580px', maxHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column', animation: 'fadeUp 0.35s var(--ease) both' }}>
+    <div style={{ width: '100%', maxWidth: '580px', height: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', animation: 'fadeUp 0.35s var(--ease) both' }}>
 
       {/* Header — pinned */}
       <div style={{ textAlign: 'center', marginBottom: '28px', flexShrink: 0 }}>

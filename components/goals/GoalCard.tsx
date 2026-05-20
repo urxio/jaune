@@ -388,7 +388,6 @@ export default function GoalCard({
           <HabitSuggestionPanel
             goalId={goal.id}
             existingHabitNames={habitNames}
-            isHabitTracked={isHabitTracked}
             onHabitAdded={onHabitAdded}
             onDismiss={() => onDismissSuggestion(goal.id)}
           />

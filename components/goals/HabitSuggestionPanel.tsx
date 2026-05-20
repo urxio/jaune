@@ -8,12 +8,11 @@ import type { Habit } from '@/lib/types'
 type Props = {
   goalId: string
   existingHabitNames: string[]
-  isHabitTracked: boolean
   onHabitAdded: (name: string, habit: Habit) => void
   onDismiss: () => void
 }
 
-export default function HabitSuggestionPanel({ goalId, existingHabitNames, isHabitTracked, onHabitAdded, onDismiss }: Props) {
+export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHabitAdded, onDismiss }: Props) {
   const [suggestions, setSuggestions] = useState<HabitSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set())
@@ -38,7 +37,7 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, isHab
   function handleAdd(idx: number, s: HabitSuggestion) {
     if (addedIds.has(idx)) return
     const rawTarget = targetCounts[idx]
-    const goal_target_count = isHabitTracked && rawTarget ? Number(rawTarget) || null : null
+    const goal_target_count = rawTarget ? Number(rawTarget) || null : null
     setAddedIds(prev => new Set(prev).add(idx))
     startTransition(async () => {
       try {
@@ -153,7 +152,7 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, isHab
                     {added ? '✓ Added' : '+ Add'}
                   </button>
                 </div>
-                {isHabitTracked && !added && (
+                {!added && (
                   <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input
                       type="number"

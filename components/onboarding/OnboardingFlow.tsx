@@ -385,6 +385,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                   onClick={handleSend}
                   disabled={!canSend}
                   aria-label="Send"
+                  className="icon-btn"
                   style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: canSend ? 'var(--gold)' : 'oklch(1 0 0 / 0.08)', border: 'none', color: canSend ? '#131110' : 'var(--text-3)', cursor: canSend ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, opacity 0.2s', alignSelf: 'flex-end', opacity: canSend ? 1 : 0.35 }}
                 >
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

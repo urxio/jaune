@@ -312,14 +312,26 @@ export default function GoalCard({
       {/* Steps/habit footer strip */}
       <div style={{ padding: '10px 22px 14px 22px', paddingLeft: `${22 + RING_SIZE + 20}px` }}>
         {/* Steps toggle button */}
-        {isHabitTracked ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sage)', padding: '2px 8px', borderRadius: '20px', background: 'rgba(122,158,138,0.12)', border: '1px solid rgba(122,158,138,0.18)' }}>
-              ⟳ Habit-tracked
-            </span>
-          </div>
-        ) : (() => {
+        {(() => {
           const linkedHabits = habits.filter(h => h.goal_id === goal.id)
+          if (isHabitTracked && linkedHabits.length === 0 && !isSuggesting) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>No habits linked yet</span>
+              <button
+                onClick={() => { onRegenerate(goal.id); onToggleExpand(goal.id) }}
+                style={{ background: 'none', border: '1px solid rgba(212,168,83,0.35)', borderRadius: '6px', color: 'var(--gold)', fontSize: '10.5px', fontWeight: 700, padding: '3px 9px', cursor: 'pointer', letterSpacing: '0.04em' }}
+              >
+                ✦ Generate steps instead
+              </button>
+            </div>
+          )
+          if (isHabitTracked) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sage)', padding: '2px 8px', borderRadius: '20px', background: 'rgba(122,158,138,0.12)', border: '1px solid rgba(122,158,138,0.18)' }}>
+                ⟳ Habit-tracked
+              </span>
+            </div>
+          )
           const isUntracked = !hasSteps && !isGenerating && !isSuggesting && linkedHabits.length === 0
           if (isUntracked) return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

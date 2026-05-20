@@ -83,17 +83,10 @@ export default function GoalsList({
         })
           .then(r => r.json())
           .then(({ modes }: { modes: Array<'habits' | 'steps'> }) => {
-            const habitsOnly = modes.includes('habits') && !modes.includes('steps')
             if (modes.includes('habits')) setSuggestingFor(s => new Set([...s, goalId]))
             if (modes.includes('steps')) {
               setExpanded(s => new Set([...s, goalId]))
               handleRegenerateSteps(goalId)
-            }
-            // Goal was created as steps-mode by default — switch to habits if Jaune
-            // decided steps aren't the right fit, so the card reflects the actual plan.
-            if (habitsOnly) {
-              setGoals(gs => gs.map(g => g.id === goalId ? { ...g, tracking_mode: 'habits' } : g))
-              updateGoalAction(goalId, { tracking_mode: 'habits' }).catch(console.error)
             }
           })
           .catch(() => {
@@ -216,7 +209,20 @@ export default function GoalsList({
     onUpdateStep:  handleUpdateStep,
     onDeleteStep:  handleDeleteStep,
     onRegenerate:  handleRegenerateSteps,
-    onHabitAdded:  (name, habit) => { setHabitNames(prev => [...prev, name]); setHabits(prev => [...prev, habit]) },
+    onHabitAdded:  (name, habit) => {
+      setHabitNames(prev => [...prev, name])
+      setHabits(prev => [...prev, habit])
+      // Switch the goal to habit-tracked now that the user has linked a habit
+      if (habit.goal_id) {
+        const goalId = habit.goal_id
+        setGoals(gs => gs.map(g =>
+          g.id === goalId && g.tracking_mode !== 'habits'
+            ? { ...g, tracking_mode: 'habits' }
+            : g
+        ))
+        updateGoalAction(goalId, { tracking_mode: 'habits' }).catch(console.error)
+      }
+    },
     onDismissSuggestion: (goalId) => setSuggestingFor(s => { const n = new Set(s); n.delete(goalId); return n }),
   }
 

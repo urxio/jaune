@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { GoalWithSteps } from '@/lib/types'
+import type { GoalWithSteps, Habit } from '@/lib/types'
 import { createGoalAction, updateGoalAction, type GoalFormData } from '@/app/actions/goals'
+import { linkHabitToGoalAction } from '@/app/actions/habits'
 import { inputStyle, labelStyle } from '@/components/ui/FormStyles'
 import { CATEGORY_COLORS } from './GoalCard'
 
@@ -16,28 +17,73 @@ export const EMPTY_FORM: GoalFormData = {
   tracking_mode: 'manual',
 }
 
-export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
+export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, onSaved }: {
   mode: 'add' | 'edit'; goal?: GoalWithSteps; hasSteps: boolean
-  onClose: () => void; onSaved: (g: GoalWithSteps, isNew: boolean) => void
+  habits?: Habit[]
+  onClose: () => void
+  onSaved: (g: GoalWithSteps, isNew: boolean, linkedHabits?: Array<{ id: string; goal_target_count: number }>) => void
 }) {
   const [form, setForm] = useState<GoalFormData>(
     goal
       ? { title: goal.title, category: goal.category, timeframe: goal.timeframe, progress_pct: goal.progress_pct, target_date: goal.target_date, status: goal.status, tracking_mode: goal.tracking_mode ?? 'manual' }
       : EMPTY_FORM
   )
+  // habitLinks: Map<habitId, targetCount | null>
+  const [habitLinks, setHabitLinks] = useState<Map<string, number | null>>(new Map())
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
 
   const set = (k: keyof GoalFormData, v: string | number | null) => setForm(f => ({ ...f, [k]: v }))
 
+  const toggleHabit = (habitId: string, checked: boolean) => {
+    setHabitLinks(prev => {
+      const next = new Map(prev)
+      if (checked) next.set(habitId, null)
+      else next.delete(habitId)
+      return next
+    })
+  }
+
+  const setTarget = (habitId: string, value: string) => {
+    setHabitLinks(prev => new Map(prev).set(habitId, value ? Number(value) : null))
+  }
+
+  // Habits already linked to another habit-tracked goal (greyed out)
+  const alreadyLinkedIds = new Set(
+    habits
+      .filter(h => h.goal_id && h.goal_id !== goal?.id)
+      .map(h => h.id)
+  )
+
   const handleSubmit = () => {
     if (!form.title.trim()) { setError('Title is required.'); return }
+
+    if (form.tracking_mode === 'habits' && habitLinks.size > 0) {
+      const missingTarget = [...habitLinks.entries()].find(([, t]) => !t || t <= 0)
+      if (missingTarget) {
+        setError('Set a target count for each linked habit.')
+        return
+      }
+    }
+
     setError('')
     startTransition(async () => {
       try {
         if (mode === 'add') {
           const created = await createGoalAction(form)
-          onSaved({ ...created, steps: [] } as unknown as GoalWithSteps, true)
+
+          // Link selected habits to the new goal
+          const linked: Array<{ id: string; goal_target_count: number }> = []
+          if (form.tracking_mode === 'habits' && habitLinks.size > 0) {
+            await Promise.all(
+              [...habitLinks.entries()].map(async ([habitId, targetCount]) => {
+                await linkHabitToGoalAction(habitId, created.id, targetCount)
+                linked.push({ id: habitId, goal_target_count: targetCount! })
+              })
+            )
+          }
+
+          onSaved({ ...created, steps: [] } as unknown as GoalWithSteps, true, linked.length > 0 ? linked : undefined)
         } else if (goal) {
           await updateGoalAction(goal.id, form)
           onSaved({ ...goal, ...form, title: form.title.trim() } as unknown as GoalWithSteps, false)
@@ -47,6 +93,9 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
       }
     })
   }
+
+  // Habits available to link (exclude those already linked to other goals)
+  const linkableHabits = habits.filter(h => !alreadyLinkedIds.has(h.id))
 
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>
@@ -90,7 +139,8 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
               ] as const).map(opt => {
                 const active = form.tracking_mode === opt.value
                 return (
-                  <button key={opt.value} type="button" onClick={() => set('tracking_mode', opt.value)}
+                  <button key={opt.value} type="button"
+                    onClick={() => { set('tracking_mode', opt.value); setHabitLinks(new Map()) }}
                     style={{ padding: '10px 8px', borderRadius: '8px', border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`, background: active ? 'var(--gold-dim)' : 'var(--bg-3)', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
                     <div style={{ fontSize: '16px', marginBottom: '3px', color: active ? 'var(--gold)' : 'var(--text-2)' }}>{opt.icon}</div>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: active ? 'var(--gold)' : 'var(--text-1)', letterSpacing: '0.04em' }}>{opt.label}</div>
@@ -101,16 +151,66 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
             </div>
           </div>
 
+          {/* Habit tracker info + picker */}
           {form.tracking_mode === 'habits' ? (
-            <div style={{ background: 'rgba(122,158,138,0.08)', border: '1px solid rgba(122,158,138,0.2)', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <>
+              <div style={{ background: 'rgba(122,158,138,0.08)', border: '1px solid rgba(122,158,138,0.2)', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: 'var(--sage)', fontSize: '14px' }}>⟳</span>
                 <span>Progress updates automatically each time you check a linked habit.</span>
               </div>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-3)', paddingLeft: '22px' }}>
-                After saving, link habits to this goal and set a target count for each (e.g. "30 runs") — that number drives the progress ring.
-              </div>
-            </div>
+
+              {/* Habit picker */}
+              {linkableHabits.length > 0 ? (
+                <div>
+                  <label style={labelStyle}>
+                    Link habits
+                    <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)', fontSize: '10px' }}> — pick which ones count toward this goal</span>
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', paddingRight: '2px' }}>
+                    {linkableHabits.map(h => {
+                      const isSelected = habitLinks.has(h.id)
+                      const targetVal = habitLinks.get(h.id)
+                      return (
+                        <div
+                          key={h.id}
+                          style={{ borderRadius: '8px', background: isSelected ? 'rgba(212,168,83,0.06)' : 'var(--bg-3)', border: `1px solid ${isSelected ? 'rgba(212,168,83,0.3)' : 'var(--border)'}`, transition: 'all 0.15s', overflow: 'hidden' }}
+                        >
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={e => toggleHabit(h.id, e.target.checked)}
+                              style={{ accentColor: 'var(--gold)', width: '15px', height: '15px', flexShrink: 0, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '16px', flexShrink: 0 }}>{h.emoji}</span>
+                            <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-0)', fontWeight: 500 }}>{h.name}</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-3)', flexShrink: 0 }}>{h.frequency}</span>
+                          </label>
+                          {isSelected && (
+                            <div style={{ padding: '0 12px 10px 37px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                type="number"
+                                min={1}
+                                max={9999}
+                                value={targetVal ?? ''}
+                                onChange={e => setTarget(h.id, e.target.value)}
+                                placeholder="Target count (e.g. 30)"
+                                style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border-md)', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
+                              />
+                              <span style={{ fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>completions</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '10px 12px', background: 'var(--bg-3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  No habits yet — you can create and link habits after saving this goal.
+                </div>
+              )}
+            </>
           ) : hasSteps || form.tracking_mode === 'steps' ? (
             <div style={{ background: 'var(--bg-3)', borderRadius: '8px', padding: '10px 13px', fontSize: '13px', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--gold)', fontSize: '14px' }}>✦</span>
@@ -145,12 +245,6 @@ export default function GoalModal({ mode, goal, hasSteps, onClose, onSaved }: {
             <div style={{ background: 'var(--gold-dim)', border: '1px solid rgba(212,168,83,0.2)', borderRadius: '8px', padding: '10px 13px', fontSize: '12.5px', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '14px' }}>✦</span>
               Jaune will automatically break this goal into steps when you save.
-            </div>
-          )}
-          {mode === 'add' && form.tracking_mode === 'habits' && (
-            <div style={{ background: 'rgba(122,158,138,0.08)', border: '1px solid rgba(122,158,138,0.2)', borderRadius: '8px', padding: '10px 13px', fontSize: '12.5px', color: 'var(--sage)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '14px' }}>⟳</span>
-              After saving, link habits to this goal and every daily check will push progress forward.
             </div>
           )}
 

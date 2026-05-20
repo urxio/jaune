@@ -54,11 +54,25 @@ export default function GoalsList({
   const toggleExpand  = (goalId: string) =>
     setExpanded(s => { const n = new Set(s); n.has(goalId) ? n.delete(goalId) : n.add(goalId); return n })
 
-  const handleGoalSaved = (goal: GoalWithSteps, isNew: boolean) => {
+  const handleGoalSaved = (
+    goal: GoalWithSteps,
+    isNew: boolean,
+    linkedHabits?: Array<{ id: string; goal_target_count: number }>,
+  ) => {
     if (isNew) {
       setGoals(gs => [...gs, goal])
       setStepsMap(m => new Map(m).set(goal.id, []))
-      setSuggestingFor(s => new Set([...s, goal.id]))
+      // Only show AI habit suggestions if the user didn't link habits manually
+      if (!linkedHabits?.length) setSuggestingFor(s => new Set([...s, goal.id]))
+      // Update local habits state to reflect newly linked goal_id
+      if (linkedHabits?.length) {
+        const linkedMap = new Map(linkedHabits.map(h => [h.id, h.goal_target_count]))
+        setHabits(prev => prev.map(h =>
+          linkedMap.has(h.id)
+            ? { ...h, goal_id: goal.id, goal_target_count: linkedMap.get(h.id)! }
+            : h
+        ))
+      }
     } else {
       setGoals(gs => gs.map(g => g.id === goal.id ? { ...goal, steps: stepsMap.get(goal.id) ?? [] } : g))
     }
@@ -220,6 +234,7 @@ export default function GoalsList({
           mode={modal.mode}
           goal={modal.mode === 'edit' ? modal.goal : undefined}
           hasSteps={modal.mode === 'edit' ? (stepsMap.get(modal.goal.id) ?? []).length > 0 : false}
+          habits={habits}
           onClose={closeModal}
           onSaved={handleGoalSaved}
         />

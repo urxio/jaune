@@ -83,6 +83,29 @@ async function maybeSyncGoalProgress(
   await syncHabitGoalProgress(habit.goal_id, userId, supabase)
 }
 
+/** Link (or unlink) an existing habit to a goal and optionally set a target count. */
+export async function linkHabitToGoalAction(
+  habitId: string,
+  goalId: string | null,
+  goalTargetCount: number | null,
+): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('habits')
+    .update({ goal_id: goalId, goal_target_count: goalId ? goalTargetCount : null })
+    .eq('id', habitId)
+    .eq('user_id', user.id)
+  if (error) throw new Error(error.message)
+
+  if (goalId) await maybeSyncGoalProgress(supabase, habitId, user.id)
+
+  revalidatePath('/habits')
+  revalidatePath('/goals')
+}
+
 /* ── CRUD ── */
 
 export type HabitFormData = {

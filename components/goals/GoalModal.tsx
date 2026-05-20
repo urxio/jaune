@@ -166,7 +166,8 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                     Link habits
                     <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)', fontSize: '10px' }}> — pick which ones count toward this goal</span>
                   </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', paddingRight: '2px' }}>
+                  <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto', paddingRight: '2px', paddingBottom: '24px' }}>
                     {linkableHabits.map(h => {
                       const isSelected = habitLinks.has(h.id)
                       const targetVal = habitLinks.get(h.id)
@@ -203,6 +204,9 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                         </div>
                       )
                     })}
+                  </div>
+                  {/* Fade indicating more items below */}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, transparent, var(--bg-0))', pointerEvents: 'none', borderRadius: '0 0 8px 8px' }} />
                   </div>
                 </div>
               ) : (

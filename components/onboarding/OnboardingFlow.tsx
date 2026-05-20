@@ -282,8 +282,8 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
   /*  CHAT PHASE                                            */
   /* ══════════════════════════════════════════════════════ */
   if (phase === 'chat') return (
-    <div style={{ width: '100%', maxWidth: '540px', animation: 'fadeUp 0.4s var(--ease) both' }}>
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+    <div className="onboarding-chat-wrap" style={{ width: '100%', maxWidth: '540px', animation: 'fadeUp 0.4s var(--ease) both' }}>
+      <div className="onboarding-chat-header" style={{ textAlign: 'center', marginBottom: '28px' }}>
         <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, var(--gold) 0%, #a07830 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: '0 4px 20px rgba(212,168,83,0.3)' }}>
           <PetalSvg size={28} />
         </div>
@@ -295,7 +295,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         </div>
       </div>
 
-      <div style={{ background: 'var(--glass-card-bg)', border: '1px solid var(--glass-card-border)', borderRadius: '20px', overflow: 'hidden', boxShadow: 'var(--glass-card-shadow)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+      <div className="onboarding-card" style={{ background: 'var(--glass-card-bg)', border: '1px solid var(--glass-card-border)', borderRadius: '20px', overflow: 'hidden', boxShadow: 'var(--glass-card-shadow)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
 
         {/* Identity bar */}
         <div style={{
@@ -321,7 +321,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         </div>
 
         {/* Messages */}
-        <div ref={messagesBoxRef} style={{ height: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollbarWidth: 'none' }}>
+        <div ref={messagesBoxRef} className="onboarding-messages" style={{ height: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollbarWidth: 'none', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div style={{ flex: 1 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 16px 12px' }}>
             {messages.map((msg, i) => {

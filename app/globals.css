@@ -966,3 +966,42 @@ input[type="range"]::-moz-range-thumb {
 .animate-float-up {
   animation: float-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* ── Onboarding mobile scroll fix ── */
+@media (max-width: 768px) {
+  .onboarding-outer {
+    height: 100dvh !important;
+    min-height: unset !important;
+    overflow: hidden !important;
+    align-items: flex-start !important;
+    padding-top: max(20px, env(safe-area-inset-top)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .onboarding-chat-wrap {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .onboarding-chat-header {
+    margin-bottom: 16px !important;
+    flex-shrink: 0;
+  }
+
+  .onboarding-card {
+    flex: 1;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+  }
+
+  .onboarding-messages {
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 80px;
+  }
+}

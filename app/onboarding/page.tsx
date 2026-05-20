@@ -30,7 +30,7 @@ export default async function OnboardingPage({
   const userName = profile?.name ?? user.email?.split('@')[0] ?? 'there'
 
   return (
-    <div style={{
+    <div className="onboarding-outer" style={{
       minHeight: '100vh',
       backgroundImage: 'url(/wallpapers/onboarding-bg.jpg)',
       backgroundSize: 'cover',

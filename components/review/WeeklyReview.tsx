@@ -46,6 +46,7 @@ function buildReflection(
   habitStats: HabitStat[],
   goals: GoalWithSteps[],
   briefs: Brief[],
+  inProgress: boolean,
 ) {
   const worked: string[] = []
   const adjust: string[] = []
@@ -58,43 +59,59 @@ function buildReflection(
     : null
 
   if (highEnergyDays.length >= 3) {
-    worked.push(`Strong energy across ${highEnergyDays.length} days — you were consistently at 7 or above.`)
+    worked.push(inProgress
+      ? `Strong energy across ${highEnergyDays.length} days so far — you're running above 7 consistently.`
+      : `Strong energy across ${highEnergyDays.length} days — you were consistently at 7 or above.`)
   } else if (avgEnergy != null && avgEnergy >= 6) {
-    worked.push(`Solid average energy of ${avgEnergy.toFixed(1)} — you stayed above baseline most of the week.`)
+    worked.push(inProgress
+      ? `Averaging ${avgEnergy.toFixed(1)} energy so far — above baseline and trending well.`
+      : `Solid average energy of ${avgEnergy.toFixed(1)} — you stayed above baseline most of the week.`)
   }
   if (lowEnergyDays.length >= 2) {
     const days = lowEnergyDays.map(c =>
       new Date(c.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
     ).join(' and ')
-    adjust.push(`Energy dipped below 5 on ${days} — worth examining what drained you those days.`)
+    adjust.push(inProgress
+      ? `Energy dipped below 5 on ${days} — you still have time to identify what's draining you.`
+      : `Energy dipped below 5 on ${days} — worth examining what drained you those days.`)
   }
 
   // Highlights from check-ins
   const highlights = checkins.filter(c => c.highlight && c.highlight.trim().length > 0)
   if (highlights.length > 0) {
-    worked.push(`You logged ${highlights.length} highlight${highlights.length > 1 ? 's' : ''} — moments worth building on.`)
+    worked.push(inProgress
+      ? `${highlights.length} highlight${highlights.length > 1 ? 's' : ''} logged already — keep capturing the moments worth building on.`
+      : `You logged ${highlights.length} highlight${highlights.length > 1 ? 's' : ''} — moments worth building on.`)
   }
 
   // Blockers
   const withBlockers = checkins.filter(c => c.blockers && c.blockers.length > 0)
   if (withBlockers.length >= 2) {
-    adjust.push(`Blockers showed up on ${withBlockers.length} days — identifying their root cause could unlock your next gear.`)
+    adjust.push(inProgress
+      ? `Blockers on ${withBlockers.length} days already — address the root cause now before it compounds.`
+      : `Blockers showed up on ${withBlockers.length} days — identifying their root cause could unlock your next gear.`)
   }
 
   // Habits
   const onTrack = habitStats.filter(h => h.target > 0 && h.done >= h.target)
   const offTrack = habitStats.filter(h => h.target > 0 && h.done < h.target * 0.5)
   if (onTrack.length > 0) {
-    worked.push(`${onTrack.map(h => `${h.emoji} ${h.name}`).join(', ')} hit ${onTrack.length > 1 ? 'their' : 'its'} target — consistency is compounding.`)
+    worked.push(inProgress
+      ? `${onTrack.map(h => `${h.emoji} ${h.name}`).join(', ')} ${onTrack.length > 1 ? 'are' : 'is'} already on track — protect that streak through the end of the week.`
+      : `${onTrack.map(h => `${h.emoji} ${h.name}`).join(', ')} hit ${onTrack.length > 1 ? 'their' : 'its'} target — consistency is compounding.`)
   }
   if (offTrack.length > 0) {
-    adjust.push(`${offTrack.map(h => h.name).join(', ')} fell short of halfway — consider reducing friction or resetting the target.`)
+    adjust.push(inProgress
+      ? `${offTrack.map(h => h.name).join(', ')} is under halfway — there's still time to close the gap before Sunday.`
+      : `${offTrack.map(h => h.name).join(', ')} fell short of halfway — consider reducing friction or resetting the target.`)
   }
 
   // Goals
   const progressingGoals = goals.filter(g => g.progress_pct >= 50)
   if (progressingGoals.length > 0) {
-    worked.push(`${progressingGoals.length > 1 ? `${progressingGoals.length} goals are` : `"${progressingGoals[0].title}" is`} past the halfway mark — you're in motion.`)
+    worked.push(inProgress
+      ? `${progressingGoals.length > 1 ? `${progressingGoals.length} goals are` : `"${progressingGoals[0].title}" is`} past the halfway mark — use the remaining days to push further.`
+      : `${progressingGoals.length > 1 ? `${progressingGoals.length} goals are` : `"${progressingGoals[0].title}" is`} past the halfway mark — you're in motion.`)
   }
 
   // Pull one insight from briefs if available
@@ -106,8 +123,16 @@ function buildReflection(
   }
 
   // Fallbacks
-  if (worked.length === 0) worked.push('You showed up this week — that alone is worth noting.')
-  if (adjust.length === 0) adjust.push('No clear friction points this week — keep the streak going and watch for where energy starts to dip.')
+  if (worked.length === 0) {
+    worked.push(inProgress
+      ? 'You\'ve shown up so far — keep the consistency going through the end of the week.'
+      : 'You showed up this week — that alone is worth noting.')
+  }
+  if (adjust.length === 0) {
+    adjust.push(inProgress
+      ? 'No friction points yet — stay alert to where your energy starts to dip as the week closes out.'
+      : 'No clear friction points this week — keep the streak going and watch for where energy starts to dip.')
+  }
 
   return { worked, adjust }
 }
@@ -117,27 +142,40 @@ function WeeklyReflection({
   habitStats,
   goals,
   briefs,
+  inProgress,
 }: {
   checkins: CheckIn[]
   habitStats: HabitStat[]
   goals: GoalWithSteps[]
   briefs: Brief[]
+  inProgress: boolean
 }) {
-  const { worked, adjust } = buildReflection(checkins, habitStats, goals, briefs)
+  const { worked, adjust } = buildReflection(checkins, habitStats, goals, briefs, inProgress)
 
   return (
     <section style={{ marginBottom: '32px' }}>
-      <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '20px' }}>
-        Weekly Reflection from Jaune
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
+          {inProgress ? "Jaune's read — week in progress" : 'Weekly Reflection from Jaune'}
+        </p>
+        {inProgress && (
+          <span style={{
+            fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: '4px',
+            padding: '2px 6px', opacity: 0.75, lineHeight: 1,
+          }}>
+            Live
+          </span>
+        )}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
 
-        {/* What worked */}
+        {/* Building momentum / What worked */}
         <div className="glass-card" style={{ padding: '22px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <span style={{ fontSize: '13px', color: 'var(--sage)', opacity: 0.9 }}>↑</span>
             <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--sage)', margin: 0, opacity: 0.9 }}>
-              What worked
+              {inProgress ? 'Building momentum' : 'What worked'}
             </p>
           </div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -150,12 +188,12 @@ function WeeklyReflection({
           </ul>
         </div>
 
-        {/* What to adjust */}
+        {/* Course-correct now / What to adjust */}
         <div className="glass-card" style={{ padding: '22px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <span style={{ fontSize: '13px', color: 'var(--gold)', opacity: 0.9 }}>↻</span>
             <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', margin: 0, opacity: 0.9 }}>
-              What to adjust
+              {inProgress ? 'Course-correct now' : 'What to adjust'}
             </p>
           </div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -524,6 +562,7 @@ export default function WeeklyReview({ checkins, habits, goals, briefs }: Props)
           habitStats={habitWeekStats}
           goals={activeGoals}
           briefs={weekBriefs}
+          inProgress={isCurrentWeek}
         />
       )}
 

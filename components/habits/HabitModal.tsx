@@ -9,6 +9,7 @@ import {
 import { deriveFrequencyMeta } from '@/lib/habits/utils'
 import { inputStyle, labelStyle } from '@/components/ui/FormStyles'
 import { daysUntilEnd } from './HabitCard'
+import { useKeyboardAwareOverlay } from '@/lib/hooks/useKeyboardAwareOverlay'
 
 const DOW_LABELS       = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DOW_NAMES        = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -34,6 +35,7 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
   const [scheduledTime,  setScheduledTime]  = useState<string>(habit?.time_of_day ?? '')
   const [error,          setError]          = useState('')
   const [isPending, startTransition]        = useTransition()
+  const overlayRef = useKeyboardAwareOverlay()
 
   const toggleDay = (d: number) => {
     setDaysOfWeek(prev =>
@@ -133,6 +135,7 @@ export default function HabitModal({ mode, habit, today, activeGoals, onClose, o
 
   return (
     <div
+      ref={overlayRef}
       onClick={e => e.target === e.currentTarget && onClose()}
       className="modal-overlay"
       style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}

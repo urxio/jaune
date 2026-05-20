@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
+import { useKeyboardAwareOverlay } from '@/lib/hooks/useKeyboardAwareOverlay'
 import type { GoalWithSteps, Habit } from '@/lib/types'
 import { createGoalAction, updateGoalAction, type GoalFormData } from '@/app/actions/goals'
 import { linkHabitToGoalAction } from '@/app/actions/habits'
@@ -33,6 +34,7 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
   const [habitSearch, setHabitSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const overlayRef = useKeyboardAwareOverlay()
 
   const set = (k: keyof GoalFormData, v: string | number | null) => setForm(f => ({ ...f, [k]: v }))
 
@@ -105,7 +107,7 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
   }, [linkableHabits, habitSearch])
 
   return (
-    <div onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>
+    <div ref={overlayRef} onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>
       <div className="modal-box" style={{ padding: '32px', boxShadow: '0 8px 60px rgba(0,0,0,0.5)' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>

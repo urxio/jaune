@@ -43,7 +43,8 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
   function handleConfirm(idx: number, s: HabitSuggestion) {
     if (addedIds.has(idx)) return
     const rawTarget = targetCounts[idx]
-    const goal_target_count = rawTarget ? Number(rawTarget) || null : null
+    if (!rawTarget || !Number(rawTarget)) return
+    const goal_target_count = Number(rawTarget)
     setPendingIds(prev => { const n = new Set(prev); n.delete(idx); return n })
     setAddedIds(prev => new Set(prev).add(idx))
     startTransition(async () => {
@@ -175,13 +176,13 @@ export default function HabitSuggestionPanel({ goalId, existingHabitNames, onHab
                       value={targetCounts[idx] ?? ''}
                       onChange={e => setTargetCounts(prev => ({ ...prev, [idx]: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && handleConfirm(idx, s)}
-                      placeholder="Target completions (optional)"
+                      placeholder="Target completions (e.g. 30)"
                       style={{ flex: 1, background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 9px', fontSize: '12px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
                     />
                     <button
                       onClick={() => handleConfirm(idx, s)}
-                      disabled={isPending}
-                      style={{ flexShrink: 0, padding: '5px 12px', border: 'none', borderRadius: '6px', background: 'var(--gold)', color: '#131110', fontSize: '11px', fontWeight: 700, cursor: isPending ? 'default' : 'pointer' }}
+                      disabled={isPending || !targetCounts[idx] || !Number(targetCounts[idx])}
+                      style={{ flexShrink: 0, padding: '5px 12px', border: 'none', borderRadius: '6px', background: 'var(--gold)', color: '#131110', fontSize: '11px', fontWeight: 700, opacity: (!targetCounts[idx] || !Number(targetCounts[idx])) ? 0.4 : 1, cursor: (isPending || !targetCounts[idx] || !Number(targetCounts[idx])) ? 'default' : 'pointer' }}
                     >
                       Save
                     </button>

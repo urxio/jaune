@@ -14,7 +14,7 @@ const STATUSES    = ['active', 'paused', 'completed']
 export const EMPTY_FORM: GoalFormData = {
   title: '', category: 'product', timeframe: 'quarter',
   progress_pct: 0, target_date: null, status: 'active',
-  tracking_mode: 'manual',
+  tracking_mode: 'steps',
 }
 
 export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, onSaved }: {

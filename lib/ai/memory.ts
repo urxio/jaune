@@ -329,17 +329,18 @@ export function formatDailySummariesForPrompt(memory: UserMemory | null): string
   const summaries = memory?.daily_summaries
   if (!summaries || summaries.length === 0) return ''
 
-  // Show last 10 days, newest first
+  // Show last 5 days only — older context is stale and causes the AI to
+  // surface irrelevant events or confuse past completions with today's status.
   const recent = [...summaries]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 10)
+    .slice(0, 5)
 
   const lines: string[] = []
-  lines.push('── RECENT DAYS (narrative context) ──')
-  lines.push('A brief narrative of what the user actually said and experienced in recent check-ins:')
+  lines.push('── RECENT DAYS (PAST context — these are previous days, NOT today) ──')
+  lines.push('What the user experienced in recent past check-ins. Reference only when still relevant — never present past events as today\'s status:')
   lines.push('')
   recent.forEach(s => {
-    lines.push(`${s.date}: ${s.summary}`)
+    lines.push(`${s.date} (past): ${s.summary}`)
   })
   lines.push('── END RECENT DAYS ──')
   return lines.join('\n')

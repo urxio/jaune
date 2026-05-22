@@ -40,7 +40,7 @@ export async function getUserHabitsWithLogs(userId: string): Promise<HabitWithLo
     .map(habit => {
       const { goals: linkedGoal, ...habitFields } = habit
       const habitLogs = (logs ?? []).filter(l => l.habit_id === habit.id)
-      const streak = computeStreak(habitLogs, habit.days_of_week ?? null)
+      const streak = computeStreak(habitLogs, habit.days_of_week ?? null, today)
       const weekCompletions = habitLogs.filter(l => {
         const d = new Date(today + 'T12:00:00')
         d.setDate(d.getDate() - 7)
@@ -71,10 +71,9 @@ function isScheduledOn(date: string, daysOfWeek: number[] | null): boolean {
   return daysOfWeek.includes(new Date(date + 'T12:00:00').getDay())
 }
 
-function computeStreak(logs: HabitLog[], daysOfWeek: number[] | null): number {
+function computeStreak(logs: HabitLog[], daysOfWeek: number[] | null, today: string): number {
   if (!logs.length) return 0
   const dates = new Set(logs.map(l => l.logged_date))
-  const today = new Date().toISOString().split('T')[0]
 
   // Find the most recent scheduled+logged date within the last 14 days
   let startDate: string | null = null

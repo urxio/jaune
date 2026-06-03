@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getTodayCheckin } from '@/lib/db/checkins'
+import { getTodayCheckin, getRecentCheckins } from '@/lib/db/checkins'
 import { getTodayBrief, getRecentBriefs } from '@/lib/db/briefs'
 import { readUserMemory } from '@/lib/ai/memory'
 import { getUserTimezone } from '@/lib/db/users'
@@ -13,12 +13,13 @@ export default async function CheckinPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const [existing, memory, todayBrief, pastBriefs, tz] = await Promise.all([
+  const [existing, memory, todayBrief, pastBriefs, tz, recentCheckins] = await Promise.all([
     getTodayCheckin(user.id),
     readUserMemory(user.id),
     getTodayBrief(user.id),
     getRecentBriefs(user.id, 14),
     getUserTimezone(user.id),
+    getRecentCheckins(user.id, 7),
   ])
 
   const today = dateInTz(tz)
@@ -31,6 +32,7 @@ export default async function CheckinPage() {
       hasBrief={!!todayBrief}
       pastBriefs={pastBriefs}
       followupAlreadyDone={followupAlreadyDone}
+      recentCheckins={recentCheckins}
     />
   )
 }

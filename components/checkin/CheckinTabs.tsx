@@ -42,7 +42,7 @@ export default function CheckinTabs({
     const d = new Date(today)
     d.setDate(d.getDate() - (i + 1))
     const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    return recentCheckins.some(c => c.date === ds) ? 0 : 1
+    return recentCheckins.some(c => c.date === ds) ? 0 as number : 1 as number
   }).reduce((a, b) => a + b, 0)
 
   return (

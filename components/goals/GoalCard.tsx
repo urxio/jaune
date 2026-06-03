@@ -213,7 +213,8 @@ export default function GoalCard({
 
   return (
     <div
-      style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: `1px solid ${hovered ? 'rgba(255,255,255,0.18)' : 'var(--glass-card-border)'}`, boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: 'var(--radius-lg)', marginBottom: '10px', transition: 'border-color 0.2s', position: 'relative', overflow: 'hidden' }}
+      className="glass-card-sm"
+      style={{ border: `1px solid ${hovered ? 'rgba(255,255,255,0.18)' : 'var(--glass-card-border)'}`, marginBottom: '10px', transition: 'border-color 0.2s', position: 'relative', overflow: 'hidden' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
     >

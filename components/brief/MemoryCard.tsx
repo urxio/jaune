@@ -31,14 +31,7 @@ export default function MemoryCard({ memory, initialExpanded = false }: { memory
   const checkinLabel = checkin_count === 1 ? 'check-in' : 'check-ins'
 
   return (
-    <div style={{
-      background: 'var(--bg-1)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      marginBottom: '12px',
-      transition: 'border-color 0.2s',
-    }}>
+    <div className="glass-card-sm" style={{ overflow: 'hidden', marginBottom: '12px', transition: 'border-color 0.2s' }}>
       {/* Header — always visible, acts as toggle */}
       <button
         onClick={() => setExpanded(e => !e)}

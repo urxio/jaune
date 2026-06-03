@@ -85,16 +85,14 @@ function DayCard({ day }: { day: DayEntry }) {
     : 0
 
   return (
-    <div style={{
-      background: 'var(--glass-card-bg)',
-      backdropFilter: 'blur(32px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-      border: `1px solid ${isToday ? 'rgba(212,168,83,0.35)' : 'var(--glass-card-border)'}`,
-      boxShadow: 'var(--glass-card-shadow-sm)',
-      borderRadius: 'var(--radius-xl)',
-      overflow: 'hidden',
-      animation: 'fadeUp 0.25s var(--ease) both',
-    }}>
+    <div
+      className="glass-card-sm"
+      style={{
+        border: `1px solid ${isToday ? 'rgba(212,168,83,0.35)' : 'var(--glass-card-border)'}`,
+        overflow: 'hidden',
+        animation: 'fadeUp 0.25s var(--ease) both',
+      }}
+    >
 
       {/* ── Header ── */}
       <div style={{

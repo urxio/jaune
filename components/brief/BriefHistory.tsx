@@ -31,13 +31,7 @@ function BriefHistoryCard({ brief }: { brief: Brief }) {
   const energy = energyLabel(brief.energy_score)
 
   return (
-    <div style={{
-      background: 'var(--bg-1)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      transition: 'border-color 0.2s',
-    }}>
+    <div className="glass-card-sm" style={{ overflow: 'hidden', transition: 'border-color 0.2s' }}>
       {/* Header row — always visible */}
       <button
         onClick={() => setExpanded(e => !e)}

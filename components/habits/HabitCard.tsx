@@ -123,13 +123,9 @@ export default function HabitCard({ habit, loggedDates, streak, colorIndex, last
 
   return (
     <div
+      className="glass-card-sm"
       style={{
-        background: 'var(--glass-card-bg)',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
         border: `1px solid ${hovered ? 'rgba(255,255,255,0.22)' : 'var(--glass-card-border)'}`,
-        boxShadow: 'var(--glass-card-shadow-sm)',
-        borderRadius: '16px',
         padding: '14px 16px',
         transition: 'border-color 0.2s var(--ease)',
         opacity: habit.isScheduledToday ? 1 : 0.65,

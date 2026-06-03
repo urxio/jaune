@@ -253,7 +253,7 @@ export default function GoalsList({
         {completed.length > 0 && <GoalSection title="Completed" goals={completed} {...sharedHandlers} dim />}
 
         {goals.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: 'var(--radius-xl)' }}>
+          <div className="glass-card-sm" style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎯</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 300, color: 'var(--text-1)', marginBottom: '8px' }}>No goals yet.</div>
             <div style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '20px' }}>Add a goal and Jaune will break it into steps automatically.</div>

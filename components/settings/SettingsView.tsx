@@ -17,16 +17,7 @@ const COVER_PRESETS = [
 ]
 
 // ── Shared card style ─────────────────────────────────────────────────────────
-
-const CARD: React.CSSProperties = {
-  background: 'var(--glass-card-bg)',
-  backdropFilter: 'blur(32px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-  border: '1px solid var(--glass-card-border)',
-  boxShadow: 'var(--glass-card-shadow-sm)',
-  borderRadius: '14px',
-  overflow: 'hidden',
-}
+// (kept for overflow: hidden — glass-card-sm provides all visual styles via className)
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
@@ -36,7 +27,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '12px' }}>
         {title}
       </div>
-      <div style={CARD}>
+      <div className="glass-card-sm" style={{ overflow: 'hidden' }}>
         {children}
       </div>
     </div>

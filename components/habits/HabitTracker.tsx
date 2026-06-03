@@ -150,7 +150,7 @@ export default function HabitTracker({
 
         {/* Daily progress bar — list view only */}
         {view === 'list' && totalToday > 0 && (
-          <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px' }}>
+          <div className="glass-card-sm" style={{ padding: '16px 20px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-2)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's progress</span>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 400, color: doneToday === totalToday ? 'var(--sage)' : 'var(--text-0)' }}>
@@ -168,7 +168,7 @@ export default function HabitTracker({
 
         {/* Empty state */}
         {habits.length === 0 && (
-          <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '16px', padding: '48px', textAlign: 'center' }}>
+          <div className="glass-card-sm" style={{ padding: '48px', textAlign: 'center' }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>🌱</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 300, color: 'var(--text-1)', marginBottom: '8px' }}>No habits yet.</div>
             <div style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '20px' }}>Build habits that compound. Start with one.</div>
@@ -190,7 +190,7 @@ export default function HabitTracker({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             {scheduledToday.length === 0 && habits.length > 0 && !showAll && (
-              <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: '14px', padding: '28px', textAlign: 'center' }}>
+              <div className="glass-card-sm" style={{ padding: '28px', textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>✌️</div>
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '4px' }}>No habits scheduled for today.</div>
                 <div style={{ fontSize: '13px', color: 'var(--text-3)' }}>Enjoy the break — you've earned it.</div>

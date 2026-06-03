@@ -13,7 +13,7 @@ const BLOCKERS = [
 ]
 
 function getDayLabel(date: Date, today: Date): string {
-  const diffMs = today.setHours(0,0,0,0) - date.setHours(0,0,0,0)
+  const diffMs = new Date(today).setHours(0,0,0,0) - new Date(date).setHours(0,0,0,0)
   const diffDays = Math.round(diffMs / 86400000)
   if (diffDays === 1) return 'Yesterday'
   return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
@@ -21,6 +21,37 @@ function getDayLabel(date: Date, today: Date): string {
 
 function toLocalDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function energyColor(e: number) {
+  return e >= 7 ? 'var(--sage)' : e >= 5 ? 'var(--gold)' : 'oklch(0.68 0.10 45)'
+}
+
+function energyToLabel(e: number) {
+  if (e >= 9) return 'Charged, fully present'
+  if (e >= 7) return 'Strong, mostly clear'
+  if (e >= 6) return 'Steady, mostly clear'
+  if (e >= 5) return 'Getting by, some friction'
+  if (e >= 3) return 'Low, a bit stretched'
+  return 'Running on empty'
+}
+
+function EnergyDial({ level }: { level: number }) {
+  const filled = Math.round((level / 10) * 5)
+  const color = energyColor(level)
+  return (
+    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+      {[1, 2, 3, 4, 5].map(d => (
+        <span key={d} style={{
+          height: '5px',
+          borderRadius: '3px',
+          transition: 'all 0.3s',
+          background: d <= filled ? color : 'oklch(1 0 0 / 0.12)',
+          width: d <= filled ? '16px' : '6px',
+        }} />
+      ))}
+    </div>
+  )
 }
 
 type DayEntry = {
@@ -90,15 +121,9 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
     router.refresh()
   }
 
-  const energyColor = (e: number) =>
-    e >= 7 ? 'var(--sage)' : e >= 5 ? 'var(--gold)' : '#c08060'
-
-  const energyLabel = (e: number) =>
-    e >= 9 ? 'Exceptional' : e >= 7 ? 'High' : e >= 5 ? 'Moderate' : e >= 3 ? 'Low' : 'Depleted'
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '8px', lineHeight: 1.5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '4px', lineHeight: 1.5 }}>
         Fill in check-ins you missed. Each saves independently.
       </div>
 
@@ -109,12 +134,12 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
         return (
           <div
             key={day.dateStr}
+            className="glass-card"
             style={{
-              background: 'var(--bg-1)',
-              border: `1px solid ${f.saved ? 'rgba(122,158,138,0.3)' : 'var(--border-md)'}`,
-              borderRadius: 'var(--radius-md)',
+              borderRadius: '14px',
               overflow: 'hidden',
-              transition: 'border-color 0.2s',
+              transition: 'box-shadow 0.2s',
+              ...(f.saved ? { borderColor: 'rgba(122,158,138,0.35)' } : {}),
             }}
           >
             {/* Row header */}
@@ -125,7 +150,7 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '14px 16px',
+                padding: '16px 20px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
@@ -133,47 +158,49 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                 textAlign: 'left',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Status dot */}
                 {f.saved ? (
                   <span style={{
-                    width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+                    width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
                     background: 'rgba(122,158,138,0.15)',
-                    border: '1px solid rgba(122,158,138,0.35)',
+                    border: '1px solid rgba(122,158,138,0.4)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--sage)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--sage)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M2.5 8l3.5 3.5 7.5-7"/>
                     </svg>
                   </span>
                 ) : (
                   <span style={{
-                    width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
-                    background: 'var(--bg-2)',
-                    border: '1px solid var(--border-md)',
+                    width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                    background: 'oklch(1 0 0 / 0.06)',
+                    border: '1.5px solid oklch(1 0 0 / 0.18)',
                   }} />
                 )}
-                <span style={{
-                  fontSize: '14px',
-                  fontWeight: f.saved ? 500 : 400,
-                  color: f.saved ? 'var(--text-1)' : 'var(--text-0)',
-                }}>
-                  {day.label}
-                </span>
+
+                <div>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: f.saved ? 'oklch(0.93 0.012 80 / 0.9)' : 'oklch(0.93 0.012 80 / 0.7)',
+                    lineHeight: 1.2,
+                  }}>
+                    {day.label}
+                  </div>
+                  {f.saved && (
+                    <div style={{ fontSize: '12px', color: energyColor(f.energy), marginTop: '2px', fontWeight: 500 }}>
+                      {energyToLabel(f.energy)}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {f.saved && (
-                  <span style={{
-                    fontSize: '12px',
-                    color: energyColor(f.energy),
-                    fontWeight: 600,
-                  }}>
-                    {f.energy}/10 · {energyLabel(f.energy)}
-                  </span>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                {f.saved && <EnergyDial level={f.energy} />}
                 <svg
                   width="14" height="14" viewBox="0 0 16 16" fill="none"
-                  stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                  stroke="oklch(1 0 0 / 0.35)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
                   style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
                 >
                   <path d="M3 6l5 5 5-5" />
@@ -183,44 +210,53 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
 
             {/* Expanded form */}
             {isOpen && (
-              <div style={{ padding: '0 16px 20px', borderTop: '1px solid var(--border)', animation: 'fadeUp 0.2s var(--ease) both' }}>
+              <div style={{
+                padding: '20px 20px 20px',
+                borderTop: '1px solid oklch(1 0 0 / 0.08)',
+                animation: 'fadeUp 0.2s var(--ease) both',
+              }}>
 
                 {/* Energy */}
-                <div style={{ marginTop: '16px', marginBottom: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '10px' }}>
-                    Energy level
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button
-                      onClick={() => updateForm(day.dateStr, { energy: Math.max(1, f.energy - 1) })}
-                      disabled={f.energy === 1}
-                      style={arrowBtnStyle(f.energy === 1)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l5 5 5-5"/></svg>
-                    </button>
-                    <div style={{ textAlign: 'center', minWidth: '60px' }}>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: '36px', fontWeight: 300, color: 'var(--text-0)', lineHeight: 1 }}>
-                        {f.energy}
-                      </span>
-                      <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: energyColor(f.energy), marginTop: '4px' }}>
-                        {energyLabel(f.energy)}
-                      </div>
+                <div style={{ marginBottom: '22px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: '0 0 12px' }}>
+                    Energy
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: 'var(--text-0)', margin: '0 0 4px' }}>
+                        {energyToLabel(f.energy)}
+                      </p>
+                      <p style={{ fontSize: '12px', color: energyColor(f.energy), margin: 0, fontWeight: 500 }}>
+                        {f.energy}/10
+                      </p>
                     </div>
-                    <button
-                      onClick={() => updateForm(day.dateStr, { energy: Math.min(10, f.energy + 1) })}
-                      disabled={f.energy === 10}
-                      style={arrowBtnStyle(f.energy === 10)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l5-5 5 5"/></svg>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <button
+                        onClick={() => updateForm(day.dateStr, { energy: Math.max(1, f.energy - 1) })}
+                        disabled={f.energy === 1}
+                        style={stepBtnStyle(f.energy === 1)}
+                        aria-label="Decrease energy"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l5 5 5-5"/></svg>
+                      </button>
+                      <EnergyDial level={f.energy} />
+                      <button
+                        onClick={() => updateForm(day.dateStr, { energy: Math.min(10, f.energy + 1) })}
+                        disabled={f.energy === 10}
+                        style={stepBtnStyle(f.energy === 10)}
+                        aria-label="Increase energy"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l5-5 5 5"/></svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Mood note */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-                    Mood note <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— optional</span>
-                  </div>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: '0 0 8px' }}>
+                    Mood <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, opacity: 0.6 }}>— optional</span>
+                  </p>
                   <textarea
                     value={f.moodNote}
                     onChange={e => updateForm(day.dateStr, { moodNote: e.target.value })}
@@ -228,13 +264,13 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                     placeholder="How were you feeling that day?"
                     style={{
                       width: '100%',
-                      background: 'var(--bg-0)',
-                      border: '1px solid var(--border-md)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
+                      background: 'oklch(1 0 0 / 0.05)',
+                      border: '1px solid oklch(1 0 0 / 0.10)',
+                      borderRadius: '9px',
+                      padding: '10px 14px',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '14px',
-                      color: 'var(--text-0)',
+                      color: 'oklch(0.93 0.012 80 / 0.9)',
                       resize: 'none',
                       outline: 'none',
                       lineHeight: 1.6,
@@ -245,10 +281,10 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                 </div>
 
                 {/* Highlight */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
-                    Highlight <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— optional</span>
-                  </div>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: '0 0 8px' }}>
+                    Highlight <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, opacity: 0.6 }}>— optional</span>
+                  </p>
                   <input
                     type="text"
                     value={f.highlight}
@@ -256,13 +292,13 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                     placeholder="A win or memorable moment"
                     style={{
                       width: '100%',
-                      background: 'var(--bg-0)',
-                      border: '1px solid var(--border-md)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
+                      background: 'oklch(1 0 0 / 0.05)',
+                      border: '1px solid oklch(1 0 0 / 0.10)',
+                      borderRadius: '9px',
+                      padding: '10px 14px',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '14px',
-                      color: 'var(--text-0)',
+                      color: 'oklch(0.93 0.012 80 / 0.9)',
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -270,10 +306,10 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                 </div>
 
                 {/* Blockers */}
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '8px' }}>
+                <div style={{ marginBottom: '22px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: '0 0 10px' }}>
                     Blockers
-                  </div>
+                  </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
                     {BLOCKERS.map(b => {
                       const active = f.blockers.includes(b)
@@ -284,13 +320,13 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                             blockers: active ? f.blockers.filter(x => x !== b) : [...f.blockers, b],
                           })}
                           style={{
-                            padding: '8px 14px',
-                            background: active ? 'var(--gold-dim)' : 'var(--bg-2)',
-                            border: `1px solid ${active ? 'rgba(212,168,83,0.3)' : 'var(--border-md)'}`,
+                            padding: '7px 14px',
+                            background: active ? 'var(--gold-dim)' : 'oklch(1 0 0 / 0.07)',
+                            border: `1px solid ${active ? 'rgba(212,168,83,0.3)' : 'oklch(1 0 0 / 0.12)'}`,
                             borderRadius: '20px',
                             fontSize: '12px',
                             fontWeight: active ? 600 : 400,
-                            color: active ? 'var(--gold)' : 'var(--text-1)',
+                            color: active ? 'var(--gold)' : 'oklch(0.93 0.012 80 / 0.7)',
                             cursor: 'pointer',
                             transition: 'all 0.15s',
                             fontFamily: 'inherit',
@@ -333,16 +369,15 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
   )
 }
 
-function arrowBtnStyle(disabled: boolean): CSSProperties {
+function stepBtnStyle(disabled: boolean): CSSProperties {
   return {
-    width: '36px', height: '36px',
+    width: '28px', height: '28px',
     borderRadius: '50%',
-    border: `1px solid ${disabled ? 'var(--border)' : 'var(--border-md)'}`,
-    background: 'var(--bg-2)',
-    color: disabled ? 'var(--text-3)' : 'var(--text-1)',
+    border: `1px solid ${disabled ? 'oklch(1 0 0 / 0.08)' : 'oklch(1 0 0 / 0.18)'}`,
+    background: 'oklch(1 0 0 / 0.06)',
+    color: disabled ? 'oklch(1 0 0 / 0.2)' : 'oklch(0.93 0.012 80 / 0.7)',
     cursor: disabled ? 'default' : 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    opacity: disabled ? 0.35 : 1,
     flexShrink: 0,
   }
 }

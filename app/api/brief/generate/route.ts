@@ -6,7 +6,8 @@ import { SYSTEM_PROMPT, buildUserMessage } from '@/lib/ai/prompts'
 import { parseBriefResponse } from '@/lib/ai/parse'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { getUserLocalDate } from '@/lib/db/users'
-import { savePendingClarifications } from '@/lib/ai/memory'
+import { readUserMemory, savePendingClarifications, patchUserMemory } from '@/lib/ai/memory'
+import { updateMemoryInsights } from '@/lib/memory/update-insights'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
 
   const today = await getUserLocalDate(user.id)
 
-  // 2. Check cache — return non-stale brief if exists
+  // 2. Check cache — return non-stale brief if exists (skip insights check if cached)
   const { force } = await request.json().catch(() => ({ force: false }))
   if (!force) {
     const cached = await getTodayBrief(user.id)
@@ -30,7 +31,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 3. Build context from user's data
+  // 3. If backfill entries are pending an insights refresh, run it now (before building context)
+  const memory = await readUserMemory(user.id)
+  if (memory?.needs_insights_refresh) {
+    await patchUserMemory(user.id, { needs_insights_refresh: false })
+    void updateMemoryInsights(user.id).catch(err => console.error('[brief] deferred insights refresh:', err))
+  }
+
+  // 4. Build context from user's data
   let context
   try {
     context = await buildBriefContext(user.id, today)

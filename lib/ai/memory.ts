@@ -71,6 +71,8 @@ export type UserMemory = {
   audit_dismissals?: Record<string, string[]>
   // Date (YYYY-MM-DD local) when the check-in follow-up question was answered or skipped
   checkin_followup_dismissed_date?: string
+  // Set to true when a backfill check-in is saved — clears after next insights refresh
+  needs_insights_refresh?: boolean
   // Narrative summaries of each day's check-in conversation — last 30 days
   daily_summaries?: Array<{
     date: string         // YYYY-MM-DD

@@ -5,8 +5,8 @@ import { markBriefStale } from '@/lib/db/briefs'
 import { updateMemoryStats } from '@/lib/memory/update-stats'
 import { updateMemoryInsights } from '@/lib/memory/update-insights'
 import { updatePeopleMemory } from '@/lib/memory/update-people'
+import { patchUserMemory } from '@/lib/ai/memory'
 import { revalidatePath } from 'next/cache'
-
 import { getUserLocalDate } from '@/lib/db/users'
 
 type CheckinInput = {
@@ -22,8 +22,9 @@ export async function submitCheckin(input: CheckinInput) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Use client-provided date if available; otherwise look up user's stored timezone
-  const today = input.localDate ?? await getUserLocalDate(user.id)
+  const serverToday = await getUserLocalDate(user.id)
+  const targetDate = input.localDate ?? serverToday
+  const isBackfill = targetDate !== serverToday
 
   const { error } = await supabase
     .from('check_ins')
@@ -34,7 +35,7 @@ export async function submitCheckin(input: CheckinInput) {
         mood_note: input.mood_note,
         blockers: input.blockers,
         highlight: input.highlight,
-        date: today,
+        date: targetDate,
         checked_in_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,date' }
@@ -48,9 +49,16 @@ export async function submitCheckin(input: CheckinInput) {
   // Fire-and-forget: update memory stats (pure computation — no Claude call)
   void updateMemoryStats(user.id).catch(err => console.error('[checkin] memory stats:', err))
 
-  // Fire-and-forget: update AI insights if enough data and throttle allows
-  // (throttled internally to once per 6 days — safe to call every check-in)
-  void updateMemoryInsights(user.id).catch(err => console.error('[checkin] memory insights:', err))
+  if (isBackfill) {
+    // Backfill: queue a deferred insights refresh instead of calling Claude immediately.
+    // The flag is read on the next brief generation and triggers updateMemoryInsights there,
+    // so multiple backfill saves collapse into a single Claude call.
+    void patchUserMemory(user.id, { needs_insights_refresh: true })
+      .catch(err => console.error('[checkin] flag insights refresh:', err))
+  } else {
+    // Today's check-in: run insights normally (throttled internally to once per 6 days)
+    void updateMemoryInsights(user.id).catch(err => console.error('[checkin] memory insights:', err))
+  }
 
   // Fire-and-forget: extract people mentioned in journals + mood notes
   // (throttled internally to once per 5 days — safe to call every check-in)

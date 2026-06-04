@@ -46,14 +46,8 @@ export default function FollowupQuestion({ question, context, onDone }: Props) {
 
   if (phase === 'thanks') {
     return (
-      <div style={{
+      <div className="glass-card-sm" style={{
         marginTop: '16px',
-        background: 'var(--glass-card-bg)',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-        border: '1px solid var(--glass-card-border)',
-        boxShadow: 'var(--glass-card-shadow-sm)',
-        borderRadius: 'var(--radius-lg)',
         padding: '14px 18px',
         display: 'flex', alignItems: 'center', gap: '10px',
         animation: 'fadeUp 0.2s var(--ease) both',
@@ -67,14 +61,8 @@ export default function FollowupQuestion({ question, context, onDone }: Props) {
   }
 
   return (
-    <div style={{
+    <div className="glass-card-sm" style={{
       marginTop: '16px',
-      background: 'var(--glass-card-bg)',
-      backdropFilter: 'blur(32px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-      border: '1px solid var(--glass-card-border)',
-      boxShadow: 'var(--glass-card-shadow-sm)',
-      borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
       animation: 'fadeUp 0.25s var(--ease) both',
     }}>

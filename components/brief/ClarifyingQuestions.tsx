@@ -29,9 +29,8 @@ export default function ClarifyingQuestions({ questions, briefDate, onComplete }
   if (!current || submitted) {
     if (submitted) {
       return (
-        <div style={{
-          background: 'var(--bg-1)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)', padding: '18px 22px',
+        <div className="glass-card-sm" style={{
+          padding: '18px 22px',
           marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px',
           animation: 'fadeUp 0.2s var(--ease) both',
         }}>
@@ -85,10 +84,7 @@ export default function ClarifyingQuestions({ questions, briefDate, onComplete }
   const total    = questions.length
 
   return (
-    <div style={{
-      background: 'var(--bg-1)',
-      border: '1px solid var(--border-md)',
-      borderRadius: 'var(--radius-lg)',
+    <div className="glass-card-sm" style={{
       overflow: 'hidden',
       marginBottom: '16px',
       animation: 'fadeUp 0.25s var(--ease) both',

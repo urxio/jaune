@@ -93,11 +93,11 @@ export default function PostCheckinBrief({ memory, sidebar = false }: Props) {
 
       {/* ── Brief loader / insight card ── */}
       {generating ? (
-        <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: sidebar ? 'none' : '1px solid var(--glass-card-border)', boxShadow: sidebar ? 'none' : 'var(--glass-card-shadow)', borderRadius: sidebar ? '0' : 'var(--radius-xl)', overflow: 'hidden', marginBottom: sidebar ? '0' : '20px' }}>
+        <div className={sidebar ? undefined : 'glass-card'} style={{ overflow: 'hidden', marginBottom: sidebar ? '0' : '20px', ...(sidebar ? {} : {}) }}>
           <BriefLoader onBriefReady={handleBriefReady} onError={handleGenError} />
         </div>
       ) : genError ? (
-        <div style={{ background: 'var(--bg-1)', border: '1px solid rgba(200,80,80,0.2)', borderRadius: 'var(--radius-xl)', padding: '22px 26px', marginBottom: '20px' }}>
+        <div className="glass-card-sm" style={{ border: '1px solid rgba(200,80,80,0.2)', padding: '22px 26px', marginBottom: '20px' }}>
           <div style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '12px' }}>
             Brief generation hit an issue: {genError}
           </div>
@@ -111,7 +111,7 @@ export default function PostCheckinBrief({ memory, sidebar = false }: Props) {
 
       {/* ── Clarification note ── */}
       {(clarificationNote || noteLoading) && !generating && (
-        <div style={{ background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', marginTop: '-8px', marginBottom: '16px', animation: 'fadeUp 0.25s var(--ease) both' }}>
+        <div className="glass-card-sm" style={{ padding: '16px 20px', marginTop: '-8px', marginBottom: '16px', animation: 'fadeUp 0.25s var(--ease) both' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' }}>
             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--gold)', opacity: noteLoading ? 0 : 1, animation: noteLoading ? 'pulse 1s ease-in-out infinite' : 'none' }} />
             <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
@@ -159,11 +159,7 @@ export default function PostCheckinBrief({ memory, sidebar = false }: Props) {
           }}>
             Today&apos;s priorities
           </div>
-          <div style={sidebar ? {} : {
-            background: 'var(--glass-card-bg)', backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid var(--glass-card-border)', boxShadow: 'var(--glass-card-shadow-sm)',
-            borderRadius: '16px', padding: '0 24px', overflow: 'hidden',
-          }}>
+          <div className={sidebar ? undefined : 'glass-card-sm'} style={sidebar ? {} : { padding: '0 24px', overflow: 'hidden' }}>
             {brief.priorities.map((p, i) => (
               <PriorityCard
                 key={i}

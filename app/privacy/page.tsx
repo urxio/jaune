@@ -141,11 +141,14 @@ export default function PrivacyPage() {
 
           <H2>5. Data Retention and Deletion</H2>
           <P>
-            Your data is retained for as long as your account is active. You can delete
-            your account at any time by contacting us at{' '}
+            Your data is retained for as long as your account is active. You can{' '}
+            <strong>export everything</strong> (every check-in, journal entry, goal,
+            habit log, brief, and AI memory) as a single JSON file from{' '}
+            Settings → Your data, and you can <strong>delete your account</strong>{' '}
+            from the same place — deletion is immediate and permanent, removing all
+            your personal data including journal entries, check-ins, goals, habits,
+            memory, and OAuth tokens. You can also request deletion by contacting{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>{CONTACT_EMAIL}</a>.
-            Upon deletion, all your personal data — including journal entries, check-ins,
-            goals, habits, memory, and OAuth tokens — will be permanently removed.
           </P>
           <P>
             You can disconnect Google Calendar at any time from Settings → Integrations.
@@ -165,9 +168,9 @@ export default function PrivacyPage() {
           <H2>7. Your Rights</H2>
           <P>You have the right to:</P>
           <Ul>
-            <li>Access the personal data we hold about you</li>
+            <li>Access the personal data we hold about you — download it anytime from Settings → Your data</li>
             <li>Request correction of inaccurate data</li>
-            <li>Request deletion of your account and all associated data</li>
+            <li>Delete your account and all associated data instantly from Settings → Your data</li>
             <li>Revoke Google Calendar access at any time from within the app or via your <a href="https://myaccount.google.com/permissions" style={linkStyle} target="_blank" rel="noopener noreferrer">Google Account permissions page</a></li>
           </Ul>
           <P>

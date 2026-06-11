@@ -180,7 +180,8 @@ export async function updateMemoryStats(userId: string): Promise<void> {
       energy_when_done:    number
       energy_when_skipped: number
       diff:                number   // positive = habit boosts next-day energy
-      sample_size:         number
+      sample_size:         number   // total paired observations (done + skipped)
+      early_signal:        boolean  // under 20 pairs — present as tentative
     }
 
     const habitCorrelations: HabitCorrelation[] = []
@@ -202,8 +203,10 @@ export async function updateMemoryStats(userId: string): Promise<void> {
         }
       })
 
-      // Need enough data on both sides to be meaningful
-      if (nextWhenDone.length < 5 || nextWhenSkipped.length < 3) continue
+      // Hard gate: enough data on BOTH sides, and at least 10 pairs total.
+      // One confidently-stated false pattern costs more trust than ten true ones earn.
+      const totalPairs = nextWhenDone.length + nextWhenSkipped.length
+      if (nextWhenDone.length < 5 || nextWhenSkipped.length < 5 || totalPairs < 10) continue
 
       const avgDone    = avg(nextWhenDone)
       const avgSkipped = avg(nextWhenSkipped)
@@ -218,7 +221,8 @@ export async function updateMemoryStats(userId: string): Promise<void> {
         energy_when_done:    avgDone,
         energy_when_skipped: avgSkipped,
         diff,
-        sample_size:         nextWhenDone.length,
+        sample_size:         totalPairs,
+        early_signal:        totalPairs < 20,
       })
     }
 
@@ -232,7 +236,8 @@ export async function updateMemoryStats(userId: string): Promise<void> {
       energy_with:      number
       energy_without:   number
       diff:             number   // positive = word associated with higher energy
-      sample_size:      number
+      sample_size:      number   // total mood-note check-ins compared
+      early_signal:     boolean  // under 20 — present as tentative
     }
 
     const keywordCorrelations: KeywordCorrelation[] = []
@@ -242,7 +247,8 @@ export async function updateMemoryStats(userId: string): Promise<void> {
       const withWord    = checkinsWithMood.filter(c => c.mood_note!.toLowerCase().includes(word))
       const withoutWord = checkinsWithMood.filter(c => !c.mood_note!.toLowerCase().includes(word))
 
-      if (withWord.length < 5 || withoutWord.length < 3) return
+      const totalCompared = withWord.length + withoutWord.length
+      if (withWord.length < 5 || withoutWord.length < 5 || totalCompared < 10) return
 
       const avgWith    = avg(withWord.map(c => c.energy_level))
       const avgWithout = avg(withoutWord.map(c => c.energy_level))
@@ -255,7 +261,8 @@ export async function updateMemoryStats(userId: string): Promise<void> {
         energy_with:    avgWith,
         energy_without: avgWithout,
         diff,
-        sample_size:    withWord.length,
+        sample_size:    totalCompared,
+        early_signal:   totalCompared < 20,
       })
     })
 

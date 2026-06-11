@@ -1,6 +1,13 @@
 -- ── memory_notes ───────────────────────────────────────
 -- User-authored notes that feed into the AI's working context.
 -- Three flavors: time-anchored reminders, ideas, and resources.
+--
+-- STATUS: UNUSED — no application code reads or writes this table.
+-- The planned capture feature (capture UI + lib/db/memory-notes.ts +
+-- a MEMORY NOTES section in the brief context) was never built, and the
+-- corresponding rule was removed from the brief system prompt in
+-- lib/ai/prompts.ts. Kept in place so existing databases stay consistent;
+-- safe to build on or drop in a future migration.
 
 create table if not exists public.memory_notes (
   id            uuid primary key default gen_random_uuid(),

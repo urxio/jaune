@@ -94,14 +94,16 @@ export type UserMemory = {
       energy_when_done:    number  // avg next-day energy after logging habit
       energy_when_skipped: number  // avg next-day energy without logging
       diff:                number  // positive = habit boosts energy
-      sample_size:         number
+      sample_size:         number  // total paired observations
+      early_signal?:       boolean // under 20 pairs — present as tentative
     }>
     keywords: Array<{
       word:           string
       energy_with:    number  // avg energy on days word appears in mood note
       energy_without: number
       diff:           number  // positive = word associated with higher energy
-      sample_size:    number
+      sample_size:    number  // total compared check-ins
+      early_signal?:  boolean // under 20 — present as tentative
     }>
     computed_at: string
   }
@@ -306,19 +308,21 @@ export function formatCorrelationsForPrompt(memory: UserMemory | null): string {
   const lines: string[] = []
   const entries: string[] = []
 
+  const earlyTag = (early?: boolean) => early ? ' [EARLY SIGNAL]' : ''
+
   c.habits.forEach(h => {
     if (h.diff >= 0.5) {
-      entries.push(`• ${h.habit_emoji} ${h.habit_name} days → next-day energy +${h.diff} pts (avg ${h.energy_when_done}/10 vs ${h.energy_when_skipped}/10 when skipped, ${h.sample_size} data points)`)
+      entries.push(`• ${h.habit_emoji} ${h.habit_name} days → next-day energy +${h.diff} pts (avg ${h.energy_when_done}/10 vs ${h.energy_when_skipped}/10 when skipped, ${h.sample_size} data points)${earlyTag(h.early_signal)}`)
     } else if (h.diff <= -0.5) {
-      entries.push(`• Missing ${h.habit_emoji} ${h.habit_name} → next-day energy ${h.diff} pts (${h.sample_size} data points)`)
+      entries.push(`• Missing ${h.habit_emoji} ${h.habit_name} → next-day energy ${h.diff} pts (${h.sample_size} data points)${earlyTag(h.early_signal)}`)
     }
   })
 
   c.keywords.forEach(k => {
     if (k.diff >= 0.7) {
-      entries.push(`• Mentioning "${k.word}" in mood notes → energy +${k.diff} pts that day (${k.sample_size} occurrences)`)
+      entries.push(`• Mentioning "${k.word}" in mood notes → energy +${k.diff} pts that day (${k.sample_size} compared)${earlyTag(k.early_signal)}`)
     } else if (k.diff <= -0.7) {
-      entries.push(`• Mentioning "${k.word}" → energy ${k.diff} pts that day (${k.sample_size} occurrences)`)
+      entries.push(`• Mentioning "${k.word}" → energy ${k.diff} pts that day (${k.sample_size} compared)${earlyTag(k.early_signal)}`)
     }
   })
 
@@ -327,6 +331,7 @@ export function formatCorrelationsForPrompt(memory: UserMemory | null): string {
   lines.push('── BEHAVIOUR-ENERGY CORRELATIONS ──')
   lines.push('Statistically observed patterns from this user\'s data (reference these when relevant):')
   entries.forEach(e => lines.push(e))
+  lines.push('Items marked [EARLY SIGNAL] rest on limited data — present them as a hunch you\'re watching ("might be a pattern forming"), never as established fact.')
   lines.push('── END CORRELATIONS ──')
   return lines.join('\n')
 }

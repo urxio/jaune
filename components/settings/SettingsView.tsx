@@ -3,6 +3,7 @@
 import { useState, useRef, useTransition } from 'react'
 import { updateProfile } from '@/app/actions/settings'
 import { signOut } from '@/app/actions/auth'
+import { deleteAccount } from '@/app/actions/account'
 import { useToast } from '@/components/ui/ToastContext'
 import { createClient } from '@/lib/supabase/client'
 
@@ -370,6 +371,93 @@ function ChangePasswordSection() {
   )
 }
 
+// ── Your data ─────────────────────────────────────────────────────────────────
+
+function YourDataSection() {
+  const toast = useToast()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete(e: React.FormEvent) {
+    e.preventDefault()
+    if (confirmText !== 'DELETE') { toast.error('Type DELETE to confirm'); return }
+    setDeleting(true)
+    try {
+      await deleteAccount(confirmText)
+      // deleteAccount redirects on success — code below only runs on failure
+    } catch (err) {
+      // Next.js redirect() throws internally — rethrow it so navigation happens
+      if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err
+      setDeleting(false)
+      toast.error(err instanceof Error ? err.message : 'Deletion failed')
+    }
+  }
+
+  return (
+    <Section title="Your data">
+      <Row label="Export everything">
+        <a
+          href="/api/user/export"
+          download
+          style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontWeight: 500 }}
+        >
+          Download JSON →
+        </a>
+      </Row>
+      <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '13.5px', color: 'var(--text-1)', fontWeight: 500 }}>Delete account</div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-3)', marginTop: '2px' }}>
+              Permanently erases your account and every check-in, journal, goal, and memory. No recovery.
+            </div>
+          </div>
+          <button
+            onClick={() => { setConfirmOpen(o => !o); setConfirmText('') }}
+            style={{
+              padding: '7px 16px', borderRadius: '8px', border: '1px solid rgba(224,92,74,0.3)',
+              background: 'rgba(224,92,74,0.07)', color: '#e05c4a',
+              fontSize: '13px', fontWeight: 500, cursor: 'pointer', flexShrink: 0, marginLeft: '12px',
+            }}
+          >
+            {confirmOpen ? 'Cancel' : 'Delete…'}
+          </button>
+        </div>
+        {confirmOpen && (
+          <form onSubmit={handleDelete} style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value)}
+              placeholder='Type DELETE to confirm'
+              autoFocus
+              style={{
+                flex: 1, background: 'var(--bg-2)', border: '1px solid rgba(224,92,74,0.3)',
+                borderRadius: '8px', padding: '9px 12px', fontSize: '13px',
+                color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={confirmText !== 'DELETE' || deleting}
+              style={{
+                padding: '9px 16px', borderRadius: '8px', border: 'none',
+                background: confirmText === 'DELETE' ? '#e05c4a' : 'var(--bg-3)',
+                color: confirmText === 'DELETE' ? '#fff' : 'var(--text-3)',
+                fontSize: '13px', fontWeight: 600,
+                cursor: confirmText === 'DELETE' && !deleting ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete forever'}
+            </button>
+          </form>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export default function SettingsView({
@@ -408,6 +496,8 @@ export default function SettingsView({
       <AppearanceSection name={name} avatarUrl={avatarUrl} initialCoverUrl={coverUrl} />
 
       <ChangePasswordSection />
+
+      <YourDataSection />
 
       <Section title="System">
         <Row label="Onboarding">

@@ -81,6 +81,8 @@ checks.push(['insight_text under ~130 words', brief.insight_text.split(/\s+/).le
 checks.push(['State A: does not claim completion today', !/you (did|completed|logged|finished)[^.]*today/i.test(brief.insight_text)])
 checks.push(['energy_score in range', brief.energy_score >= 1 && brief.energy_score <= 10])
 checks.push(['no bullet lists in insight', !/\n\s*[-•]/.test(brief.insight_text)])
+// Context has no ENERGY FORECAST section, so any "your Wednesdays..." style claim is invented
+checks.push(['no invented day-of-week pattern', !/(mon|tues|wednes|thurs|fri|satur|sun)days\b/i.test(allText)])
 
 let failed = 0
 for (const [name, ok] of checks) {

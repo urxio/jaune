@@ -29,8 +29,13 @@ export async function proxy(request: NextRequest) {
   // Onboarding is authenticated-only but not a "public" auth page
   const isOnboarding = pathname.startsWith('/onboarding')
 
+  // API routes authenticate themselves (cookie session or Bearer token for the
+  // mobile app) and return proper 401s — a login redirect would break
+  // non-browser clients, so let them through.
+  const isApi = pathname.startsWith('/api')
+
   // Redirect unauthenticated users to login
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !isApi) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

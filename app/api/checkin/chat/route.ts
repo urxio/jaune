@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { LOCUS_CHARACTER } from '@/lib/ai/character'
 
@@ -70,8 +70,7 @@ When opening, briefly acknowledge what they shared before and ask if anything ha
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await createClientFromRequest(request)
   if (!user) return new Response('Unauthorized', { status: 401 })
 
   let messages: Message[]
@@ -92,6 +91,38 @@ export async function POST(request: NextRequest) {
   const apiMessages = messages.length === 0
     ? [{ role: 'user' as const, content: '(start the check-in now)' }]
     : messages
+
+  // JSON mode for the mobile app: collect the full completion and return the
+  // parsed result instead of streaming. The hidden <checkin_data> block becomes
+  // `summary` and its presence becomes `done`; web keeps the streaming path.
+  if (request.headers.get('accept')?.includes('application/json')) {
+    try {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5',
+        max_tokens: 350,
+        system,
+        messages: apiMessages,
+      })
+      const fullText = response.content
+        .map(block => (block.type === 'text' ? block.text : ''))
+        .join('')
+
+      let summary: Record<string, unknown> | undefined
+      const dataMatch = fullText.match(/<checkin_data>\s*([\s\S]*?)\s*<\/checkin_data>/)
+      if (dataMatch) {
+        try { summary = JSON.parse(dataMatch[1]) } catch { /* malformed block — treat as not done */ }
+      }
+      const reply = fullText
+        .replace(/<checkin_data>[\s\S]*?<\/checkin_data>/g, '')
+        .replace(/<show_brief>/g, '')
+        .trim()
+
+      return Response.json({ reply, done: summary !== undefined, summary })
+    } catch (err) {
+      console.error('[checkin/chat] json mode error:', err)
+      return Response.json({ error: 'AI request failed' }, { status: 502 })
+    }
+  }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

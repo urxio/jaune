@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
 import { getAnthropicClient } from '@/lib/ai/client'
 import { readUserMemory, formatMemoryForPrompt, formatSelfProfileForPrompt, formatClarifyingQAForPrompt } from '@/lib/ai/memory'
 import { getTodayCheckin, getLastCheckinDate } from '@/lib/db/checkins'
@@ -15,8 +15,7 @@ export const dynamic  = 'force-dynamic'
 export const maxDuration = 20
 
 export async function GET(req: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await createClientFromRequest(req)
   if (!user) return new Response('Unauthorized', { status: 401 })
 
   const force     = new URL(req.url).searchParams.has('force')

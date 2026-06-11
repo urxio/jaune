@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientFromRequest } from '@/lib/supabase/server'
 import { getTodayBrief, storeBrief } from '@/lib/db/briefs'
 import { buildBriefContext } from '@/lib/ai/context'
 import { SYSTEM_PROMPT, buildUserMessage } from '@/lib/ai/prompts'
@@ -14,9 +14,8 @@ export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   // 1. Auth check
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
+  const { supabase, user } = await createClientFromRequest(request)
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

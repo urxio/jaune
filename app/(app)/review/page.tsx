@@ -4,6 +4,7 @@ import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { getActiveGoalsWithSteps } from '@/lib/db/goals'
 import { getRecentBriefs } from '@/lib/db/briefs'
 import WeeklyReview from '@/components/review/WeeklyReview'
+import MonthlyRetrospective from '@/components/review/MonthlyRetrospective'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,11 +21,16 @@ export default async function ReviewPage() {
   ])
 
   return (
-    <WeeklyReview
-      checkins={checkins}
-      habits={habits}
-      goals={goals}
-      briefs={briefs}
-    />
+    <>
+      <WeeklyReview
+        checkins={checkins}
+        habits={habits}
+        goals={goals}
+        briefs={briefs}
+      />
+      <div className="review-shell">
+        <MonthlyRetrospective />
+      </div>
+    </>
   )
 }

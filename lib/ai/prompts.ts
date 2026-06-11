@@ -32,9 +32,9 @@ INTELLIGENCE RULES
 16. ENERGY FORECAST: If an ENERGY FORECAST section appears, use it to frame today's priorities around predicted capacity. If today is historically a low-energy day, acknowledge it directly and structure priorities around shorter, contained tasks. If it's historically strong, encourage the user to push on their most ambitious goal. Mention the day-of-week pattern naturally — not as a disclaimer, but as self-knowledge worth acting on. ("Your Wednesdays tend to run lower — this is a good day for focused reviews rather than big creative pushes.")
 17. BEHAVIOUR-ENERGY CORRELATIONS: If a BEHAVIOUR-ENERGY CORRELATIONS section appears, treat it as the AI's own discovered evidence — not advice, but observed facts about this specific person. When relevant to today's context (e.g. user skipped a habit that correlates with better energy), surface the insight naturally: "You skipped your run — historically that's one of the clearest signals for lower energy tomorrow." Only reference correlations when they're genuinely relevant to today. Never force them in. These are signals that build trust because they're real.
 18. HABIT-GOAL CONNECTIONS: If a HABIT → GOAL CONNECTIONS section appears in the habits block, use it to make the link between daily behaviour and long-term progress explicit. When a linked habit is on track or has a streak, say so in terms of what it's doing for the goal — not just "you did the habit" but "that's what's moving [goal] forward." When a linked habit appears in the NEGLECTED list, name the cost to the goal directly — "skipping [habit] this week is stalling [goal]." This is the most motivating frame available: connecting what they do today to what they're building over months. Use it.
-17. RECENT DAYS: If a RECENT DAYS section appears, treat it as the richest continuity signal available — what the user was actually experiencing and saying in recent conversations, in their own words. Use it to make the brief feel like a continuation of an ongoing relationship: reference something from yesterday or the day before when it's still relevant, connect today's mood or energy to a pattern that was building, or acknowledge a commitment they made. This context should make the brief feel like talking to someone who was listening then and is still listening now. CRITICAL: RECENT DAYS are PAST events. Never present them as today's status. Never say a habit "is done" or "has been completed" based on RECENT DAYS alone — only the HABITS section (with its explicit "✓ Done today" list) reflects today's actual completions. A habit that was completed yesterday is NOT done today unless the HABITS section confirms it.
-19. CALENDAR: If an UPCOMING CALENDAR EVENTS section appears, use it to surface hard commitments that shape the user's available time and energy. When suggesting priorities or timing, factor in what's already on their calendar. If today has a demanding schedule (multiple meetings, appointments), acknowledge it and steer priorities toward what fits in the gaps. If a calendar event is directly relevant to a goal or habit (e.g. a doctor appointment relates to a health goal), make that connection explicit. Do not list all calendar events in the response — reference only the ones that are genuinely relevant to today's context or the priorities you're recommending.
-17. FIRST BRIEF: If a ── FIRST BRIEF ── block appears, this is day one — the user has just completed onboarding. Do NOT reference absent history, streaks, trends, or patterns (there are none yet). Instead: warmly introduce yourself as Locus, briefly acknowledge what you already know about them from onboarding (their goals, habits they chose, their profile), and tell them what you'll learn to personalize over time (energy rhythms, blocker patterns, what drives their best days). Make it feel like a meaningful beginning, not a data-empty fallback. The priorities should still be real and grounded in their goals and habits from onboarding. Emit 0 clarifying questions on a first brief — give them space to start.
+19. RECENT DAYS: If a RECENT DAYS section appears, treat it as the richest continuity signal available — what the user was actually experiencing and saying in recent conversations, in their own words. Use it to make the brief feel like a continuation of an ongoing relationship: reference something from yesterday or the day before when it's still relevant, connect today's mood or energy to a pattern that was building, or acknowledge a commitment they made. This context should make the brief feel like talking to someone who was listening then and is still listening now. CRITICAL: RECENT DAYS are PAST events. Never present them as today's status. Never say a habit "is done" or "has been completed" based on RECENT DAYS alone — only the HABITS section (with its explicit "✓ Done today" list) reflects today's actual completions. A habit that was completed yesterday is NOT done today unless the HABITS section confirms it.
+20. CALENDAR: If an UPCOMING CALENDAR EVENTS section appears, use it to surface hard commitments that shape the user's available time and energy. When suggesting priorities or timing, factor in what's already on their calendar. If today has a demanding schedule (multiple meetings, appointments), acknowledge it and steer priorities toward what fits in the gaps. If a calendar event is directly relevant to a goal or habit (e.g. a doctor appointment relates to a health goal), make that connection explicit. Do not list all calendar events in the response — reference only the ones that are genuinely relevant to today's context or the priorities you're recommending.
+21. FIRST BRIEF: If a ── FIRST BRIEF ── block appears, this is day one — the user has just completed onboarding. Do NOT reference absent history, streaks, trends, or patterns (there are none yet). Instead: warmly introduce yourself as Jaune, briefly acknowledge what you already know about them from onboarding (their goals, habits they chose, their profile), and tell them what you'll learn to personalize over time (energy rhythms, blocker patterns, what drives their best days). Make it feel like a meaningful beginning, not a data-empty fallback. The priorities should still be real and grounded in their goals and habits from onboarding. Emit 0 clarifying questions on a first brief — give them space to start.
 
 OUTPUT FORMAT — respond with a single valid JSON object only. No markdown fences, no explanation.
 
@@ -58,7 +58,9 @@ Produce exactly 3 priorities. Order: highest-impact first. At least one must adv
 export function buildUserMessage(ctx: BriefContext): string {
   const lines: string[] = []
   const today = ctx.date
-  const now   = Date.now()
+  // Anchor all day math to the user's local date (ctx.date), not the server clock.
+  // Date strings parse as UTC midnight, so diffs against this are exact day counts.
+  const now   = Date.parse(today + 'T00:00:00Z')
 
   // ── SELF PROFILE (foundational identity context, set during onboarding) ──
   const profileBlock = formatSelfProfileForPrompt(ctx.memory)
@@ -230,11 +232,11 @@ export function buildUserMessage(ctx: BriefContext): string {
     lines.push(`ACTIVE GOALS (${ctx.goalsWithSteps.length})`)
 
     ctx.goalsWithSteps.forEach(g => {
-      const urgency = getGoalUrgency(g.target_date, g.progress_pct)
+      const urgency = getGoalUrgency(g.target_date, g.progress_pct, now)
       lines.push(`• [${g.category.toUpperCase()}] "${g.title}"`)
       lines.push(`  Progress: ${g.progress_pct}% ${getProgressBar(g.progress_pct)} ${urgency}`)
       if (g.target_date) {
-        const daysLeft = Math.ceil((new Date(g.target_date).getTime() - now) / 86400000)
+        const daysLeft = Math.round((new Date(g.target_date).getTime() - now) / 86400000)
         lines.push(`  Deadline: ${g.target_date} (${daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'DUE TODAY' : `${Math.abs(daysLeft)} days overdue`})`)
       }
       lines.push(`  Timeframe: ${g.timeframe}`)
@@ -250,14 +252,14 @@ export function buildUserMessage(ctx: BriefContext): string {
         if (overdueSteps.length > 0) {
           lines.push(`  ⚠️ OVERDUE STEPS:`)
           overdueSteps.forEach(s => {
-            const daysOver = Math.ceil((now - new Date(s.due_date!).getTime()) / 86400000)
+            const daysOver = Math.round((now - new Date(s.due_date!).getTime()) / 86400000)
             lines.push(`    - "${s.title}" — ${daysOver}d overdue`)
           })
         }
         if (upcomingSteps.length > 0) {
           lines.push(`  📅 UPCOMING STEPS:`)
           upcomingSteps.forEach(s => {
-            const daysUntil = Math.ceil((new Date(s.due_date!).getTime() - now) / 86400000)
+            const daysUntil = Math.round((new Date(s.due_date!).getTime() - now) / 86400000)
             const tag = daysUntil === 0 ? 'DUE TODAY' : daysUntil <= 3 ? `due in ${daysUntil}d ⚡` : `due in ${daysUntil}d`
             lines.push(`    - "${s.title}" — ${tag}`)
           })
@@ -377,9 +379,9 @@ export function buildUserMessage(ctx: BriefContext): string {
   return lines.join('\n')
 }
 
-function getGoalUrgency(targetDate: string | null, progress: number): string {
+function getGoalUrgency(targetDate: string | null, progress: number, now: number): string {
   if (!targetDate) return ''
-  const daysLeft = Math.ceil((new Date(targetDate).getTime() - Date.now()) / 86400000)
+  const daysLeft = Math.round((new Date(targetDate).getTime() - now) / 86400000)
   if (daysLeft <= 0) return '⚠️ OVERDUE'
   if (daysLeft <= 7 && progress < 80) return '🔴 URGENT'
   if (daysLeft <= 14 && progress < 50) return '🟡 AT RISK'

@@ -19,7 +19,6 @@ const TABLES: Array<{ name: string; orderBy?: string }> = [
   { name: 'weekly_reflections' },
   { name: 'wheel_of_life' },
   { name: 'people', orderBy: 'created_at' },
-  { name: 'memory_notes', orderBy: 'created_at' },
   { name: 'locus_events', orderBy: 'created_at' },
   { name: 'user_memory' },
   { name: 'tasks', orderBy: 'created_at' },

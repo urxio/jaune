@@ -1,7 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { markBriefStale } from '@/lib/db/briefs'
+import { markBriefStale, getTodayBrief } from '@/lib/db/briefs'
+import { getTodayCheckin } from '@/lib/db/checkins'
+import { readUserMemory } from '@/lib/ai/memory'
 import { updateMemoryStats } from '@/lib/memory/update-stats'
 import { updateMemoryInsights } from '@/lib/memory/update-insights'
 import { updatePeopleMemory } from '@/lib/memory/update-people'
@@ -26,6 +28,22 @@ export async function submitCheckin(input: CheckinInput) {
   const targetDate = input.localDate ?? serverToday
   const isBackfill = targetDate !== serverToday
 
+  // Score Jaune's morning energy prediction: if this is the FIRST check-in of the
+  // day and a brief already exists, that brief was generated pre-check-in (State A)
+  // and its energy_score was a prediction. Record predicted vs actual.
+  // Must run before the upsert (so "first check-in" is detectable) and before
+  // markBriefStale (getTodayBrief filters stale briefs out).
+  let predictionSample: { date: string; predicted: number; actual: number } | null = null
+  if (!isBackfill) {
+    const [existingCheckin, todayBrief] = await Promise.all([
+      getTodayCheckin(user.id, targetDate),
+      getTodayBrief(user.id, targetDate),
+    ])
+    if (!existingCheckin && todayBrief?.energy_score != null) {
+      predictionSample = { date: targetDate, predicted: todayBrief.energy_score, actual: input.energy_level }
+    }
+  }
+
   const { error } = await supabase
     .from('check_ins')
     .upsert(
@@ -45,6 +63,17 @@ export async function submitCheckin(input: CheckinInput) {
 
   // Mark today's brief as stale so it regenerates with new check-in data
   await markBriefStale(user.id)
+
+  // Fire-and-forget: append today's prediction sample to memory (keep last 60)
+  if (predictionSample) {
+    const sample = predictionSample
+    void (async () => {
+      const memory = await readUserMemory(user.id)
+      const history = (memory?.prediction_history ?? []).filter(p => p.date !== sample.date)
+      history.push(sample)
+      await patchUserMemory(user.id, { prediction_history: history.slice(-60) })
+    })().catch(err => console.error('[checkin] prediction history:', err))
+  }
 
   // Fire-and-forget: update memory stats (pure computation — no Claude call)
   void updateMemoryStats(user.id).catch(err => console.error('[checkin] memory stats:', err))

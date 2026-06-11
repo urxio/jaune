@@ -67,6 +67,19 @@ export type BriefPriority = {
   reasoning: string
 }
 
+export type PriorityOutcomeStatus = 'done' | 'partial' | 'skipped'
+
+export type PriorityOutcome = {
+  title: string
+  outcome: PriorityOutcomeStatus
+}
+
+/** What actually happened to a brief's priorities. Empty outcomes = review dismissed. */
+export type PriorityOutcomes = {
+  recorded_at: string
+  outcomes: PriorityOutcome[]
+}
+
 export type Brief = {
   id: string
   user_id: string
@@ -79,6 +92,7 @@ export type Brief = {
   energy_score: number | null
   tokens_used: number | null
   stale: boolean
+  priority_outcomes: PriorityOutcomes | null
 }
 
 export type Task = {

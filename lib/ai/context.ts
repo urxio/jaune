@@ -1,4 +1,5 @@
 import { getActiveGoalsWithSteps } from '@/lib/db/goals'
+import { getYesterdayBrief } from '@/lib/db/briefs'
 import { getTodayCheckin, getRecentCheckins } from '@/lib/db/checkins'
 import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { readUserMemory, type UserMemory } from '@/lib/ai/memory'
@@ -29,10 +30,12 @@ export type BriefContext = {
   isFirstBrief: boolean
   catchupPeople: Pick<Person, 'name' | 'notes'>[]
   calendarEvents: CalendarEvent[]
+  /** Yesterday's plan + what the user said happened to it (null if no brief or no outcomes recorded). */
+  yesterdayPlan: { date: string; outcomes: { title: string; outcome: string }[] } | null
 }
 
 export async function buildBriefContext(userId: string, date: string): Promise<BriefContext> {
-  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, allPeople, calendarEvents] = await Promise.all([
+  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, allPeople, calendarEvents, yesterdayBrief] = await Promise.all([
     getActiveGoalsWithSteps(userId),
     getTodayCheckin(userId),
     getRecentCheckins(userId, 7),
@@ -42,6 +45,7 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     getRecentJournals(userId, 7),
     getPeople(userId),
     getCalendarEventsForAI(userId),
+    getYesterdayBrief(userId, date),
   ])
 
   const avgEnergy = recentCheckins.length
@@ -85,5 +89,9 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     isFirstBrief,
     catchupPeople,
     calendarEvents,
+    yesterdayPlan:
+      yesterdayBrief?.priority_outcomes && yesterdayBrief.priority_outcomes.outcomes.length > 0
+        ? { date: yesterdayBrief.brief_date, outcomes: yesterdayBrief.priority_outcomes.outcomes }
+        : null,
   }
 }

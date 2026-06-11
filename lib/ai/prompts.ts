@@ -34,7 +34,8 @@ INTELLIGENCE RULES
 18. HABIT-GOAL CONNECTIONS: If a HABIT → GOAL CONNECTIONS section appears in the habits block, use it to make the link between daily behaviour and long-term progress explicit. When a linked habit is on track or has a streak, say so in terms of what it's doing for the goal — not just "you did the habit" but "that's what's moving [goal] forward." When a linked habit appears in the NEGLECTED list, name the cost to the goal directly — "skipping [habit] this week is stalling [goal]." This is the most motivating frame available: connecting what they do today to what they're building over months. Use it.
 19. RECENT DAYS: If a RECENT DAYS section appears, treat it as the richest continuity signal available — what the user was actually experiencing and saying in recent conversations, in their own words. Use it to make the brief feel like a continuation of an ongoing relationship: reference something from yesterday or the day before when it's still relevant, connect today's mood or energy to a pattern that was building, or acknowledge a commitment they made. This context should make the brief feel like talking to someone who was listening then and is still listening now. CRITICAL: RECENT DAYS are PAST events. Never present them as today's status. Never say a habit "is done" or "has been completed" based on RECENT DAYS alone — only the HABITS section (with its explicit "✓ Done today" list) reflects today's actual completions. A habit that was completed yesterday is NOT done today unless the HABITS section confirms it.
 20. CALENDAR: If an UPCOMING CALENDAR EVENTS section appears, use it to surface hard commitments that shape the user's available time and energy. When suggesting priorities or timing, factor in what's already on their calendar. If today has a demanding schedule (multiple meetings, appointments), acknowledge it and steer priorities toward what fits in the gaps. If a calendar event is directly relevant to a goal or habit (e.g. a doctor appointment relates to a health goal), make that connection explicit. Do not list all calendar events in the response — reference only the ones that are genuinely relevant to today's context or the priorities you're recommending.
-21. FIRST BRIEF: If a ── FIRST BRIEF ── block appears, this is day one — the user has just completed onboarding. Do NOT reference absent history, streaks, trends, or patterns (there are none yet). Instead: warmly introduce yourself as Jaune, briefly acknowledge what you already know about them from onboarding (their goals, habits they chose, their profile), and tell them what you'll learn to personalize over time (energy rhythms, blocker patterns, what drives their best days). Make it feel like a meaningful beginning, not a data-empty fallback. The priorities should still be real and grounded in their goals and habits from onboarding. Emit 0 clarifying questions on a first brief — give them space to start.
+21. YESTERDAY'S PLAN OUTCOMES: If a YESTERDAY'S PLAN section appears, the user explicitly told you what happened to the priorities you suggested yesterday — this is the most direct follow-through signal you have. When things got done, acknowledge it warmly and specifically (name the thing, connect it to the goal it advanced). When something was skipped or partial, never guilt-trip: either quietly carry it forward as today's priority if it still matters, or let it go and adapt — a plan that didn't fit the day is information about the plan, not a failure of the person. Over time, if the same kind of priority keeps getting skipped, treat that as a pattern worth naming gently (e.g. the plan may be too ambitious for that day of the week).
+22. FIRST BRIEF: If a ── FIRST BRIEF ── block appears, this is day one — the user has just completed onboarding. Do NOT reference absent history, streaks, trends, or patterns (there are none yet). Instead: warmly introduce yourself as Jaune, briefly acknowledge what you already know about them from onboarding (their goals, habits they chose, their profile), and tell them what you'll learn to personalize over time (energy rhythms, blocker patterns, what drives their best days). Make it feel like a meaningful beginning, not a data-empty fallback. The priorities should still be real and grounded in their goals and habits from onboarding. Emit 0 clarifying questions on a first brief — give them space to start.
 
 OUTPUT FORMAT — respond with a single valid JSON object only. No markdown fences, no explanation.
 
@@ -101,6 +102,18 @@ export function buildUserMessage(ctx: BriefContext): string {
       parts.forEach(p => lines.push(`  ${p}`))
       lines.push('')
     }
+  }
+
+  // ── PREDICTION ACCURACY — how Jaune's past energy guesses compared to reality ──
+  const predictions = ctx.memory?.prediction_history
+  if (predictions && predictions.length >= 10) {
+    const recent = predictions.slice(-30)
+    const avgError = roundTo1(recent.reduce((s, p) => s + Math.abs(p.predicted - p.actual), 0) / recent.length)
+    const within1 = Math.round((recent.filter(p => Math.abs(p.predicted - p.actual) <= 1).length / recent.length) * 100)
+    lines.push(`PREDICTION ACCURACY`)
+    lines.push(`  Over the last ${recent.length} mornings, your energy predictions averaged ${avgError} points off the user's actual check-in (${within1}% within ±1).`)
+    lines.push(`  When making today's prediction (State A), you may occasionally reference this track record in one short clause — visible learning builds trust. Never more than once, never as a boast.`)
+    lines.push('')
   }
 
   // ── BEHAVIOUR-ENERGY CORRELATIONS ──
@@ -199,6 +212,16 @@ export function buildUserMessage(ctx: BriefContext): string {
     }
   }
   lines.push('')
+
+  // ── YESTERDAY'S PLAN — what the user said happened to it ──
+  if (ctx.yesterdayPlan) {
+    const SYMBOL: Record<string, string> = { done: '✓ done', partial: '◐ partial', skipped: '✕ skipped' }
+    lines.push(`YESTERDAY'S PLAN (${ctx.yesterdayPlan.date}) — outcomes reported by the user`)
+    ctx.yesterdayPlan.outcomes.forEach(o => {
+      lines.push(`  ${SYMBOL[o.outcome] ?? o.outcome}: "${o.title}"`)
+    })
+    lines.push('')
+  }
 
   // ── UPCOMING CALENDAR EVENTS ──
   const calendarBlock = formatCalendarForPrompt(ctx.calendarEvents)

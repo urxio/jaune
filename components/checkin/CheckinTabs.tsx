@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CheckinFlow from './CheckinFlow'
 import BackfillCheckin from './BackfillCheckin'
+import YesterdayPlanReview from './YesterdayPlanReview'
 import BriefHistory from '@/components/brief/BriefHistory'
 import PostCheckinBrief from '@/components/brief/PostCheckinBrief'
 import type { CheckIn, Brief } from '@/lib/types'
@@ -19,12 +20,14 @@ type Props = {
   pastBriefs?:        Brief[]
   followupAlreadyDone?: boolean
   recentCheckins?:    CheckIn[]
+  /** Yesterday's brief, when its priority outcomes haven't been recorded yet. */
+  yesterdayBrief?:    Brief | null
 }
 
 export default function CheckinTabs({
   existingCheckin,
   memory, hasBrief = false, pastBriefs = [], followupAlreadyDone = false,
-  recentCheckins = [],
+  recentCheckins = [], yesterdayBrief = null,
 }: Props) {
   const router = useRouter()
   const [briefReady, setBriefReady] = useState(hasBrief || !!existingCheckin)
@@ -88,6 +91,10 @@ export default function CheckinTabs({
 
       {mainTab === 'today' && (
         <>
+          {yesterdayBrief && !yesterdayBrief.priority_outcomes && (
+            <YesterdayPlanReview brief={yesterdayBrief} />
+          )}
+
           <CheckinFlow
             existingCheckin={existingCheckin}
             onCheckinSaved={handleCheckinSaved}

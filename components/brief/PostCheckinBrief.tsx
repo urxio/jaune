@@ -8,6 +8,7 @@ import AIInsightCard from './AIInsightCard'
 import PriorityCard from './PriorityCard'
 import ClarifyingQuestions, { type QAPair } from './ClarifyingQuestions'
 import MemoryCard from './MemoryCard'
+import BriefFeedback from './BriefFeedback'
 
 type Props = {
   memory?: UserMemory | null
@@ -106,7 +107,10 @@ export default function PostCheckinBrief({ memory, sidebar = false }: Props) {
           </a>
         </div>
       ) : brief ? (
-        <AIInsightCard text={brief.insight_text} sidebar={sidebar} />
+        <>
+          <AIInsightCard text={brief.insight_text} sidebar={sidebar} />
+          <BriefFeedback briefId={brief.id} briefDate={brief.brief_date} />
+        </>
       ) : null}
 
       {/* ── Clarification note ── */}

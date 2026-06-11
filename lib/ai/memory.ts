@@ -73,6 +73,12 @@ export type UserMemory = {
   checkin_followup_dismissed_date?: string
   // Set to true when a backfill check-in is saved — clears after next insights refresh
   needs_insights_refresh?: boolean
+  // Pre-check-in energy predictions (brief.energy_score) vs the actual check-in — last 60
+  prediction_history?: Array<{
+    date: string       // YYYY-MM-DD
+    predicted: number  // energy_score from the State A (pre-check-in) brief
+    actual: number     // energy_level the user then logged
+  }>
   // Narrative summaries of each day's check-in conversation — last 30 days
   daily_summaries?: Array<{
     date: string         // YYYY-MM-DD

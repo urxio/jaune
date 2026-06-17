@@ -37,6 +37,22 @@ export const VITALITY_PROGRESS: Record<Exclude<VitalitySignal, 'on_track'>, stri
   near_finish: 'linear-gradient(90deg, #4a7a60 0%, #8ab89a 100%)',
 }
 
+export const VITALITY_STATUS_BADGE: Record<VitalitySignal, { bg: string; color: string; label: string }> = {
+  on_track:    { bg: 'rgba(60,110,80,0.28)',   color: '#70b888', label: 'ON PACE' },
+  near_finish: { bg: 'rgba(60,110,80,0.28)',   color: '#70b888', label: 'ALMOST THERE' },
+  at_risk:     { bg: 'rgba(160,80,60,0.28)',   color: '#c87878', label: 'NEEDS PUSH' },
+  urgent:      { bg: 'rgba(180,60,60,0.28)',   color: '#e07070', label: 'URGENT' },
+  overdue:     { bg: 'rgba(180,60,60,0.28)',   color: '#e07070', label: 'OVERDUE' },
+}
+
+export const VITALITY_RING_STROKE: Record<VitalitySignal, string> = {
+  on_track:    '#d4a853',
+  near_finish: '#8ab89a',
+  at_risk:     '#e0a060',
+  urgent:      '#e06060',
+  overdue:     '#e06060',
+}
+
 /* ── VITALITY COMPUTATION ── */
 
 export function computeGoalVitality(goal: Goal, steps: GoalStep[]): GoalVitality {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { Goal, CheckIn, HabitWithLogs, Brief } from '@/lib/types'
 import { logHabitAction, unlogHabitAction } from '@/app/actions/habits'
 import { localDateStr } from '@/lib/utils/date'
+import { computeGoalVitality, VITALITY_STATUS_BADGE, VITALITY_RING_STROKE, type GoalVitality } from '@/lib/utils/goal-vitality'
 
 type Props = {
   goals:        Goal[]
@@ -53,6 +54,38 @@ function EnergyDial({ level }: { level: number }) {
     </div>
   )
 }
+
+const GOAL_RING_SIZE = 34
+const GOAL_RING_STROKE_W = 3.5
+const GOAL_RING_RADIUS = (GOAL_RING_SIZE - GOAL_RING_STROKE_W) / 2
+const GOAL_RING_CIRC = 2 * Math.PI * GOAL_RING_RADIUS
+
+function MiniProgressRing({ pct, signal }: { pct: number; signal: GoalVitality['signal'] }) {
+  const offset = GOAL_RING_CIRC * (1 - Math.min(100, Math.max(0, pct)) / 100)
+  const stroke = VITALITY_RING_STROKE[signal] ?? '#d4a853'
+  return (
+    <svg width={GOAL_RING_SIZE} height={GOAL_RING_SIZE} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
+      <circle cx={GOAL_RING_SIZE / 2} cy={GOAL_RING_SIZE / 2} r={GOAL_RING_RADIUS} fill="none" stroke="oklch(1 0 0 / 0.08)" strokeWidth={GOAL_RING_STROKE_W} />
+      <circle
+        cx={GOAL_RING_SIZE / 2} cy={GOAL_RING_SIZE / 2} r={GOAL_RING_RADIUS}
+        fill="none" stroke={stroke} strokeWidth={GOAL_RING_STROKE_W}
+        strokeLinecap="round"
+        strokeDasharray={GOAL_RING_CIRC}
+        strokeDashoffset={offset}
+        style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.22,1,0.36,1)' }}
+      />
+      <text
+        x={GOAL_RING_SIZE / 2} y={GOAL_RING_SIZE / 2}
+        dominantBaseline="central" textAnchor="middle"
+        style={{ transform: 'rotate(90deg)', transformOrigin: `${GOAL_RING_SIZE / 2}px ${GOAL_RING_SIZE / 2}px`, fontFamily: 'var(--font-serif)', fontSize: '9.5px', fontWeight: 500, fill: 'var(--text-0)' }}
+      >
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  )
+}
+
+const BEHIND_PACE: GoalVitality['signal'][] = ['at_risk', 'urgent', 'overdue']
 
 /* ── Pulse cache ── */
 
@@ -172,6 +205,11 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
   const [habitLoading, setHabitLoading] = useState<Record<string, boolean>>({})
 
   const todayHabits = todayHabitsBase.map(h => ({ ...h, done: habitDone[h.id] ?? h.done }))
+
+  const activeGoals = goals
+    .filter(g => g.status === 'active')
+    .slice(0, 4)
+    .map(g => ({ goal: g, vitality: computeGoalVitality(g, []) }))
 
   async function toggleHabit(id: string) {
     if (habitLoading[id]) return
@@ -334,6 +372,61 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
                     </span>
                   </li>
                 ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Goals strip */}
+          {activeGoals.length > 0 && (
+            <div className="home-right-section" style={{ animation: 'fadeUp 0.4s var(--ease) 0.24s both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', margin: 0 }}>
+                  Goals
+                </p>
+                <Link
+                  href="/goals"
+                  style={{ fontSize: '12px', color: 'var(--text-3)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px', transition: 'color 0.15s', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+                >
+                  All
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8h10M9 4l4 4-4 4" />
+                  </svg>
+                </Link>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {activeGoals.map(({ goal, vitality }, i) => {
+                  const behind = BEHIND_PACE.includes(vitality.signal)
+                  const badge  = VITALITY_STATUS_BADGE[vitality.signal]
+                  return (
+                    <li
+                      key={goal.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                        padding: '10px 0',
+                        borderTop: i === 0 ? 'none' : '1px solid oklch(1 0 0 / 0.06)',
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '14px', color: 'oklch(0.93 0.012 80 / 0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {goal.title}
+                        </div>
+                        {behind && (
+                          <span style={{
+                            display: 'inline-block', marginTop: '5px',
+                            fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                            padding: '1px 7px', borderRadius: '4px',
+                            background: badge.bg, color: badge.color,
+                          }}>
+                            {badge.label}
+                          </span>
+                        )}
+                      </div>
+                      <MiniProgressRing pct={goal.progress_pct} signal={vitality.signal} />
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}

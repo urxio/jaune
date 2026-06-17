@@ -6,6 +6,8 @@ import { updateGoalAction, deleteGoalAction } from '@/app/actions/goals'
 import {
   computeGoalVitality,
   VITALITY_PROGRESS,
+  VITALITY_STATUS_BADGE,
+  VITALITY_RING_STROKE,
   type GoalVitality,
 } from '@/lib/utils/goal-vitality'
 import { PencilIcon, TrashIcon } from '@/components/ui/Icons'
@@ -32,31 +34,15 @@ export const CATEGORY_BADGE: Record<string, { bg: string; color: string }> = {
   other:     { bg: 'rgba(122,158,138,0.18)', color: 'var(--sage)' },
 }
 
-const VITALITY_STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  on_track:    { bg: 'rgba(60,110,80,0.28)',   color: '#70b888', label: 'ON PACE' },
-  near_finish: { bg: 'rgba(60,110,80,0.28)',   color: '#70b888', label: 'ALMOST THERE' },
-  at_risk:     { bg: 'rgba(160,80,60,0.28)',   color: '#c87878', label: 'NEEDS PUSH' },
-  urgent:      { bg: 'rgba(180,60,60,0.28)',   color: '#e07070', label: 'URGENT' },
-  overdue:     { bg: 'rgba(180,60,60,0.28)',   color: '#e07070', label: 'OVERDUE' },
-}
-
-const RING_STROKE: Record<string, string> = {
-  on_track:    '#d4a853',
-  near_finish: '#8ab89a',
-  at_risk:     '#e0a060',
-  urgent:      '#e06060',
-  overdue:     '#e06060',
-}
-
 /* ── CIRCULAR PROGRESS RING ── */
 const RING_SIZE = 88
 const STROKE_W  = 7
 const RADIUS    = (RING_SIZE - STROKE_W) / 2
 const CIRC      = 2 * Math.PI * RADIUS
 
-function ProgressRing({ pct, signal }: { pct: number; signal: string }) {
+function ProgressRing({ pct, signal }: { pct: number; signal: GoalVitality['signal'] }) {
   const offset = CIRC * (1 - Math.min(100, Math.max(0, pct)) / 100)
-  const stroke = RING_STROKE[signal] ?? '#d4a853'
+  const stroke = VITALITY_RING_STROKE[signal] ?? '#d4a853'
   return (
     <svg width={RING_SIZE} height={RING_SIZE} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
       <circle cx={RING_SIZE/2} cy={RING_SIZE/2} r={RADIUS} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={STROKE_W} />

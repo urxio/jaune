@@ -16,6 +16,20 @@ export async function getTodayCheckin(userId: string, localDate?: string): Promi
   return data
 }
 
+/** Returns the date ('YYYY-MM-DD') of the user's most recent check-in, or null if they've never checked in. */
+export async function getLastCheckinDate(userId: string): Promise<string | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('date')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1)
+    .single()
+  if (error) return null
+  return data.date
+}
+
 export async function getRecentCheckins(userId: string, days: number): Promise<CheckIn[]> {
   const supabase = await createClient()
   const { data: profile } = await supabase.from('users').select('timezone').eq('id', userId).single()

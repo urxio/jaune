@@ -70,6 +70,13 @@ export function getMondayOfWeek(date: Date = new Date()): string {
   return d.toISOString().split('T')[0]
 }
 
+/** Returns the number of days between two 'YYYY-MM-DD' dates (later − earlier). */
+export function daysBetween(earlier: string, later: string): number {
+  const d1 = new Date(earlier + 'T00:00:00Z').getTime()
+  const d2 = new Date(later + 'T00:00:00Z').getTime()
+  return Math.round((d2 - d1) / 86400000)
+}
+
 export function daysAgoInTz(days: number, timezone = 'UTC'): string {
   const d = new Date()
   d.setDate(d.getDate() - days)

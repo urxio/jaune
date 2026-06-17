@@ -21,7 +21,8 @@ type Message = { role: 'user' | 'assistant'; content: string }
 
 // Hidden block Jaune appends when the user corrects or adds context the pulse
 // drew on — parsed server-side, never shown to the user.
-const MEMORY_RE = /<memory>\s*([\s\S]*?)\s*<\/memory>/
+const MEMORY_RE  = /<memory>\s*([\s\S]*?)\s*<\/memory>/
+const REFRESH_RE = /<refresh_pulse>/
 
 function buildSystem(pulseText: string, contextBlock: string): string {
   return LOCUS_CHARACTER + `
@@ -48,6 +49,15 @@ Memory rules:
 - Only append it when there is a real, lasting fact to remember. Skip it for small talk, acknowledgements, or anything tied to just today.
 - Write the note as a standalone fact (e.g. "Works night shifts, so mornings are for winding down, not starting the day"), not as a reference to this conversation.
 - Append at most one memory block per reply.
+
+Refreshing the pulse:
+- Capturing a correction does NOT mean the conversation is over. Never refresh the pulse on your own after a single reply — keep it open.
+- After you acknowledge a correction, ask if there is anything else to adjust, or whether they would like you to refresh their pulse now.
+- Only once the user clearly signals they are done or satisfied (any affirmative — "yes", "go ahead", "refresh it", "that's all", "looks good", "perfect") reply with one short warm sentence, then on its own final line append:
+
+<refresh_pulse>
+
+- Never append <refresh_pulse> before the user has said they are satisfied. The user never sees this tag.
 
 ${contextBlock ? `What you already know about this person:\n\n${contextBlock}` : ''}`.trim()
 }
@@ -104,28 +114,31 @@ export async function POST(request: NextRequest) {
         controller.close()
       }
 
-      // Persist any memory the reply captured, then drop today's cached pulse so
-      // it regenerates with the correction. Never blocks the response.
-      const match = accumulated.match(MEMORY_RE)
-      if (match) {
-        try {
-          const note = (JSON.parse(match[1]) as { note?: string }).note?.trim()
-          if (note) {
-            const tz    = await getUserTimezone(user.id)
-            const today = dateInTz(tz)
-            const entry: ClarifyingAnswer = {
-              question:    'Something the user clarified when replying to their pulse',
-              answer:      note,
-              answered_at: new Date().toISOString(),
-              brief_date:  today,
-            }
-            const updatedQA = [...(memory?.clarifying_qa ?? []), entry].slice(-30)
-            await patchUserMemory(user.id, { clarifying_qa: updatedQA })
-            await clearPulseForDate(user.id, today)
+      // Persist any memory the reply captured. The pulse is only regenerated
+      // once the user is satisfied (<refresh_pulse>), not after every reply.
+      // Neither step blocks the response.
+      try {
+        const match = accumulated.match(MEMORY_RE)
+        const note  = match ? (JSON.parse(match[1]) as { note?: string }).note?.trim() : undefined
+        if (note) {
+          const tz    = await getUserTimezone(user.id)
+          const today = dateInTz(tz)
+          const entry: ClarifyingAnswer = {
+            question:    'Something the user clarified when replying to their pulse',
+            answer:      note,
+            answered_at: new Date().toISOString(),
+            brief_date:  today,
           }
-        } catch (err) {
-          console.error('[pulse/reply] memory persist error:', err)
+          const updatedQA = [...(memory?.clarifying_qa ?? []), entry].slice(-30)
+          await patchUserMemory(user.id, { clarifying_qa: updatedQA })
         }
+
+        if (REFRESH_RE.test(accumulated)) {
+          const tz = await getUserTimezone(user.id)
+          await clearPulseForDate(user.id, dateInTz(tz))
+        }
+      } catch (err) {
+        console.error('[pulse/reply] persist error:', err)
       }
     },
   })

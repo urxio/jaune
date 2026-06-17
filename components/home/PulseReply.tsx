@@ -4,19 +4,25 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-const MEMORY_RE = /<memory>\s*([\s\S]*?)\s*<\/memory>/
+const MEMORY_RE  = /<memory>\s*([\s\S]*?)\s*<\/memory>/
+const REFRESH_RE = /<refresh_pulse>/
 
-// Strip the hidden memory block (complete or still-streaming) before display.
+// Strip Jaune's hidden control tags — the memory block and the refresh signal,
+// complete or still mid-stream — before showing a reply.
 function visible(text: string): string {
-  return text.replace(MEMORY_RE, '').replace(/<memory>[\s\S]*$/, '').trimEnd()
+  return text
+    .replace(MEMORY_RE, '')
+    .replace(/<refresh_pulse>/g, '')
+    .replace(/<(?:memory|refresh_pulse)[\s\S]*$/, '')
+    .trimEnd()
 }
 
 export default function PulseReply({
   pulseText,
-  onMemorySaved,
+  onRefreshPulse,
 }: {
   pulseText: string
-  onMemorySaved?: () => void
+  onRefreshPulse?: () => void
 }) {
   const [open,      setOpen]      = useState(false)
   const [messages,  setMessages]  = useState<Message[]>([])
@@ -50,7 +56,7 @@ export default function PulseReply({
     const ctrl = new AbortController()
     abortRef.current = ctrl
 
-    let savedMemory = false
+    let satisfied = false
     try {
       const res = await fetch('/api/pulse/reply', {
         method:  'POST',
@@ -75,7 +81,7 @@ export default function PulseReply({
           return copy
         })
       }
-      savedMemory = MEMORY_RE.test(acc)
+      satisfied = REFRESH_RE.test(acc)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
         setMessages(m => [...m, { role: 'assistant', content: 'Something went wrong — give that another try in a moment.' }])
@@ -84,9 +90,9 @@ export default function PulseReply({
       setStreaming(false)
     }
 
-    // A reply that taught Jaune something refreshes the pulse it came from.
-    if (savedMemory) onMemorySaved?.()
-  }, [input, streaming, messages, pulseText, onMemorySaved])
+    // Only regenerate the pulse once the user has signalled they're satisfied.
+    if (satisfied) onRefreshPulse?.()
+  }, [input, streaming, messages, pulseText, onRefreshPulse])
 
   if (!open) {
     return (

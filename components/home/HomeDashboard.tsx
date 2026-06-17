@@ -278,7 +278,7 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
             </p>
           )}
           {insightText && !streaming && (
-            <PulseReply pulseText={insightText} onMemorySaved={refreshPulse} />
+            <PulseReply pulseText={insightText} onRefreshPulse={refreshPulse} />
           )}
         </section>
 

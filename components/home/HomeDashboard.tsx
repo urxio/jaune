@@ -6,6 +6,7 @@ import type { Goal, CheckIn, HabitWithLogs, Brief } from '@/lib/types'
 import { logHabitAction, unlogHabitAction } from '@/app/actions/habits'
 import { localDateStr } from '@/lib/utils/date'
 import { computeGoalVitality, VITALITY_STATUS_BADGE, VITALITY_RING_STROKE, type GoalVitality } from '@/lib/utils/goal-vitality'
+import PulseReply from '@/components/home/PulseReply'
 
 type Props = {
   goals:        Goal[]
@@ -169,7 +170,7 @@ function usePulse(hasCheckin: boolean) {
     if (justCheckedIn) loadPulse(true)
   }, [hasCheckin, loadPulse])
 
-  return { text, streaming }
+  return { text, streaming, refresh: () => loadPulse(true) }
 }
 
 /* ── Component ── */
@@ -181,7 +182,7 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
   const firstName  = userName?.split(' ')[0] ?? ''
   const hasCheckin = !!checkin
 
-  const { text: aiText, streaming } = usePulse(hasCheckin)
+  const { text: aiText, streaming, refresh: refreshPulse } = usePulse(hasCheckin)
 
   const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
 
@@ -275,6 +276,9 @@ export default function HomeDashboard({ goals, checkin, habits, brief, userName 
             <p style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(16px, 1.8vw, 19px)', lineHeight: 1.65, color: 'var(--text-2)', fontStyle: 'italic', margin: 0, flex: 1 }}>
               {hasCheckin ? 'Your brief is being prepared…' : 'Check in to get your daily insight.'}
             </p>
+          )}
+          {insightText && !streaming && (
+            <PulseReply pulseText={insightText} onMemorySaved={refreshPulse} />
           )}
         </section>
 

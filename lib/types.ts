@@ -35,6 +35,7 @@ export type Habit = {
   time_of_day: string | null
   goal_id: string | null           // optional link to a goal
   goal_target_count: number | null // completions target for the linked goal (e.g. 30 runs)
+  goal_linked_at: string | null    // when goal_id was set — progress only counts logs from this date on
   motivation: string | null        // why the user wants this habit — used by AI audit
   created_at: string
 }

@@ -87,7 +87,7 @@ export async function resetGoalAction(goalId: string) {
 
   const { error: habitsErr } = await supabase
     .from('habits')
-    .update({ goal_id: null, goal_target_count: null })
+    .update({ goal_id: null, goal_target_count: null, goal_linked_at: null })
     .eq('goal_id', goalId)
     .eq('user_id', user.id)
   if (habitsErr) throw new Error(habitsErr.message)

@@ -93,9 +93,24 @@ export async function linkHabitToGoalAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const { data: current } = await supabase
+    .from('habits')
+    .select('goal_id, goal_linked_at')
+    .eq('id', habitId)
+    .eq('user_id', user.id)
+    .single()
+
+  // Only stamp a fresh link date when actually (re-)linking to a different
+  // goal — re-saving the same link (e.g. updating its target count) must
+  // not reset the window progress is counted from.
+  const isNewLink = !!goalId && current?.goal_id !== goalId
+  const goal_linked_at = goalId
+    ? (isNewLink || !current?.goal_linked_at ? new Date().toISOString() : current.goal_linked_at)
+    : null
+
   const { error } = await supabase
     .from('habits')
-    .update({ goal_id: goalId, goal_target_count: goalId ? goalTargetCount : null })
+    .update({ goal_id: goalId, goal_target_count: goalId ? goalTargetCount : null, goal_linked_at })
     .eq('id', habitId)
     .eq('user_id', user.id)
   if (error) throw new Error(error.message)
@@ -138,6 +153,7 @@ export async function createHabitAction(data: HabitFormData) {
     ends_at: data.ends_at || null,
     goal_id: data.goal_id || null,
     goal_target_count: data.goal_id ? (data.goal_target_count || null) : null,
+    goal_linked_at: data.goal_id ? new Date().toISOString() : null,
     motivation: data.motivation?.trim() || null,
     time_of_day: data.time_of_day || null,
   }).select().single()
@@ -162,6 +178,21 @@ export async function updateHabitAction(habitId: string, data: HabitFormData) {
   const { frequency, target_count } = deriveFrequencyMeta(data.days_of_week)
   const days_of_week = data.days_of_week.length > 0 ? data.days_of_week : null
 
+  const { data: current } = await supabase
+    .from('habits')
+    .select('goal_id, goal_linked_at')
+    .eq('id', habitId)
+    .eq('user_id', user.id)
+    .single()
+
+  // Only stamp a fresh link date when the linked goal is actually changing —
+  // editing other habit fields while the link stays the same must not reset
+  // the window progress is counted from.
+  const isNewLink = !!data.goal_id && current?.goal_id !== data.goal_id
+  const goal_linked_at = data.goal_id
+    ? (isNewLink || !current?.goal_linked_at ? new Date().toISOString() : current.goal_linked_at)
+    : null
+
   const { error } = await supabase
     .from('habits')
     .update({
@@ -173,6 +204,7 @@ export async function updateHabitAction(habitId: string, data: HabitFormData) {
       ends_at: data.ends_at || null,
       goal_id: data.goal_id || null,
       goal_target_count: data.goal_id ? (data.goal_target_count || null) : null,
+      goal_linked_at,
       motivation: data.motivation?.trim() || null,
       time_of_day: data.time_of_day || null,
     })

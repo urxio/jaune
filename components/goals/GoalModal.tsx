@@ -22,15 +22,27 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
   mode: 'add' | 'edit'; goal?: GoalWithSteps; hasSteps: boolean
   habits?: Habit[]
   onClose: () => void
-  onSaved: (g: GoalWithSteps, isNew: boolean, linkedHabits?: Array<{ id: string; goal_target_count: number }>) => void
+  onSaved: (
+    g: GoalWithSteps,
+    isNew: boolean,
+    linkedHabits?: Array<{ id: string; goal_target_count: number }>,
+    unlinkedHabitIds?: string[],
+  ) => void
 }) {
   const [form, setForm] = useState<GoalFormData>(
     goal
       ? { title: goal.title, category: goal.category, timeframe: goal.timeframe, progress_pct: goal.progress_pct, target_date: goal.target_date, status: goal.status, tracking_mode: goal.tracking_mode ?? 'manual' }
       : EMPTY_FORM
   )
-  // habitLinks: Map<habitId, targetCount | null>
-  const [habitLinks, setHabitLinks] = useState<Map<string, number | null>>(new Map())
+  // habitLinks: Map<habitId, targetCount | null> — prefilled with habits already linked to this goal
+  const [habitLinks, setHabitLinks] = useState<Map<string, number | null>>(() => {
+    if (!goal) return new Map()
+    return new Map(habits.filter(h => h.goal_id === goal.id).map(h => [h.id, h.goal_target_count]))
+  })
+  // Snapshot of what was linked on open, so submit can diff and unlink removals
+  const [originalLinkedIds] = useState<Set<string>>(() =>
+    new Set(goal ? habits.filter(h => h.goal_id === goal.id).map(h => h.id) : [])
+  )
   const [habitSearch, setHabitSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -70,27 +82,42 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
     }
 
     setError('')
+    // Habits the user wants linked once saved — empty unless tracking by habits
+    const finalLinks = form.tracking_mode === 'habits' ? habitLinks : new Map<string, number | null>()
+
     startTransition(async () => {
       try {
+        let savedGoal: GoalWithSteps
+        let isNew = false
+
         if (mode === 'add') {
           const created = await createGoalAction(form)
-
-          // Link selected habits to the new goal
-          const linked: Array<{ id: string; goal_target_count: number }> = []
-          if (form.tracking_mode === 'habits' && habitLinks.size > 0) {
-            await Promise.all(
-              [...habitLinks.entries()].map(async ([habitId, targetCount]) => {
-                await linkHabitToGoalAction(habitId, created.id, targetCount)
-                linked.push({ id: habitId, goal_target_count: targetCount! })
-              })
-            )
-          }
-
-          onSaved({ ...created, steps: [] } as unknown as GoalWithSteps, true, linked.length > 0 ? linked : undefined)
+          savedGoal = { ...created, steps: [] } as unknown as GoalWithSteps
+          isNew = true
         } else if (goal) {
           await updateGoalAction(goal.id, form)
-          onSaved({ ...goal, ...form, title: form.title.trim() } as unknown as GoalWithSteps, false)
+          savedGoal = { ...goal, ...form, title: form.title.trim() } as unknown as GoalWithSteps
+        } else {
+          return
         }
+
+        const linked: Array<{ id: string; goal_target_count: number }> = []
+        const unlinked: string[] = []
+
+        await Promise.all(
+          [...finalLinks.entries()].map(async ([habitId, targetCount]) => {
+            await linkHabitToGoalAction(habitId, savedGoal.id, targetCount)
+            linked.push({ id: habitId, goal_target_count: targetCount! })
+          })
+        )
+        await Promise.all(
+          [...originalLinkedIds].filter(id => !finalLinks.has(id)).map(async habitId => {
+            await linkHabitToGoalAction(habitId, null, null)
+            unlinked.push(habitId)
+          })
+        )
+
+        onSaved(savedGoal, isNew, linked.length > 0 ? linked : undefined, unlinked.length > 0 ? unlinked : undefined)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong')
       }
@@ -99,9 +126,13 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
 
   const filteredHabits = useMemo(() => {
     const q = habitSearch.trim().toLowerCase()
-    if (!q) return habits.slice(0, 4)
+    if (!q) {
+      // Surface already-linked habits first so they're not pushed out of the top-4 view
+      const sorted = [...habits].sort((a, b) => Number(habitLinks.has(b.id)) - Number(habitLinks.has(a.id)))
+      return sorted.slice(0, 4)
+    }
     return habits.filter(h => h.name.toLowerCase().includes(q) || h.emoji.includes(q))
-  }, [habits, habitSearch])
+  }, [habits, habitSearch, habitLinks])
 
   return (
     <div ref={overlayRef} onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>

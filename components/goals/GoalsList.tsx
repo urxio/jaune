@@ -59,19 +59,22 @@ export default function GoalsList({
     goal: GoalWithSteps,
     isNew: boolean,
     linkedHabits?: Array<{ id: string; goal_target_count: number }>,
+    unlinkedHabitIds?: string[],
   ) => {
+    // Update local habits state to reflect newly linked/unlinked goal_id
+    if (linkedHabits?.length || unlinkedHabitIds?.length) {
+      const linkedMap = new Map((linkedHabits ?? []).map(h => [h.id, h.goal_target_count]))
+      const unlinkedSet = new Set(unlinkedHabitIds ?? [])
+      setHabits(prev => prev.map(h => {
+        if (linkedMap.has(h.id)) return { ...h, goal_id: goal.id, goal_target_count: linkedMap.get(h.id)! }
+        if (unlinkedSet.has(h.id)) return { ...h, goal_id: null, goal_target_count: null }
+        return h
+      }))
+    }
+
     if (isNew) {
       setGoals(gs => [...gs, goal])
       setStepsMap(m => new Map(m).set(goal.id, []))
-      // Update local habits state to reflect newly linked goal_id
-      if (linkedHabits?.length) {
-        const linkedMap = new Map(linkedHabits.map(h => [h.id, h.goal_target_count]))
-        setHabits(prev => prev.map(h =>
-          linkedMap.has(h.id)
-            ? { ...h, goal_id: goal.id, goal_target_count: linkedMap.get(h.id)! }
-            : h
-        ))
-      }
       // Ask Jaune what to suggest — habits, steps, or both
       // Skip if habits were manually linked (suggestion already acted on)
       if (!linkedHabits?.length) {

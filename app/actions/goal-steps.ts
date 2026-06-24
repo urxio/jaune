@@ -191,7 +191,7 @@ export async function syncHabitGoalProgress(
   // ── 1. Fetch all habits linked to this goal ────────────────────────────
   const { data: habits, error: habitsErr } = await supabase
     .from('habits')
-    .select('id, goal_target_count')
+    .select('id, goal_target_count, goal_linked_at')
     .eq('goal_id', goalId)
     .eq('user_id', userId)
   if (habitsErr) {
@@ -200,19 +200,24 @@ export async function syncHabitGoalProgress(
   }
   if (!habits || habits.length === 0) return
 
-  type HabitRow = { id: string; goal_target_count: number | null }
+  type HabitRow = { id: string; goal_target_count: number | null; goal_linked_at: string | null }
 
   const habitIds = (habits as HabitRow[]).map(h => h.id)
+  const linkedAtByHabit = new Map((habits as HabitRow[]).map(h => [h.id, h.goal_linked_at]))
 
-  // ── 2. Count all logs for those habits ─────────────────────────────────
+  // ── 2. Count logs for those habits, logged on/after each habit's link date ──
+  //   Pre-existing history from before the habit was linked doesn't count —
+  //   tracking starts the day the habit joined this goal.
   const { data: logs, error: logsErr } = await supabase
     .from('habit_logs')
-    .select('habit_id')
+    .select('habit_id, logged_date')
     .in('habit_id', habitIds)
   if (logsErr) console.error('[syncHabitGoalProgress] logs fetch failed:', logsErr)
 
   const completionsByHabit = new Map<string, number>()
-  for (const l of (logs ?? []) as { habit_id: string }[]) {
+  for (const l of (logs ?? []) as { habit_id: string; logged_date: string }[]) {
+    const linkedAt = linkedAtByHabit.get(l.habit_id)
+    if (linkedAt && l.logged_date < linkedAt.slice(0, 10)) continue
     completionsByHabit.set(l.habit_id, (completionsByHabit.get(l.habit_id) ?? 0) + 1)
   }
 

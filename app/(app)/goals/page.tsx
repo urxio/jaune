@@ -30,17 +30,21 @@ export default async function GoalsPage() {
 
   // Build completion counts for ALL habits linked to any goal
   // so the goal card can render per-habit progress mini-bars regardless of tracking_mode.
-  const linkedHabitIds = habits
-    .filter(h => h.goal_id)
-    .map(h => h.id)
+  // Only logs from the date the habit joined the goal count — pre-existing
+  // history shouldn't inflate progress on a freshly linked habit.
+  const linkedHabits = habits.filter(h => h.goal_id)
+  const linkedHabitIds = linkedHabits.map(h => h.id)
+  const linkedAtByHabit = new Map(linkedHabits.map(h => [h.id, h.goal_linked_at]))
 
-  let habitCompletions: Record<string, number> = {}
+  const habitCompletions: Record<string, number> = {}
   if (linkedHabitIds.length > 0) {
     const { data: logs } = await supabase
       .from('habit_logs')
-      .select('habit_id')
+      .select('habit_id, logged_date')
       .in('habit_id', linkedHabitIds)
     for (const log of (logs ?? [])) {
+      const linkedAt = linkedAtByHabit.get(log.habit_id)
+      if (linkedAt && log.logged_date < linkedAt.slice(0, 10)) continue
       habitCompletions[log.habit_id] = (habitCompletions[log.habit_id] ?? 0) + 1
     }
   }

@@ -29,7 +29,7 @@ RULES
 
 OUTPUT — single valid JSON object, no fences:
 {
-  "narrative": "<150-220 words of flowing prose. Open with their name. What this month was actually like, what you learned about how they work, what changed. No bullets, no headers. **Bold** at most twice.>",
+  "narrative": "<150-220 words of flowing prose. Open with their name if one was given in the context — never invent one, address them as 'you' if no name is provided. What this month was actually like, what you learned about how they work, what changed. No bullets, no headers. **Bold** at most twice.>",
   "observations": [
     { "text": "<one concrete pattern you learned, stated like a friend would>", "evidence": "<the specific data behind it, one short clause>" }
   ],
@@ -48,7 +48,8 @@ export async function buildRetroUserMessage(userId: string, todayLocal: string):
   const since = new Date(Date.parse(todayLocal + 'T00:00:00Z') - 45 * 86400000).toISOString().slice(0, 10)
   const windowStart = new Date(Date.parse(todayLocal + 'T00:00:00Z') - 30 * 86400000).toISOString().slice(0, 10)
 
-  const [memory, checkins, habits, goals, briefsRes, wheelRes] = await Promise.all([
+  const [userRes, memory, checkins, habits, goals, briefsRes, wheelRes] = await Promise.all([
+    supabase.from('users').select('name').eq('id', userId).single(),
     readUserMemory(userId),
     getRecentCheckins(userId, 45),
     getUserHabitsWithLogs(userId),
@@ -76,9 +77,11 @@ export async function buildRetroUserMessage(userId: string, todayLocal: string):
   const windowCheckins = checkins.filter(c => c.date >= windowStart)
   const briefs = (briefsRes.data ?? []) as Pick<Brief, 'brief_date' | 'priorities' | 'priority_outcomes' | 'energy_score'>[]
   const wheels = (wheelRes.data ?? []) as Pick<WheelSnapshot, 'snapshot_date' | 'scores' | 'insight'>[]
+  const userName = userRes.data?.name?.trim() || null
 
   const lines: string[] = []
   lines.push(`MONTHLY RETROSPECTIVE CONTEXT — last 30 days, generated ${todayLocal}`)
+  lines.push(userName ? `USER'S NAME: ${userName} — use this, never invent a different one` : `USER'S NAME: unknown — do not invent a name, address them directly instead ("you")`)
   lines.push('─'.repeat(40))
 
   // ── Energy over the month ──

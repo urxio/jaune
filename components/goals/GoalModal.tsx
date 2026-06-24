@@ -97,14 +97,11 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
     })
   }
 
-  // Habits available to link (exclude those already linked to other goals)
-  const linkableHabits = habits.filter(h => !alreadyLinkedIds.has(h.id))
-
   const filteredHabits = useMemo(() => {
     const q = habitSearch.trim().toLowerCase()
-    if (!q) return linkableHabits.slice(0, 4)
-    return linkableHabits.filter(h => h.name.toLowerCase().includes(q) || h.emoji.includes(q))
-  }, [linkableHabits, habitSearch])
+    if (!q) return habits.slice(0, 4)
+    return habits.filter(h => h.name.toLowerCase().includes(q) || h.emoji.includes(q))
+  }, [habits, habitSearch])
 
   return (
     <div ref={overlayRef} onClick={e => e.target === e.currentTarget && onClose()} className="modal-overlay" style={{ backdropFilter: 'blur(4px)', animation: 'fadeUp 0.15s var(--ease) both' }}>
@@ -169,7 +166,7 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
               </div>
 
               {/* Habit picker */}
-              {linkableHabits.length > 0 ? (
+              {habits.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={labelStyle}>
                     Link habits
@@ -195,7 +192,8 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                         No habits match &ldquo;{habitSearch}&rdquo;
                       </div>
                     ) : filteredHabits.map(h => {
-                      const isSelected = habitLinks.has(h.id)
+                      const isLinkedElsewhere = alreadyLinkedIds.has(h.id)
+                      const isSelected = !isLinkedElsewhere && habitLinks.has(h.id)
                       const targetVal = habitLinks.get(h.id)
                       return (
                         <div
@@ -206,14 +204,16 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                             border: `1px solid ${isSelected ? 'rgba(212,168,83,0.35)' : 'var(--border)'}`,
                             transition: 'all 0.15s',
                             overflow: 'hidden',
+                            opacity: isLinkedElsewhere ? 0.5 : 1,
                           }}
                         >
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer', userSelect: 'none' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: isLinkedElsewhere ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
                             <input
                               type="checkbox"
                               checked={isSelected}
+                              disabled={isLinkedElsewhere}
                               onChange={e => toggleHabit(h.id, e.target.checked)}
-                              style={{ accentColor: 'var(--gold)', width: '14px', height: '14px', flexShrink: 0, cursor: 'pointer' }}
+                              style={{ accentColor: 'var(--gold)', width: '14px', height: '14px', flexShrink: 0, cursor: isLinkedElsewhere ? 'not-allowed' : 'pointer' }}
                             />
                             <span style={{ fontSize: '15px', flexShrink: 0, lineHeight: 1 }}>{h.emoji}</span>
                             <span style={{ flex: 1, minWidth: 0, fontSize: '13px', color: isSelected ? 'var(--text-0)' : 'var(--text-1)', fontWeight: isSelected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -225,7 +225,7 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                               background: isSelected ? 'rgba(212,168,83,0.12)' : 'var(--bg-4)',
                               borderRadius: '4px', padding: '2px 6px', whiteSpace: 'nowrap',
                             }}>
-                              {h.frequency}
+                              {isLinkedElsewhere ? 'Already linked' : h.frequency}
                             </span>
                           </label>
                           {isSelected && (
@@ -247,9 +247,9 @@ export default function GoalModal({ mode, goal, hasSteps, habits = [], onClose, 
                     })}
 
                     {/* Show hint when showing top 4 and there are more */}
-                    {!habitSearch && linkableHabits.length > 4 && (
+                    {!habitSearch && habits.length > 4 && (
                       <div style={{ fontSize: '11px', color: 'var(--text-3)', textAlign: 'center', padding: '4px 0' }}>
-                        {linkableHabits.length - 4} more — search to find them
+                        {habits.length - 4} more — search to find them
                       </div>
                     )}
                   </div>

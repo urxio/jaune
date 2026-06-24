@@ -49,6 +49,55 @@ export async function updateGoalAction(goalId: string, data: Partial<GoalFormDat
   revalidatePath('/brief')
 }
 
+/**
+ * Reset a goal back to a fresh state: progress to 0%, all steps unchecked,
+ * and every habit linked to it unlinked (so it stops contributing to
+ * habit-tracked progress). A completed goal is reopened to 'active'.
+ */
+export async function resetGoalAction(goalId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: goal, error: goalErr } = await supabase
+    .from('goals')
+    .select('status')
+    .eq('id', goalId)
+    .eq('user_id', user.id)
+    .single()
+  if (goalErr) throw new Error(goalErr.message)
+
+  const { error } = await supabase
+    .from('goals')
+    .update({
+      progress_pct: 0,
+      status: goal.status === 'completed' ? 'active' : goal.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', goalId)
+    .eq('user_id', user.id)
+  if (error) throw new Error(error.message)
+
+  const { error: stepsErr } = await supabase
+    .from('goal_steps')
+    .update({ completed: false, completed_at: null })
+    .eq('goal_id', goalId)
+    .eq('user_id', user.id)
+  if (stepsErr) throw new Error(stepsErr.message)
+
+  const { error: habitsErr } = await supabase
+    .from('habits')
+    .update({ goal_id: null, goal_target_count: null })
+    .eq('goal_id', goalId)
+    .eq('user_id', user.id)
+  if (habitsErr) throw new Error(habitsErr.message)
+
+  revalidatePath('/goals')
+  revalidatePath('/habits')
+  revalidatePath('/brief')
+  revalidatePath('/', 'layout')
+}
+
 export async function deleteGoalAction(goalId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -13,3 +13,12 @@ export function TrashIcon() {
     </svg>
   )
 }
+
+export function ResetIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 8A5 5 0 1 1 11.5 4.5" />
+      <path d="M13 2.5v3h-3" />
+    </svg>
+  )
+}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import type { GoalWithSteps, GoalStep, Habit } from '@/lib/types'
-import { updateGoalAction, deleteGoalAction } from '@/app/actions/goals'
+import { updateGoalAction, deleteGoalAction, resetGoalAction } from '@/app/actions/goals'
 import {
   computeGoalVitality,
   VITALITY_PROGRESS,
@@ -10,7 +10,7 @@ import {
   VITALITY_RING_STROKE,
   type GoalVitality,
 } from '@/lib/utils/goal-vitality'
-import { PencilIcon, TrashIcon } from '@/components/ui/Icons'
+import { PencilIcon, TrashIcon, ResetIcon } from '@/components/ui/Icons'
 import IconBtn from '@/components/ui/IconBtn'
 import ConfirmDelete from '@/components/ui/ConfirmDelete'
 import HabitSuggestionPanel from './HabitSuggestionPanel'
@@ -123,6 +123,7 @@ export type GoalCardProps = {
   onToggleExpand: (id: string) => void
   onEdit: (g: GoalWithSteps) => void
   onDelete: (id: string) => void
+  onReset: (id: string) => void
   onUpdate: (g: GoalWithSteps) => void
   onToggleStep: (goalId: string, stepId: string, completed: boolean) => void
   onAddStep: (goalId: string, title: string, due_date: string | null) => void
@@ -135,12 +136,13 @@ export type GoalCardProps = {
 
 export default function GoalCard({
   goal, stepsMap, generatingFor, suggestingFor, habitNames, habits, habitCompletions,
-  expanded, onToggleExpand, onEdit, onDelete, onUpdate,
+  expanded, onToggleExpand, onEdit, onDelete, onReset, onUpdate,
   onToggleStep, onAddStep, onUpdateStep, onDeleteStep, onRegenerate,
   onHabitAdded, onDismissSuggestion,
 }: GoalCardProps) {
   const [hovered,        setHovered]        = useState(false)
   const [confirmDelete,  setConfirmDelete]  = useState(false)
+  const [confirmReset,   setConfirmReset]   = useState(false)
   const [editingProgress, setEditingProgress] = useState(false)
   const [progressVal,    setProgressVal]    = useState(goal.progress_pct)
   const [isPending, startTransition]        = useTransition()
@@ -183,6 +185,14 @@ export default function GoalCard({
     })
   }
 
+  const handleReset = () => {
+    startTransition(async () => {
+      await resetGoalAction(goal.id)
+      onReset(goal.id)
+      setConfirmReset(false)
+    })
+  }
+
   /* Timeframe label */
   const now = new Date()
   const timeframeLabel = goal.timeframe === 'quarter'
@@ -202,7 +212,7 @@ export default function GoalCard({
       className="glass-card-sm"
       style={{ border: `1px solid ${hovered ? 'rgba(255,255,255,0.18)' : 'var(--glass-card-border)'}`, marginBottom: '10px', transition: 'border-color 0.2s', position: 'relative', overflow: 'hidden' }}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); setConfirmReset(false) }}
     >
       {/* Card body */}
       <div style={{ padding: '20px 22px 0', display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -281,16 +291,26 @@ export default function GoalCard({
         </div>
 
         {/* Hover actions */}
-        {(hovered || confirmDelete) && (
+        {(hovered || confirmDelete || confirmReset) && (
           <div style={{ position: 'absolute', top: '14px', right: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {!confirmDelete && (
+            {!confirmDelete && !confirmReset && (
               <>
                 <IconBtn title="Edit" onClick={() => onEdit(goal)}><PencilIcon /></IconBtn>
+                <IconBtn title="Reset progress" onClick={() => setConfirmReset(true)}><ResetIcon /></IconBtn>
                 <IconBtn title="Delete" danger onClick={() => setConfirmDelete(true)}><TrashIcon /></IconBtn>
               </>
             )}
             {confirmDelete && (
               <ConfirmDelete onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
+            )}
+            {confirmReset && (
+              <ConfirmDelete
+                label="Reset?"
+                confirmColor="var(--gold)"
+                confirmTextColor="#131110"
+                onConfirm={handleReset}
+                onCancel={() => setConfirmReset(false)}
+              />
             )}
           </div>
         )}

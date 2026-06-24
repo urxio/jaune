@@ -107,6 +107,21 @@ export default function GoalsList({
     router.refresh()
   }
 
+  const handleReset = (goalId: string) => {
+    setGoals(gs => gs.map(g => g.id === goalId
+      ? { ...g, progress_pct: 0, status: g.status === 'completed' ? 'active' : g.status }
+      : g
+    ))
+    setStepsMap(m => {
+      const n = new Map(m)
+      n.set(goalId, (n.get(goalId) ?? []).map(s => ({ ...s, completed: false, completed_at: null })))
+      return n
+    })
+    setHabits(prev => prev.map(h => h.goal_id === goalId ? { ...h, goal_id: null, goal_target_count: null } : h))
+    toast.success('Goal reset')
+    router.refresh()
+  }
+
   const handleToggleStep = async (goalId: string, stepId: string, completed: boolean) => {
     setStepsMap(m => {
       const n = new Map(m)
@@ -203,6 +218,7 @@ export default function GoalsList({
     expanded, onToggleExpand: toggleExpand,
     onEdit:    (g) => window.innerWidth <= 768 ? router.push(`/goals/${g.id}/edit`) : setModal({ mode: 'edit', goal: g }),
     onDelete:  handleDeleted,
+    onReset:   handleReset,
     onUpdate:  (g) => setGoals(gs => gs.map(x => x.id === g.id ? g : x)),
     onToggleStep:  handleToggleStep,
     onAddStep:     handleAddStep,

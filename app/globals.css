@@ -169,7 +169,6 @@ body {
 [data-theme="light"] .bottom-nav {
   background: rgba(255, 255, 255, 0.82) !important;
   backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
   border-top: 1px solid rgba(255, 255, 255, 0.90);
 }
 
@@ -177,14 +176,12 @@ body {
 [data-theme="light"] .modal-overlay {
   background: rgba(240, 250, 245, 0.70);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 /* ── Modal box ── */
 [data-theme="light"] .modal-box {
   background: rgba(255, 255, 255, 0.88) !important;
   backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow: 0 30px 60px -20px rgba(20, 40, 30, 0.22), inset 0 1px 0 rgba(255,255,255,0.95);
 }
@@ -322,7 +319,6 @@ body::before {
 .glass-card {
   background: var(--glass-card-bg);
   backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1px solid var(--glass-card-border);
   box-shadow: var(--glass-card-shadow);
   border-radius: var(--radius-card);
@@ -331,7 +327,6 @@ body::before {
 .glass-card-sm {
   background: var(--glass-card-bg);
   backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1px solid var(--glass-card-border);
   box-shadow: var(--glass-card-shadow-sm);
   border-radius: var(--radius-card);
@@ -340,7 +335,6 @@ body::before {
 .glass-card-soft {
   background: var(--glass-card-bg-tint);
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--glass-card-border-subtle);
   box-shadow: var(--glass-card-shadow-sm);
   border-radius: var(--radius-card);
@@ -349,7 +343,6 @@ body::before {
 .glass-pill {
   background: var(--glass-card-bg-strong);
   backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-card-border);
   box-shadow: var(--glass-card-shadow-sm);
 }
@@ -503,7 +496,6 @@ input:focus,    input:focus-visible {
   z-index: 1000;
   background: oklch(0.22 0.012 60 / 0.85);
   backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid oklch(0.55 0.02 70 / 0.22);
   box-shadow: 0 8px 32px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.06);
   border-radius: 9999px;
@@ -557,7 +549,6 @@ input:focus,    input:focus-visible {
   inset: 0;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -575,7 +566,6 @@ input:focus,    input:focus-visible {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
   box-shadow: var(--glass-card-shadow);
 }
 
@@ -717,7 +707,6 @@ input:focus,    input:focus-visible {
   border-radius: var(--radius-card) !important;
   box-shadow: var(--glass-card-shadow) !important;
   backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
   transition: transform 0.18s var(--ease), box-shadow 0.25s var(--ease);
 }
 
@@ -807,7 +796,6 @@ input[type="range"]::-moz-range-thumb {
 .home-right-section {
   background: var(--glass-card-bg);
   backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1px solid var(--glass-card-border);
   box-shadow: var(--glass-card-shadow-sm);
   border-radius: var(--radius-card);
@@ -958,7 +946,6 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   background: linear-gradient(145deg, oklch(0.26 0.014 75 / 0.90), oklch(0.18 0.010 75 / 0.94));
   backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
   border: 1px solid oklch(1 0 0 / 0.14);
   box-shadow: 0 24px 64px -16px oklch(0 0 0 / 0.65), 0 1px 0 0 oklch(1 0 0 / 0.10) inset;
   border-radius: 1.5rem;
@@ -976,7 +963,6 @@ input[type="range"]::-moz-range-thumb {
 .lp-glass-pill {
   background: oklch(0.22 0.012 75 / 0.88);
   backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
   border: 1px solid oklch(1 0 0 / 0.13);
   border-radius: 9999px;
   box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.55);

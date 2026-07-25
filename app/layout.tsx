@@ -31,8 +31,9 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // suppressHydrationWarning: the pre-paint script below sets data-theme, which the server HTML can't know
   return (
-    <html lang="en" className={`${cormorant.variable} ${plusJakarta.variable} h-full`}>
+    <html lang="en" className={`${cormorant.variable} ${plusJakarta.variable} h-full`} suppressHydrationWarning>
       <head>
         {/* Prevent flash: set theme before first paint */}
         <script dangerouslySetInnerHTML={{ __html: `

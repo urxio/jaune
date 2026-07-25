@@ -43,6 +43,14 @@ JSON rules:
 
 After appending the data block, add one final warm closing sentence (e.g., "Setting up your Jaune now — your first brief is almost ready."). Do not reveal the JSON or the tags.`
 
+// The conversation promises "about 2 minutes" in the UI, but the system prompt only sets a
+// floor (4 messages) — left alone it drifts to 7+ exchanges. These nudges cap the tail end.
+const PACING = {
+  // Energy is required for a valid data block, so ask for it before the wrap-up turn.
+  askEnergy: `\n\nPACING: You now have enough on goals and habits. Ask for their energy number (1–10) in your next message, along with at most one short piece of personal context. Do not open new topics.`,
+  wrapUp: `\n\nPACING: This is the final exchange. Close warmly in one sentence and append the <onboarding_data> block now. Do not ask another question — use null/empty defaults for anything you never learned.`,
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -66,6 +74,10 @@ export async function POST(request: NextRequest) {
     ? [{ role: 'user' as const, content: `(Start the onboarding conversation now. The user's name is ${userName}. Welcome them warmly and ask about their goals.)` }]
     : messages
 
+  const userReplies = messages.filter(m => m.role === 'user').length
+  const system = SYSTEM
+    + (userReplies >= 4 ? PACING.wrapUp : userReplies >= 3 ? PACING.askEnergy : '')
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
@@ -73,7 +85,7 @@ export async function POST(request: NextRequest) {
         const response = await client.messages.create({
           model: 'claude-haiku-4-5',
           max_tokens: 600,
-          system: SYSTEM,
+          system,
           messages: apiMessages,
           stream: true,
         })

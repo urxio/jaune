@@ -7,6 +7,7 @@ import { localDateStr } from '@/lib/utils/date'
 import type { CheckIn } from '@/lib/types'
 import type { UserMemory } from '@/lib/ai/memory'
 import { TabToggle, type Tab } from '@/components/checkin/CheckinTabs'
+import InlineMarkdown from '@/components/ui/InlineMarkdown'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -392,7 +393,7 @@ export default function ConversationalCheckin({
                                 color: 'oklch(0.93 0.012 80 / 0.95)',
                                 margin: 0,
                               }}>
-                                {msg.content}
+                                <InlineMarkdown text={msg.content} id={`m${i}`} />
                               </p>
                             )}
                           </div>

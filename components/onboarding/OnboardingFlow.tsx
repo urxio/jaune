@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { completeOnboarding, type GoalInput, type HabitInput, type ProfileInput } from '@/app/actions/onboarding'
+import { deriveFrequencyMeta } from '@/lib/habits/utils'
+import InlineMarkdown from '@/components/ui/InlineMarkdown'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -291,7 +293,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
           {isRedo ? 'Update your profile' : 'Meet Jaune'}
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
-          {isRedo ? 'Tell Jaune what\'s changed — takes about 2 minutes.' : 'A quick chat to get you set up. About 2 minutes.'}
+          {isRedo ? 'Tell Jaune what\'s changed — a few quick questions.' : 'A quick chat to get you set up. Five questions or so.'}
         </div>
       </div>
 
@@ -336,7 +338,7 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                         ))}
                       </div>
                     : <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', lineHeight: 1.55, color: 'oklch(0.93 0.012 80 / 0.95)', margin: 0 }}>
-                        {msg.content}
+                        <InlineMarkdown text={msg.content} id={`m${i}`} />
                       </p>
                   }
                 </div>
@@ -503,9 +505,8 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
         {/* ── HABITS ── */}
         <ReviewCard title="Habits" count={habits.length}>
           {habits.map((h, i) => {
-            const freq = FREQ_PRESETS.find(p =>
-              JSON.stringify([...p.days].sort()) === JSON.stringify([...h.days_of_week].sort())
-            )?.label ?? 'Custom'
+            // Name the actual days rather than a vague "Custom" — this screen exists to be checked
+            const freq = deriveFrequencyMeta(h.days_of_week).frequency
             const linkedGoal = goals.find(g => g.id === h.goalDraftId) ?? null
 
             return (

@@ -26,6 +26,19 @@ function LocusIcon({ size = 18 }: { size?: number }) {
   )
 }
 
+/* Shared glass surface for both dock groups so they read as one row */
+const PILL_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  background: 'var(--glass-card-bg)',
+  border: '1px solid var(--glass-card-border)',
+  borderRadius: 'var(--radius-card)',
+  backdropFilter: 'blur(32px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+  boxShadow: 'var(--glass-card-shadow)',
+  height: '52px',
+}
+
 const MAIN_NAV = [
   { href: '/home',    label: 'Home',     icon: <HomeIcon /> },
   { href: '/checkin', label: 'Check-in', icon: <CheckinIcon /> },
@@ -139,17 +152,7 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, due
       {/* Floating nav pill — centered */}
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
         {/* Glass pill */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '2px',
-          background: 'var(--glass-card-bg)',
-          border: '1px solid var(--glass-card-border)',
-          borderRadius: 'var(--radius-card)',
-          backdropFilter: 'blur(32px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-          boxShadow: 'var(--glass-card-shadow)',
-          padding: '6px 8px',
-          height: '52px',
-        }}>
+        <div style={{ ...PILL_STYLE, gap: '2px', padding: '6px 8px' }}>
           {/* Brand mark — pulse trigger */}
           <button
             ref={triggerRef}
@@ -195,8 +198,8 @@ export default function Sidebar({ userName, avatarUrl, overdueStepCount = 0, due
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Right: settings + avatar — floating, no pill */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {/* Right: settings + avatar — same glass pill as the nav group */}
+      <div style={{ ...PILL_STYLE, gap: '6px', padding: '6px 8px' }}>
         <DockItem href="/settings" label="Settings" active={pathname === '/settings'}>
           <SettingsIcon />
         </DockItem>

@@ -5,8 +5,7 @@ import { getUserHabitsWithLogs } from '@/lib/db/habits'
 import { readUserMemory, type UserMemory } from '@/lib/ai/memory'
 import { getTodayJournal, getRecentJournals } from '@/lib/db/journals'
 import { getPeople } from '@/lib/db/people'
-import { getCalendarEventsForAI } from '@/lib/google/calendar'
-import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, Person, CalendarEvent } from '@/lib/types'
+import type { CheckIn, HabitWithLogs, GoalWithSteps, JournalEntry, Person } from '@/lib/types'
 
 export type NeglectedHabit = {
   name: string
@@ -29,13 +28,12 @@ export type BriefContext = {
   recentJournals: JournalEntry[]
   isFirstBrief: boolean
   catchupPeople: Pick<Person, 'name' | 'notes'>[]
-  calendarEvents: CalendarEvent[]
   /** Yesterday's plan + what the user said happened to it (null if no brief or no outcomes recorded). */
   yesterdayPlan: { date: string; outcomes: { title: string; outcome: string }[] } | null
 }
 
 export async function buildBriefContext(userId: string, date: string): Promise<BriefContext> {
-  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, allPeople, calendarEvents, yesterdayBrief] = await Promise.all([
+  const [goalsWithSteps, todayCheckin, recentCheckins, habits, memory, todayJournal, recentJournals, allPeople, yesterdayBrief] = await Promise.all([
     getActiveGoalsWithSteps(userId),
     getTodayCheckin(userId),
     getRecentCheckins(userId, 7),
@@ -44,7 +42,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     getTodayJournal(userId),
     getRecentJournals(userId, 7),
     getPeople(userId),
-    getCalendarEventsForAI(userId),
     getYesterdayBrief(userId, date),
   ])
 
@@ -88,7 +85,6 @@ export async function buildBriefContext(userId: string, date: string): Promise<B
     recentJournals,
     isFirstBrief,
     catchupPeople,
-    calendarEvents,
     yesterdayPlan:
       yesterdayBrief?.priority_outcomes && yesterdayBrief.priority_outcomes.outcomes.length > 0
         ? { date: yesterdayBrief.brief_date, outcomes: yesterdayBrief.priority_outcomes.outcomes }

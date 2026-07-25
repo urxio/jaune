@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: 'How Jaune collects, uses, and protects your personal data.',
 }
 
-const LAST_UPDATED = 'May 12, 2025'
+const LAST_UPDATED = 'July 23, 2026'
 const CONTACT_EMAIL = 'privacy@locusai.space'
 const APP_NAME = 'Jaune'
 const APP_URL = 'https://locusai.space'
@@ -71,30 +71,6 @@ export default function PrivacyPage() {
             This data is stored in your private account and is not shared with other users.
           </P>
 
-          <H3>Google Calendar data</H3>
-          <P>
-            If you choose to connect your Google Calendar, {APP_NAME} requests access using
-            the scope{' '}
-            <code style={codeStyle}>https://www.googleapis.com/auth/calendar</code>.
-            We use this access to:
-          </P>
-          <Ul>
-            <li>Read your upcoming calendar events (next 7 days) from all calendars you have access to</li>
-            <li>Surface relevant events in your daily AI brief to help Jaune understand your schedule and energy context</li>
-          </Ul>
-          <P>
-            We do <strong>not</strong> modify or delete existing calendar events. We do{' '}
-            <strong>not</strong> share your calendar data with third parties. Calendar events
-            are cached temporarily (up to 30 minutes) to reduce API calls and improve
-            performance, then re-fetched automatically.
-          </P>
-          <P>
-            Your Google OAuth tokens (access token and refresh token) are stored securely
-            in our database with row-level security — only you can access your own tokens.
-            You can disconnect Google Calendar at any time from the Settings page, which
-            immediately deletes your tokens and all cached calendar data.
-          </P>
-
           <H3>Usage data</H3>
           <P>
             We may collect basic server logs (IP addresses, timestamps, request paths) for
@@ -106,7 +82,6 @@ export default function PrivacyPage() {
           <Ul>
             <li>Generate your personalised daily brief, pulse message, and weekly reflection using AI (Anthropic Claude)</li>
             <li>Track your habits, goals, and energy patterns over time</li>
-            <li>Surface calendar events in your AI context so the AI can give more relevant advice</li>
             <li>Improve your experience within the app</li>
           </Ul>
           <P>
@@ -119,7 +94,7 @@ export default function PrivacyPage() {
           <P>
             {APP_NAME} uses Anthropic&apos;s Claude API to generate personalised insights.
             When you use AI features, relevant portions of your data (energy levels, habits,
-            goals, calendar events, journal entries) are sent to Anthropic&apos;s API to
+            goals, journal entries) are sent to Anthropic&apos;s API to
             generate a response. This processing is governed by{' '}
             <a href="https://www.anthropic.com/privacy" style={linkStyle} target="_blank" rel="noopener noreferrer">
               Anthropic&apos;s Privacy Policy
@@ -134,11 +109,6 @@ export default function PrivacyPage() {
             your data is enforced using row-level security — database queries are
             automatically scoped to your account.
           </P>
-          <P>
-            OAuth tokens (including Google Calendar tokens) are stored in the same
-            secured database and are only accessible by your authenticated session.
-          </P>
-
           <H2>5. Data Retention and Deletion</H2>
           <P>
             Your data is retained for as long as your account is active. You can{' '}
@@ -147,13 +117,8 @@ export default function PrivacyPage() {
             Settings → Your data, and you can <strong>delete your account</strong>{' '}
             from the same place — deletion is immediate and permanent, removing all
             your personal data including journal entries, check-ins, goals, habits,
-            memory, and OAuth tokens. You can also request deletion by contacting{' '}
+            and memory. You can also request deletion by contacting{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>{CONTACT_EMAIL}</a>.
-          </P>
-          <P>
-            You can disconnect Google Calendar at any time from Settings → Integrations.
-            This immediately revokes our access and deletes your stored tokens and
-            cached calendar data.
           </P>
 
           <H2>6. Third-Party Services</H2>
@@ -161,7 +126,6 @@ export default function PrivacyPage() {
           <Ul>
             <li><strong>Supabase</strong> — authentication and database (<a href="https://supabase.com/privacy" style={linkStyle} target="_blank" rel="noopener noreferrer">Privacy Policy</a>)</li>
             <li><strong>Anthropic Claude</strong> — AI generation (<a href="https://www.anthropic.com/privacy" style={linkStyle} target="_blank" rel="noopener noreferrer">Privacy Policy</a>)</li>
-            <li><strong>Google Calendar API</strong> — calendar access, only if you connect it (<a href="https://policies.google.com/privacy" style={linkStyle} target="_blank" rel="noopener noreferrer">Privacy Policy</a>)</li>
             <li><strong>Vercel</strong> — hosting and deployment (<a href="https://vercel.com/legal/privacy-policy" style={linkStyle} target="_blank" rel="noopener noreferrer">Privacy Policy</a>)</li>
           </Ul>
 
@@ -171,7 +135,6 @@ export default function PrivacyPage() {
             <li>Access the personal data we hold about you — download it anytime from Settings → Your data</li>
             <li>Request correction of inaccurate data</li>
             <li>Delete your account and all associated data instantly from Settings → Your data</li>
-            <li>Revoke Google Calendar access at any time from within the app or via your <a href="https://myaccount.google.com/permissions" style={linkStyle} target="_blank" rel="noopener noreferrer">Google Account permissions page</a></li>
           </Ul>
           <P>
             To exercise any of these rights, contact us at{' '}

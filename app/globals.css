@@ -407,6 +407,50 @@ input:focus,    input:focus-visible {
   pointer-events: auto;
 }
 
+/* ── DOCK SCRIM — progressive blur so content dissolves into the dock ──
+   Three stacked backdrop-filter layers, each masked to a shorter band, so the
+   blur ramps up toward the bottom instead of cutting a hard-edged seam across
+   the wallpaper. Sits under the dock (z 100) and over .app-main (z 1). */
+.dock-scrim {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(140px + env(safe-area-inset-bottom, 0px));
+  z-index: 99;
+  pointer-events: none;
+  /* NOTE: declare only the standard property — adding -webkit-backdrop-filter
+     makes Lightning CSS emit the prefixed form *alone*, and Chrome 148+ has
+     dropped that alias, which silently kills the blur. */
+  backdrop-filter: blur(3px);
+  mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
+}
+
+.dock-scrim::before,
+.dock-scrim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.dock-scrim::before {
+  backdrop-filter: blur(10px);
+  mask-image: linear-gradient(to top, #000 0%, #000 14%, transparent 64%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 14%, transparent 64%);
+}
+
+.dock-scrim::after {
+  backdrop-filter: blur(24px) saturate(140%);
+  background: linear-gradient(to top, oklch(0.16 0.012 60 / 0.42), transparent);
+  mask-image: linear-gradient(to top, #000 0%, #000 6%, transparent 38%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 6%, transparent 38%);
+}
+
+[data-theme="light"] .dock-scrim::after {
+  background: linear-gradient(to top, oklch(0.98 0.008 90 / 0.55), transparent);
+}
+
 .app-main {
   flex: 1;
   overflow-y: auto;
@@ -415,7 +459,7 @@ input:focus,    input:focus-visible {
   position: relative;
   z-index: 1;
   min-height: 0;
-  padding-bottom: 84px;
+  padding-bottom: 112px;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }

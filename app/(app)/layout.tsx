@@ -111,6 +111,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="app-main">
           {children}
         </main>
+        {/* Progressive blur behind the dock so content dissolves rather than being sliced */}
+        <div aria-hidden className="dock-scrim" />
         <Sidebar
           userName={profile?.name ?? user.email?.split('@')[0] ?? 'You'}
           avatarUrl={profile?.avatar_url ?? null}

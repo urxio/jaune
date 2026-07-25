@@ -45,3 +45,8 @@ next-env.d.ts
 # claude code local state
 .claude/worktrees/
 .claude/settings.local.json
+
+# mac app (tauri)
+/desktop/node_modules
+/desktop/src-tauri/target/
+/desktop/src-tauri/gen/schemas

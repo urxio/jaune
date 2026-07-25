@@ -7,8 +7,6 @@ import { getActiveGoals } from '@/lib/db/goals'
 import { getUserTimezone } from '@/lib/db/users'
 import { dateInTz, hourInTz, daysBetween } from '@/lib/utils/date'
 import { getCachedPulse, storePulse } from '@/lib/db/pulse'
-import { getCalendarEventsForAI } from '@/lib/google/calendar'
-import { formatCalendarForPulse } from '@/lib/ai/calendar-context'
 
 export const runtime  = 'nodejs'
 export const dynamic  = 'force-dynamic'
@@ -30,12 +28,11 @@ export async function GET(req: Request) {
     }
   }
 
-  const [memory, checkin, habits, goals, calendarEvents, lastCheckinDate] = await Promise.all([
+  const [memory, checkin, habits, goals, lastCheckinDate] = await Promise.all([
     readUserMemory(user.id),
     getTodayCheckin(user.id),
     getUserHabitsWithLogs(user.id),
     getActiveGoals(user.id),
-    getCalendarEventsForAI(user.id),
     getLastCheckinDate(user.id),
   ])
 
@@ -74,9 +71,7 @@ export async function GET(req: Request) {
       : '',
   ].filter(Boolean).join('\n')
 
-  const calendarBlock = formatCalendarForPulse(calendarEvents, todayDate)
-
-  const contextParts = [profileBlock, memoryBlock, clarifyingBlock, todayBlock, calendarBlock].filter(Boolean)
+  const contextParts = [profileBlock, memoryBlock, clarifyingBlock, todayBlock].filter(Boolean)
   const context = contextParts.join('\n\n')
 
   const system = `You are Jaune, a warm and perceptive AI life companion. Your job is to write a short, specific, thoughtful message to open the user's home page pulse.

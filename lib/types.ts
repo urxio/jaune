@@ -182,19 +182,6 @@ export const WHEEL_AREAS: WheelArea[] = [
   { key: 'purpose',       label: 'Purpose & Meaning',  goalCategory: null        },
 ]
 
-export type CalendarEvent = {
-  id: string
-  title: string
-  start: string        // ISO datetime or date-only for all-day events
-  end: string
-  isAllDay: boolean
-  calendarName: string
-  location: string | null
-  description: string | null  // truncated to 200 chars
-  /** 'locus' = native Locus event (deletable); 'google' = Google Calendar (read-only) */
-  source?: 'locus' | 'google'
-}
-
 export type LocusEvent = {
   id: string
   user_id: string

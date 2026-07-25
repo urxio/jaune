@@ -1,6 +1,5 @@
 import type { BriefContext } from './context'
 import { formatMemoryForPrompt, formatPeopleForPrompt, formatCatchupForPrompt, formatClarifyingQAForPrompt, formatSelfProfileForPrompt, formatDailySummariesForPrompt, formatCorrelationsForPrompt } from './memory'
-import { formatCalendarForPrompt } from './calendar-context'
 
 function roundTo1(n: number): number { return Math.round(n * 10) / 10 }
 
@@ -26,7 +25,6 @@ TIER 2 — ADDRESS WHEN PRESENT (work in after Tier 1, as room allows):
 - NEGLECTED habits (0 completions this week): address at least one with a specific, low-friction restart matched to today's energy. If linked to a goal, name the cost: "skipping [habit] is stalling [goal]."
 - Goal urgency: close deadline + low progress, or weeks of stall, deserve a nudge. A 7+ day habit streak is momentum worth protecting; habits not done yet today belong in priorities when energy allows.
 - CATCH-UP LIST: the user explicitly wants to reconnect with these people. Surface the one who fits today best — never all at once.
-- UPCOMING CALENDAR EVENTS: hard time constraints. Fit priorities into the gaps; mention only events relevant to today's plan or goals.
 
 TIER 3 — COLOR (pick at most one or two, only when genuinely relevant to today):
 - ENERGY FORECAST day-of-week patterns; PREDICTION ACCURACY track record (one short clause, occasionally, never boastful).
@@ -233,13 +231,6 @@ export function buildUserMessage(ctx: BriefContext): string {
     ctx.yesterdayPlan.outcomes.forEach(o => {
       lines.push(`  ${SYMBOL[o.outcome] ?? o.outcome}: "${o.title}"`)
     })
-    lines.push('')
-  }
-
-  // ── UPCOMING CALENDAR EVENTS ──
-  const calendarBlock = formatCalendarForPrompt(ctx.calendarEvents)
-  if (calendarBlock) {
-    lines.push(calendarBlock)
     lines.push('')
   }
 

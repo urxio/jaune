@@ -29,6 +29,8 @@ export default function PulseReply({
   const [input,     setInput]     = useState('')
   const [streaming, setStreaming] = useState(false)
 
+  const canSend = input.trim().length > 0 && !streaming
+
   const inputRef  = useRef<HTMLTextAreaElement | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
   const abortRef  = useRef<AbortController | null>(null)
@@ -108,7 +110,7 @@ export default function PulseReply({
         onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
         onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M13 7.5a4.5 4.5 0 0 1-4.5 4.5H5l-3 2.5V7.5A4.5 4.5 0 0 1 6.5 3h2A4.5 4.5 0 0 1 13 7.5Z" />
         </svg>
         Reply to Jaune
@@ -157,7 +159,7 @@ export default function PulseReply({
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+      <div className="composer">
         <textarea
           ref={inputRef}
           value={input}
@@ -167,36 +169,23 @@ export default function PulseReply({
           }}
           rows={1}
           placeholder="Tell Jaune what to adjust…"
-          style={{
-            flex: 1, resize: 'none',
-            padding: '10px 14px',
-            borderRadius: '12px',
-            background: 'oklch(1 0 0 / 0.04)',
-            border: '1px solid oklch(1 0 0 / 0.1)',
-            color: 'var(--text-0)',
-            fontSize: '14px', lineHeight: 1.5, fontFamily: 'inherit',
-            outline: 'none',
-            maxHeight: '120px',
-          }}
+          className="composer-input"
         />
         <button
+          type="button"
           onClick={send}
-          disabled={!input.trim() || streaming}
-          style={{
-            flexShrink: 0,
-            width: '38px', height: '38px',
-            borderRadius: '50%', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: !input.trim() || streaming ? 'oklch(1 0 0 / 0.08)' : 'var(--gold)',
-            color: !input.trim() || streaming ? 'var(--text-3)' : 'oklch(0.2 0.05 80)',
-            cursor: !input.trim() || streaming ? 'default' : 'pointer',
-            transition: 'background 0.15s',
-          }}
-          aria-label="Send reply"
+          disabled={!canSend}
+          className="send-btn"
+          aria-label={streaming ? 'Sending reply' : 'Send reply'}
+          aria-busy={streaming}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 13V3M4 7l4-4 4 4" />
-          </svg>
+          {streaming ? (
+            <span className="send-btn-spinner" aria-hidden="true" />
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 14V3.6M3.6 8 8 3.6 12.4 8" />
+            </svg>
+          )}
         </button>
       </div>
     </div>

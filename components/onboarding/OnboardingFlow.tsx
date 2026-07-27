@@ -384,15 +384,20 @@ export default function OnboardingFlow({ userName, isRedo }: { userName: string;
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-0)', resize: 'none', lineHeight: 1.5, overflow: 'hidden', padding: '2px 0' }}
                 />
                 <button
+                  type="button"
                   onClick={handleSend}
                   disabled={!canSend}
-                  aria-label="Send"
-                  className="icon-btn"
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: canSend ? 'var(--gold)' : 'oklch(1 0 0 / 0.08)', border: 'none', color: canSend ? '#131110' : 'var(--text-3)', cursor: canSend ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, opacity 0.2s', alignSelf: 'flex-end', opacity: canSend ? 1 : 0.35 }}
+                  className="send-btn"
+                  aria-label={streaming ? 'Sending' : 'Send'}
+                  aria-busy={streaming}
                 >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M8 13V3M3 8l5-5 5 5"/>
-                  </svg>
+                  {streaming ? (
+                    <span className="send-btn-spinner" aria-hidden="true" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M8 14V3.6M3.6 8 8 3.6 12.4 8" />
+                    </svg>
+                  )}
                 </button>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-3)', padding: '0 14px 10px', opacity: 0.5 }}>

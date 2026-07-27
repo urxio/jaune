@@ -493,23 +493,20 @@ export default function ConversationalCheckin({
                   }}
                 />
                 <button
+                  type="button"
                   onClick={handleSend}
                   disabled={!canSend}
-                  aria-label="Send"
-                  style={{
-                    width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                    background: canSend ? 'var(--gold)' : 'oklch(1 0 0 / 0.08)', border: 'none',
-                    color: canSend ? '#131110' : 'var(--text-3)',
-                    cursor: canSend ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.2s, opacity 0.2s',
-                    alignSelf: 'flex-end',
-                    opacity: canSend ? 1 : 0.35,
-                  }}
+                  className="send-btn"
+                  aria-label={streaming ? 'Sending' : 'Send'}
+                  aria-busy={streaming}
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M8 13V3M3 8l5-5 5 5"/>
-                  </svg>
+                  {streaming ? (
+                    <span className="send-btn-spinner" aria-hidden="true" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M8 14V3.6M3.6 8 8 3.6 12.4 8" />
+                    </svg>
+                  )}
                 </button>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-3)', padding: '0 16px 10px', opacity: 0.55 }}>

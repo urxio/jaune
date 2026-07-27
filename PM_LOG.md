@@ -4,6 +4,76 @@ Running log of scheduled PM check-ins. Newest entries on top. Each entry: what w
 
 ---
 
+## 2026-07-26 (bobo-requested, not a scheduled run) — In-app feedback form built
+
+**Asked for:** a way for users to submit feedback that emails bobo. (Recipient address is configured via `FEEDBACK_TO_EMAIL` in `.env.local`/Vercel — kept out of this public repo on purpose.)
+
+**Built** (all uncommitted, per the no-autonomous-commit rail):
+- `supabase/migrations/030_feedback.sql` — `feedback` table (category, message, page, user agent, `emailed_at`). RLS: users insert/select their own only; bobo reads all via the dashboard service role.
+- `lib/email.ts` — Resend REST call via plain `fetch`, no new npm dependency. Non-throwing by design.
+- `app/api/feedback/route.ts` — auth, validation, rate limit (5/hour/user, counted off the table so it survives serverless cold starts), insert, then best-effort email with `reply_to` set to the submitter so bobo can just hit reply.
+- `components/settings/FeedbackSection.tsx` + wired into `SettingsView` between "Your data" and "System".
+
+**Design decision worth keeping:** the row is written *before* the email is attempted, and the route returns 200 once persisted. A provider outage or missing API key never loses a beta tester's report, and the table gives an aggregate view for the beta round in `BETA_PLAN.md` — which the email alone wouldn't.
+
+**Verified:** `tsc --noEmit` clean; eslint clean on the new files (one pre-existing `<img>` warning in `SettingsView`). API returns 401 unauthenticated (not 500) and 405 on GET — matches what `scripts/smoke-test-deploy.mjs` expects. UI rendered and interaction-tested (pills, textarea, enable/disable) in the dev server via a throwaway public route, since `/settings` needs a login; that route was deleted afterwards.
+
+**Resend (confirmed same day):** bobo already had a Resend account (since Apr 2026) with **`jaune.space` already verified** — so there's no recipient restriction and mail reaches the feedback inbox directly. `EMAIL_FROM=Jaune <feedback@jaune.space>` is set. Note the Resend account's own address differs from the feedback inbox, so the `onboarding@resend.dev` fallback sender would *not* reach the intended recipient — the verified domain is what makes it work. Advised against reusing the existing "Onboarding" API key (last used ~11h before, so another project depends on it); a dedicated `jaune-prod` key keeps revocation and Logs attribution clean.
+
+**Migration applied + end-to-end tested (same day):** migration `030_feedback.sql` run via the Supabase SQL editor (CLI needs an interactive browser login Claude can't drive). Discovered while checking: **migrations 001-029 were already applied in prod** — `brief_feedback` and `monthly_retrospectives` both exist — so `DEPLOY_CHECKLIST.md` §3's "unconfirmed" status is now resolved. Because the SQL editor path bypasses Supabase's migration tracking, `030_feedback.sql` was made idempotent (`drop policy if exists` before each `create policy`) so a later `supabase db push` re-running it succeeds instead of erroring.
+
+Tested end-to-end against the real route by minting a session for the `claude@jaune.com` test account (created 2026-07-25) via the admin API's magiclink flow and calling `/api/feedback` with a Bearer token — the mobile auth path, so no password involved. Verified: RLS blocks anonymous reads and inserts, the category check constraint rejects bad values, the row persists, and the email reaches the configured inbox.
+
+**Bug found and fixed during that test:** `emailed_at` was never being stamped. The route used the *user's* Supabase client for the update, but the RLS policies deliberately grant only INSERT and SELECT — so the write was silently rejected, with no error, making a successful send look like a failed one. Fixed by using the service-role client for that stamp, and by checking the returned error. Kept the policies as they are on purpose: giving users UPDATE would let them edit feedback after sending and forge the stamp. Also added `console.warn` on the two silent misconfiguration paths (`FEEDBACK_TO_EMAIL` or `RESEND_API_KEY` unset) — previously a misconfigured deploy would collect feedback and quietly never email anyone.
+
+**Two test rows are sitting in the prod `feedback` table** (`bug` and `praise`, both from the `claude` account) — delete whenever.
+
+**Not done — needs bobo:**
+1. **Vercel env vars.** `RESEND_API_KEY` (Production + Preview, marked Sensitive), `EMAIL_FROM`, `FEEDBACK_TO_EMAIL`, then a redeploy. Local `.env.local` is fully set and working; the live site is not.
+2. **Migration not applied.** No `supabase` CLI or `psql` on this machine, and `.env.local` points at the *production* project (`evrvllkvhutmlnupaqcg`) — there's no separate dev DB, so a local run would have been a prod schema change. The API route 500s until `supabase db push` runs. Note `DEPLOY_CHECKLIST.md` §3 still shows the initial push as unconfirmed.
+3. **Placement.** Settings-only right now. For the beta, reaching it from the dock or user menu would get more submissions.
+
+---
+
+## 2026-07-25 (scheduled run) — Two gaps found in the live site; deploy smoke test written; brief-cron investigated and recommended for deferral
+
+**Checked:** `git log` — bobo committed everything from the last two sessions (`3db1e56` Mac app scaffold + calendar removal, `f9a756a` frosted glass, `a6db3fb` hydration/onboarding/markdown fixes), and `git status` is **clean**. So the Tauri scaffold and the menu-bar/tray work are confirmed shipped and are marked `PM ✓` in the tracker. Also checked: still no `vercel.json`, no cron route, no `ios/`/`expo/` (none due yet), migrations now number 31 (tracker said 29). Could not reach `jaune.space` from this session — outbound fetches are restricted to URLs that appeared in the conversation — so the live site's behaviour is inferred from the repo, not observed.
+
+**Two gaps found, both on the live site, neither previously logged:**
+
+1. **Signup has no invite gate.** `IMPLEMENTATION_PLAN.md` Phase 3 lists "Invite code gate on signup"; it was never built — a repo-wide grep for `invite` returns one unrelated hit. `/signup` calls `supabase.auth.signUp()` with nothing in front of it, and `jaune.space` is publicly resolvable. Every signup that reaches onboarding immediately starts spending Anthropic tokens (onboarding chat, brief, pulse are all live model calls) and there's no rate limit or spend cap anywhere in the app. Google sign-in being in Testing status doesn't help — email+password is unrestricted. Risk is low *today* because nobody has the URL, and goes up the moment anything is posted publicly. Options and a recommendation are in the new `BETA_PLAN.md` §0; the short version is a Supabase-level allowlist now (30 min, no app code) and a real invite gate during the beta window.
+
+2. **The `/landing` waitlist form throws emails away.** `app/landing/page.tsx` (~line 893): the "Get early access" handler is `onClick={() => { if (email) setSubmitted(true) }}` and then renders "You're on the list." Nothing is stored, fetched, or sent. Contained for now — `jaune.space/` serves `app/DemoApp.tsx`, not `/landing`, and every DemoApp CTA points at `/login` — but the Aug 10 "landing page" task points straight at this file. Silently discarding early-access signups during a launch is the kind of thing you find out about afterwards. Not fixed here (it edits an existing file under `app/`); flagged with a fix sketch in `BETA_PLAN.md` §1.
+
+**Built this run** (all uncommitted, per the never-commit rail):
+
+- **`scripts/smoke-test-deploy.mjs`** — the Jul 27 task, automated. Read-only pass over the deployed app's unauthenticated surface: public pages return 200 with expected copy; every API route returns 401 rather than 500 (a 500 there is almost always a missing Vercel env var); the mobile `Bearer` path rejects a garbage token; `http://` redirects to `https://`; `www.` resolves; and two regressions stay fixed — no `locusai.space` in shipped HTML, and no Google Calendar text left in the privacy policy, which doubles as a check that the deploy is actually current. No DB writes, no Anthropic tokens, safe against production any time, exits non-zero so it can go into CI later. Syntax-checked and run against a dead port to confirm the failure path; **not yet run against jaune.space** — that's bobo's, one command.
+- **`BETA_PLAN.md`** — the Jul 30–Aug 19 window: the two gaps above, a 15-person recruitment mix biased toward people who'll actually use it daily, three drafts of recruitment copy (DM, email, community post) for bobo to edit, five feedback questions, and a concrete bar to clear before locking a Product Hunt date. The metric proposed as the one that matters: how many beta users reach a *third* check-in.
+- **`DEPLOY_CHECKLIST.md`** §5 and §6 rewritten with the smoke-test entry and the cron findings below.
+
+**Cron investigated and deliberately not built.** Three findings, worst first:
+
+- **The data layer can't be called outside a user request.** `buildBriefContext()` fans out to `lib/db/*`, and all 46 of those call sites use `createClient()`, which reads `cookies()`/`headers()` and leans on RLS to scope the query. A cron has no user, so every query returns nothing. Pre-generation needs either a refactor to inject a Supabase client (~19 existing lib files — needs bobo's go-ahead) or a self-call that mints a per-user session and hits `/api/brief/generate` with a Bearer token (touches nothing, but burns a magic-link token per user per day and leans on auth internals for a scheduling job).
+- **Vercel Hobby allows one cron run per day, fired anywhere within the scheduled hour.** Briefs are per-user-timezone, so a fixed-UTC run is right for one timezone band and wrong for the rest. "Generate at 5am local" needs an hourly cron → Pro ($20/mo) or an external trigger. Spend decision, not a code one.
+- **The value is thin at beta scale.** Briefs already generate on demand and cache for the day, so this buys ~5–10s off first load, against spending tokens every morning for users who may not open the app — and it's the machinery most likely to fail quietly at 5am.
+
+**Recommendation: defer the brief-generation cron until after beta** and spend Jul 28–29 on the invite gate instead. Revisit when brief load time draws a complaint or push notifications arrive, at which point pre-generation stops being a latency optimisation and becomes a prerequisite. The logging half of that window is genuinely cheap and mostly already true: Vercel captures `console.log`/`console.error` with no setup and the routes already log their failure paths; the one gap worth closing before real users is a 5xx alert, which is a dashboard setting.
+
+**Tracker updated.** Added a merge step so future seed changes (new tasks, retitles, PM-verified completions) fold into bobo's board without clobbering his checkmarks — previously seed edits were invisible to anyone who'd already opened it. Also fixed `TODAY`, which was hardcoded to `2026-07-23`, so overdue/due-soon colouring was two days stale.
+
+**On track / at risk:** Jul 25 of the Jul 22–29 window. Domain (due today) is done. **Migrations, due Jul 24, are the one genuinely overdue item** — reported as running on Jul 23 but never confirmed, and unconfirmable from here. Smoke test (Jul 27) now has tooling and needs one command plus a manual authed pass. Mac app is ~2 weeks ahead of schedule. Nothing in the iOS or marketing streams is due yet, but the Aug 5 Apple Developer enrolment wants lead time.
+
+**Needs bobo's decision:**
+
+1. **Invite gate — A (nothing), B (Supabase allowlist), or C (real invite codes)?** Until this is decided, jaune.space accepts unlimited signups that spend tokens. Recommendation: B now, C during the beta window.
+2. **Cron — accept the deferral, or approve the `lib/db` client-injection refactor?** The refactor is the right version of it if it's wanted sooner.
+3. **Did `supabase db push` actually complete?** Only bobo can confirm; blocks calling the deploy window done.
+4. Still open from Jul 23–24: add beta testers to Google's Test users list before inviting them; approve the Google-OAuth deep-link fix for the Mac app; Apple Developer account ($99/yr).
+
+Nothing under `app/`, `lib/`, `components/`, or `supabase/migrations/` was touched this run.
+
+---
+
 ## 2026-07-24 (in chat, bobo-initiated) — Mac app scaffolded and building; `Jaune.app` runs
 
 **Context:** bobo asked to start the Mac app. Per the playbook this belongs to the Jul 30–Aug 19 window (Tauri scaffold targeted Aug 3), so this is **ahead of schedule**, started while the webapp window (Jul 22–29) is still open. Flagged but not blocked — the webapp is live at jaune.space and the Tauri work touches no existing app/lib code.

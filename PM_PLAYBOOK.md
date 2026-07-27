@@ -17,8 +17,8 @@ Dates are targets to keep momentum, not hard deadlines — adjust in the tracker
 
 | Window | Focus | Key dates |
 |---|---|---|
-| Jul 22–29 | **Webapp to production** (this is the current focus — everything else is blocked on it) | Vercel + env vars Jul 23-24, migrations Jul 24, domain Jul 25, smoke test Jul 27, cron + logging Jul 28-29 |
-| Jul 30–Aug 19 | Mac app + beta recruitment, in parallel | Tauri scaffold Aug 3, beta users recruited Aug 5, landing page Aug 10, code sign/notarize Aug 12, clean-machine test Aug 14, beta feedback collected by Aug 19 |
+| Jul 22–29 | **Webapp to production** (this is the current focus — everything else is blocked on it) | Vercel + env vars Jul 23-24 ✅, migrations Jul 24 ⚠️ *unconfirmed*, domain Jul 25 ✅, smoke test Jul 27, ~~cron~~ → **invite gate** + logging Jul 28-29 |
+| Jul 30–Aug 19 | Mac app + beta recruitment, in parallel | ~~Tauri scaffold Aug 3~~ ✅ *done Jul 24*, beta users recruited Aug 5, landing page Aug 10, code sign/notarize Aug 12, clean-machine test Aug 14, beta feedback collected by Aug 19 |
 | Aug 5–Sep 14 | iOS app (Apple Developer account started early since approval can take days) | Dev account Aug 5, Expo scaffold Aug 28, TestFlight Sep 4, submit for review Sep 14 |
 | Sep 15–Oct 8 | Product Hunt launch | Assets Sep 20, hunter/date locked Sep 22, supporters lined up Sep 28, launch day Oct 1, follow-up through Oct 8 |
 
@@ -29,6 +29,10 @@ Dates are targets to keep momentum, not hard deadlines — adjust in the tracker
 **iOS app → Expo / React Native**, not a bare WebView wrapper. Reasoning: Apple's App Store guideline 4.2.3 rejects apps that are just a website in a wrapper — the iOS app needs real native screens. Expo/React Native reuses the team's existing React/TypeScript skills and hits the same Bearer-token API already added to `app/api/`. Pure native SwiftUI would look/feel slightly better but costs much more build time for a first release; revisit if the Expo app's feel becomes a real complaint.
 
 ## Marketing: Product Hunt + test users
+
+See [BETA_PLAN.md](BETA_PLAN.md) for the worked-out version of steps 1-2 (recruitment mix, copy drafts, feedback questions, and the gating problem below).
+
+**Correction, 2026-07-25:** step 1 below assumed an invite-code system exists. It doesn't — `IMPLEMENTATION_PLAN.md` Phase 3 lists it as an unchecked task and no code implements it. Signup on `jaune.space` is currently open to anyone. Resolve before recruiting.
 
 1. Recruit 10-20 private beta users through the existing invite-code system (`IMPLEMENTATION_PLAN.md` Phase 3). Goal: each completes 3+ check-ins and gives feedback before any public push.
 2. Build a one-page landing/waitlist site with a single clear line about what Jaune does differently (daily brief that knows your patterns — not another habit tracker).

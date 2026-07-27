@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="point-t point-d">
+  <title id="point-t">Jaune — Le Point app icon</title>
+  <desc id="point-d">Yellow disc on a white rounded square, sized for app icons and favicons.</desc>
+  <rect width="200" height="200" rx="44" fill="#FFFFFF"/>
+  <circle cx="100" cy="100" r="58" fill="#FFD100"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" role="img" aria-labelledby="lever-t lever-d">
+  <title id="lever-t">Jaune — Lever</title>
+  <desc id="lever-d">Yellow disc rising, cut by a hairline horizon rule at two-thirds height.</desc>
+  <rect width="300" height="200" fill="#FFFFFF"/>
+  <clipPath id="jaune-lever-horizon"><rect x="0" y="0" width="300" height="132"/></clipPath>
+  <circle cx="150" cy="150" r="58" fill="#FFD100" clip-path="url(#jaune-lever-horizon)"/>
+  <rect x="42" y="131" width="216" height="2" fill="#16150F"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" role="img" aria-labelledby="lueur-t lueur-d">
+  <title id="lueur-t">Jaune — Lueur</title>
+  <desc id="lueur-d">The disc as a soft light source with no hard edge.</desc>
+  <rect width="300" height="200" fill="#FFFFFF"/>
+  <radialGradient id="jaune-lueur-glow">
+    <stop offset="0%" stop-color="#FFD100"/>
+    <stop offset="46%" stop-color="#FFD100"/>
+    <stop offset="100%" stop-color="#FFD100" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="150" cy="100" r="82" fill="url(#jaune-lueur-glow)"/>
+</svg>

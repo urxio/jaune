@@ -21,6 +21,9 @@ Pulled from `.env.local.example` plus what the code actually reads.
 | `ANTHROPIC_API_KEY` | `lib/ai/client.ts`, brief/checkin/retrospective generation | prod key, watch spend once beta users are on |
 | `SEED_USER_EMAIL` | `scripts/seed.ts` | dev-only, don't set in Vercel prod env |
 | `CRON_SECRET` | not yet used — needed once the cron endpoint exists (see §5) | generate a random 16+ char string now so it's ready for Jul 28 |
+| `RESEND_API_KEY` | `lib/email.ts`, feedback form | **added 2026-07-26.** Optional — without it the feedback form still saves to the `feedback` table, it just doesn't email. Mark Sensitive. |
+| `EMAIL_FROM` | `lib/email.ts` | `Jaune <feedback@jaune.space>` — `jaune.space` confirmed verified in Resend 2026-07-26, so there's no recipient restriction. Falls back to `onboarding@resend.dev` if unset, which only delivers to the address on the Resend account itself — **not** the feedback inbox. |
+| `FEEDBACK_TO_EMAIL` | `app/api/feedback/route.ts` | bobo's feedback inbox — actual value lives in `.env.local` and Vercel, deliberately not in this public repo. If unset, no email is attempted (logged as a warning). |
 
 Set these in Vercel dashboard → Project → Settings → Environment Variables, scoped to Production (and Preview if you want preview deploys to hit a staging Supabase project instead of prod).
 
@@ -56,7 +59,7 @@ Set up 2026-07-23: App name set to "Jaune," logo uploaded (rendered from `app/ic
 
 ## 3. Migrations
 
-Repo has 29 migration files in `supabase/migrations/`, correctly ordered by filename (`002b` sorts between `002`/`003`, `019b` between `019`/`020` — no manual reordering needed).
+Repo has 30 migration files in `supabase/migrations/`, correctly ordered by filename (`002b` sorts between `002`/`003`, `019b` between `019`/`020` — no manual reordering needed). `030_feedback.sql` was added 2026-07-26 for the feedback form and has **not** been applied yet — the form's API route returns a 500 until it is.
 
 ```bash
 supabase login
@@ -64,7 +67,7 @@ supabase link --project-ref evrvllkvhutmlnupaqcg
 supabase db push
 ```
 
-- [ ] Run `supabase db push` against the prod project and confirm all 29 files applied (check `supabase_migrations.schema_migrations` row count)
+- [ ] Run `supabase db push` against the prod project and confirm all 30 files applied (check `supabase_migrations.schema_migrations` row count)
 - [ ] Do **not** hand-edit the prod schema in the Supabase SQL editor for anything that should be a migration — keep the migration history authoritative (per current Supabase guidance: prefer CI/CD-driven `db push` over local-machine pushes long-term, but for this first deploy a local `db push` is fine)
 
 ## 4. Vercel deploy + domain
@@ -80,18 +83,35 @@ supabase db push
 Two layers — the repo already has a prompt-quality smoke test but nothing that exercises the deployed app end-to-end yet:
 
 - [ ] **Prompt-level** (existing): `node scripts/smoke-test-prompt.mjs` — runs `tier1`/`tier0`/`retro` scenarios against the real system prompts. Cheap to run again post-deploy since it hits the Anthropic API directly, not the deployed app.
-- [ ] **App-level** (manual, do on the live domain): sign up → confirm magic-link/Google OAuth email arrives and completes → onboarding → create a goal + habit → submit a check-in → load Daily Brief and confirm a real Claude-generated brief renders (not a cached/placeholder one) → log a habit → confirm `/api/status` reflects it. (No Calendar connect step anymore — that feature was removed 2026-07-23.)
+- [ ] **Deploy-level** (new, added 2026-07-25): `node scripts/smoke-test-deploy.mjs https://jaune.space` — automated pass over the deployed app's unauthenticated surface. Read-only: public pages return 200 and contain expected copy, every API route returns 401 rather than 500 (a 500 there almost always means a missing env var on Vercel), the mobile Bearer path rejects a garbage token, `http://` redirects to `https://`, `www.` resolves, and two known regressions stay fixed (no `locusai.space` in shipped HTML, no Google Calendar text left in the privacy policy — a good proxy for whether the deploy is actually current). No DB writes, no Anthropic tokens; safe against production any time. Exits non-zero on failure, so it can go in CI later.
+- [ ] **App-level** (manual, do on the live domain — the script deliberately can't cover this): sign up → confirm magic-link/Google OAuth email arrives and completes → onboarding → create a goal + habit → submit a check-in → load Daily Brief and confirm a real Claude-generated brief renders (not a cached/placeholder one) → log a habit → confirm `/api/status` reflects it. (No Calendar connect step anymore — that feature was removed 2026-07-23.)
 - [ ] Consider adding a small unauthenticated `/api/health` route (DB connectivity + env var presence check) for uptime monitoring — flagging this as a suggestion, not building it now, since it's a new production surface and not yet an agreed tracker task.
 
 ## 6. Cron + logging (target Jul 28–29)
 
-Per `IMPLEMENTATION_PLAN.md`: "Use Vercel Cron to pre-generate briefs; no notification center needed." Nothing exists yet (no `vercel.json`, no cron route) — this is next-run's work, noted here so the design is ready:
+Per `IMPLEMENTATION_PLAN.md`: "Use Vercel Cron to pre-generate briefs; no notification center needed." Nothing exists yet (no `vercel.json`, no cron route).
 
-- Add `vercel.json` with a `crons` entry (e.g. daily at a fixed UTC hour) hitting a new `app/api/cron/generate-briefs/route.ts`
-- Secure it with `CRON_SECRET` (Vercel auto-sends it as the `Authorization` header on cron-triggered requests) — compare against `process.env.CRON_SECRET` in the route
-- Vercel Crons only fire on Production deployments, not Preview — fine here since it's prod-only work anyway
-- Route should loop active users, generate/cache briefs the same way `app/api/brief/generate/route.ts` does, and log failures per-user rather than aborting the whole run on one user's error
-- Logging: Vercel captures `console.log`/`console.error` automatically in the dashboard's Logs tab — no extra setup needed for basic visibility; `IMPLEMENTATION_PLAN.md` Phase 3 mentions "structured logging to Vercel logs" as a nice-to-have, revisit if debugging becomes painful
+**Investigated 2026-07-25 and deliberately not built.** Three findings, in order of how much they hurt:
+
+**a) The data layer can't be called outside a user request.** `buildBriefContext()` fans out to `lib/db/*`, and all 46 of those call sites use `createClient()` from `lib/supabase/server.ts`, which reads `cookies()`/`headers()` and relies on RLS scoping the query to the signed-in user. A cron request has no user, so every one of those queries returns nothing. Pre-generating briefs therefore needs one of:
+
+  - **Refactor** `lib/db/*` and `lib/ai/context.ts` to accept an injected Supabase client, so a service-role client can be passed in. Cleanest and reusable, but it edits ~19 existing lib files — needs bobo's go-ahead per the playbook rails, and shouldn't be done while the webapp window is still open.
+  - **Self-call over HTTP**: mint a per-user session server-side (`auth.admin.generateLink` → `verifyOtp`) and POST to the existing `/api/brief/generate` with a `Bearer` token, reusing the mobile auth path added in `5bd8def`. Touches zero existing code, but it burns a magic-link token per user per day and leans on auth internals for a scheduling job. Works; feels like a trap to maintain.
+
+**b) Vercel Hobby allows one cron run per day, fired at any point within the scheduled hour.** Jaune's briefs are per-user-timezone (`getUserLocalDate`), so a single fixed-UTC run lands at a sensible morning hour for one timezone band and the wrong hour for everyone else. Getting "generate at 5am local" needs an hourly cron → Pro plan ($20/mo), or an external hourly trigger (Supabase pg_cron / GitHub Actions) hitting the route. That's a spend decision, not a code one.
+
+**c) The value is thin at beta scale.** Briefs already generate on demand and cache for the day, so pre-generation buys ~5–10s off first load. Against that: it spends Anthropic tokens every morning for users who may never open the app, and it's the machinery most likely to fail quietly at 5am. For a 10–20 person private beta, on-demand generation is the better trade.
+
+**Recommendation: defer the brief-generation cron until after the beta**, and spend the Jul 28–29 window on the beta gating work in `BETA_PLAN.md` instead. Revisit when either (i) users complain about brief load time, or (ii) push notifications arrive — at which point pre-generation stops being a latency optimisation and starts being a prerequisite. If bobo wants it sooner, the refactor in (a) is the right version of it, not the self-call.
+
+For whenever it is built, the mechanics that were verified:
+
+- `vercel.json` with a `crons` entry pointing at `app/api/cron/generate-briefs/route.ts`
+- Vercel sends `CRON_SECRET` as `Authorization: Bearer <secret>` — compare against `process.env.CRON_SECRET` and 401 otherwise; also available: an `x-vercel-cron-schedule` header on every invocation
+- Crons fire on Production deployments only, not Preview
+- Loop users, and catch per-user so one failure doesn't abort the run
+
+**Logging** (the other half of this window, and genuinely cheap): Vercel captures `console.log`/`console.error` in the dashboard's Logs tab with no setup, and the existing routes already `console.error` their failure paths. Adequate for beta. `IMPLEMENTATION_PLAN.md` Phase 3's "structured logging" is a nice-to-have — revisit if debugging gets painful. The one gap worth closing before real users arrive is an alert on 5xx rates, which is a Vercel dashboard setting rather than code.
 
 ---
 

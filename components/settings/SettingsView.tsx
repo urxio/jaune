@@ -4,6 +4,7 @@ import { useState, useRef, useTransition } from 'react'
 import { updateProfile } from '@/app/actions/settings'
 import { signOut } from '@/app/actions/auth'
 import { deleteAccount } from '@/app/actions/account'
+import FeedbackSection from '@/components/settings/FeedbackSection'
 import { useToast } from '@/components/ui/ToastContext'
 import { createClient } from '@/lib/supabase/client'
 
@@ -496,6 +497,8 @@ export default function SettingsView({
       <AppearanceSection name={name} avatarUrl={avatarUrl} initialCoverUrl={coverUrl} />
 
       <ChangePasswordSection />
+
+      <FeedbackSection />
 
       <YourDataSection />
 

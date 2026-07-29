@@ -455,6 +455,59 @@ body::before {
   opacity: 0.5;
 }
 
+/* ── Stepper button (energy +/- on the backfill check-in) ── */
+.step-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-bright);
+  background: var(--bg-3);
+  color: var(--text-1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+              color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+
+/* Widen the tap target to ~44px without growing the visual control. The
+   sibling dial is non-interactive, so the rings overlapping it is harmless. */
+.step-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+.step-btn > svg { display: block; }
+
+.step-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--text-0);
+}
+
+.step-btn:active:not(:disabled) { transform: scale(0.92); }
+
+.step-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.step-btn:disabled {
+  border-color: var(--border);
+  color: var(--text-3);
+  cursor: default;
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-btn:active:not(:disabled) { transform: none; }
+}
+
 .send-btn-spinner {
   width: 14px;
   height: 14px;
@@ -782,10 +835,10 @@ input:focus,    input:focus-visible {
     max-width: 100%;
   }
 
-  /* Touch-target floor. .send-btn opts out: it keeps a fixed circular disc and
-     widens its own hit area to 44px via ::after, so stretching it here would
-     just turn the circle into an oval. */
-  button:not(.icon-btn):not(.send-btn), a[role="button"] {
+  /* Touch-target floor. Fixed-size circular controls opt out: they keep their
+     visual diameter and widen their own hit area to 44px via ::after, so
+     stretching them here would just turn the circle into an oval. */
+  button:not(.icon-btn):not(.send-btn):not(.step-btn), a[role="button"] {
     min-height: 44px;
   }
 }

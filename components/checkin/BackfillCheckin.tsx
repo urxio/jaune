@@ -1,6 +1,5 @@
 'use client'
 
-import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitCheckin } from '@/app/actions/checkin'
@@ -232,21 +231,23 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <button
+                        type="button"
                         onClick={() => updateForm(day.dateStr, { energy: Math.max(1, f.energy - 1) })}
                         disabled={f.energy === 1}
-                        style={stepBtnStyle(f.energy === 1)}
+                        className="step-btn"
                         aria-label="Decrease energy"
                       >
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l5 5 5-5"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
                       </button>
                       <EnergyDial level={f.energy} />
                       <button
+                        type="button"
                         onClick={() => updateForm(day.dateStr, { energy: Math.min(10, f.energy + 1) })}
                         disabled={f.energy === 10}
-                        style={stepBtnStyle(f.energy === 10)}
+                        className="step-btn"
                         aria-label="Increase energy"
                       >
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l5-5 5 5"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 10l5-5 5 5"/></svg>
                       </button>
                     </div>
                   </div>
@@ -367,17 +368,4 @@ export default function BackfillCheckin({ recentCheckins }: { recentCheckins: Ch
       })}
     </div>
   )
-}
-
-function stepBtnStyle(disabled: boolean): CSSProperties {
-  return {
-    width: '28px', height: '28px',
-    borderRadius: '50%',
-    border: `1px solid ${disabled ? 'oklch(1 0 0 / 0.08)' : 'oklch(1 0 0 / 0.18)'}`,
-    background: 'oklch(1 0 0 / 0.06)',
-    color: disabled ? 'oklch(1 0 0 / 0.2)' : 'oklch(0.93 0.012 80 / 0.7)',
-    cursor: disabled ? 'default' : 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  }
 }

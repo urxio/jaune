@@ -6,9 +6,9 @@ export const metadata: Metadata = {
 }
 
 const LAST_UPDATED = 'July 23, 2026'
-const CONTACT_EMAIL = 'privacy@locusai.space'
+const CONTACT_EMAIL = 'privacy@jaune.space'
 const APP_NAME = 'Jaune'
-const APP_URL = 'https://locusai.space'
+const APP_URL = 'https://jaune.space'
 
 export default function PrivacyPage() {
   return (

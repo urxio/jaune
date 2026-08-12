@@ -26,9 +26,6 @@ export async function proxy(request: NextRequest) {
 
   const publicPaths = ['/login', '/signup', '/auth/callback', '/landing', '/privacy', '/email-confirmed']
   const isPublic = pathname === '/' || publicPaths.some(p => pathname.startsWith(p))
-  // Onboarding is authenticated-only but not a "public" auth page
-  const isOnboarding = pathname.startsWith('/onboarding')
-
   // API routes authenticate themselves (cookie session or Bearer token for the
   // mobile app) and return proper 401s — a login redirect would break
   // non-browser clients, so let them through.
@@ -39,10 +36,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const isLanding = pathname === '/' || pathname.startsWith('/landing')
-
-  // Redirect authenticated users away from auth pages (but not onboarding or landing)
-  if (user && isPublic && !isOnboarding && !isLanding) {
+  // Redirect authenticated users away from authentication pages only.
+  // Other public pages, such as the privacy policy, must remain accessible.
+  const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/email-confirmed'
+  if (user && isAuthPage) {
     return NextResponse.redirect(new URL('/home', request.url))
   }
 

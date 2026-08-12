@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useTransition } from 'react'
-import Link from 'next/link'
 import { updateProfile } from '@/app/actions/settings'
 import { signOut } from '@/app/actions/auth'
 import { deleteAccount } from '@/app/actions/account'
@@ -531,12 +530,12 @@ export default function SettingsView({
       <div style={{ fontSize: '11px', color: 'var(--text-3)', textAlign: 'center', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
         <span>Jaune · AI Life OS</span>
         <span style={{ opacity: 0.4 }}>·</span>
-        <Link href="/privacy" style={{ color: 'var(--text-3)', textDecoration: 'none' }}
+        <a href="https://www.jaune.space/privacy" style={{ color: 'var(--text-3)', textDecoration: 'none' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
         >
           Privacy Policy
-        </Link>
+        </a>
       </div>
     </div>
   )
